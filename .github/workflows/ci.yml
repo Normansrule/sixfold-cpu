@@ -12,12 +12,20 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y iverilog verilator
       - name: Lint the SystemVerilog
         run: make lint
+      - name: Icarus Verilog compiles the RTL too (make rtl uses it; make test prefers Verilator)
+        run: |
+          iverilog -g2012 -o build_icarus.vvp $(cat src/sources.f) tb/riscv64_testbench.sv
+          iverilog -g2012 -DBASELINE -o build_icarus.vvp $(cat src/sources.f) tb/riscv64_testbench.sv
       - name: Regression (RTL vs model, cycle-exact, predictor on and off)
         run: make test
       - name: Verify the cycle equation
         run: make math
       - name: FPGA system (lint, then boot + upload + run every program over the simulated UART)
         run: make fpga-lint fpga-sim
+      - name: The board loader (tools/fpga_load.py) against a virtual board on a pseudo serial port
+        run: |
+          pip install pyserial
+          make fpga-load-test
       - name: FPGA synthesis check (ECP5, yosys only; place and route takes too long for CI)
         run: |
           sudo apt-get install -y yosys
@@ -29,5 +37,7 @@ jobs:
           yosys -q -p "read_verilog build/ci_fpga/system.v; synth_ecp5 -top SixfoldSystem" 
       - name: Generated docs and charts are up to date
         run: |
-          make docs charts diagram diagrams animations arena && node tools/perf_report.mjs > /dev/null
-          git diff --exit-code -- binary docs/img/pipeline docs/img/instructions docs/img/formats docs/img/charts docs/img/diagrams docs/img/animations docs/img/cpu_block_diagram.svg web/programs.js
+          make docs charts diagram diagrams animations arena && node tools/perf_report.mjs > /dev/null && node tools/readme_table.mjs --write
+          git diff --exit-code -- binary docs/img/pipeline docs/img/instructions docs/img/formats docs/img/charts docs/img/diagrams docs/img/animations docs/img/cpu_block_diagram.svg web/programs.js README.md docs/PERFORMANCE.md
+      - name: Every relative link and image in the docs resolves
+        run: make check-links

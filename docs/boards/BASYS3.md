@@ -64,6 +64,13 @@ To keep Sixfold on the board after power-off, write it to the Quad-SPI flash: in
 Manager, add the configuration memory device (the board's flash part, listed in the reference manual),
 program it with `sixfold.bit`, and set the board's mode jumper (JP1) to QSPI.
 
+## Before the board arrives
+
+`make fpga-virtual PROG=calculator` starts a virtual Sixfold board on a pseudo serial port: the same firmware
+and program on the cycle-exact model, reachable with `tools/fpga_load.py` and `screen` exactly as the real
+board is ([FPGA.md](../FPGA.md#5-no-board-yet-a-virtual-one)). The FPGA console on the project's web page is the
+same computer, drawn as a Basys 3 with clickable switches and buttons.
+
 ## Using it
 
 | You do | Sixfold does |
@@ -77,7 +84,7 @@ program it with `sixfold.bit`, and set the board's mode jumper (JP1) to QSPI.
 
 The serial port is the **second** of the two ports the FT2232HQ creates: often `/dev/ttyUSB1` on Linux,
 the higher-numbered COM port on Windows. From WSL, attach the board with `usbipd` first, or use Windows
-Python with the COM port (see [FPGA.md](../FPGA.md#7-bring-up-checklist)).
+Python with the COM port (see [FPGA.md](../FPGA.md#8-bring-up-checklist)).
 
 ### The calculator ([`fpga/examples/calculator.s`](../../fpga/examples/calculator.s))
 

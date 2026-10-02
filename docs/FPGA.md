@@ -181,7 +181,26 @@ Memory layout: firmware code and text at 0x0000 .. 0x0FFF (about 2 KiB used), th
 0x1000 .. 0x1FFF, and programs at 0x2000 .. 0xFFFF. The reset button restarts the firmware without
 erasing memory, so `r` runs the last loaded program again.
 
-## 5. Build it
+## 5. No board yet? A virtual one
+
+[`tools/virtual_board.py`](../tools/virtual_board.py) runs the whole computer on your PC behind a pseudo
+serial port: the same firmware on the cycle-exact model, with the same device registers (the emulation in
+[`web/fpga_system.js`](../web/fpga_system.js), shared with the site's console). Everything you would do with
+a board over its serial port works the same way:
+
+```
+pip install pyserial
+make fpga-virtual PROG=calculator              # prints its port, e.g. /dev/pts/3, and the LEDs and digits
+python3 tools/fpga_load.py programs/09_primes_sieve.s --port /dev/pts/3     # in a second terminal
+screen /dev/pts/3 115200                       # or the firmware's prompt directly (Ctrl-A K quits)
+make fpga-load-test                            # loads four programs with fpga_load.py and checks PASS
+```
+
+With `PROG=calculator`, type `r` at the prompt, then `u d l r c` act as the buttons (set the switches with
+`python3 tools/virtual_board.py --program fpga/examples/calculator.s --switches 0x0C05 --show`). The cycle
+counts it reports are the model's, so they equal the board's.
+
+## 6. Build it
 
 ### ULX3S (open-source tools)
 
@@ -218,7 +237,7 @@ openFPGALoader -b arty_a7_100t build/arty_a7/sixfold.bit
 python3 tools/fpga_load.py programs/05_fibonacci.s --port /dev/ttyUSB1
 ```
 
-## 6. Results
+## 7. Results
 
 | | ULX3S: ECP5 LFE5U-85F, speed grade 6 | Basys 3: Artix-7 XC7A35T-1 | Arty A7-100T: Artix-7 XC7A100T-1 |
 |---|---|---|---|
@@ -275,7 +294,7 @@ checks it). The Basys 3 estimate fell to 86%, and the ULX3S build from 44% to 41
 maximum clock moved from 26.6 MHz to between 24 and 25 MHz: the slowest path is still the data cache, and
 placements vary by a few MHz from run to run. So its default clock is now 20 MHz, with a 25% margin.
 
-## 7. Bring-up checklist
+## 8. Bring-up checklist
 
 1. **Nothing on the serial port.** Check the baud rate (115200). On the Arty and the Basys 3, try the
    *second* serial port of the FT2232HQ. Press reset (ULX3S: PWR; Arty: the red RESET; Basys 3: hold

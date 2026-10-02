@@ -264,7 +264,7 @@ $('chapters').innerHTML = CHAPTERS.map(([f, t, d]) => `<li><a href="${blob(`docs
 // ---------------------------------------------------------------- commands
 const CMDS = {
   'Quick start': [
-    ['sudo apt-get install -y nodejs iverilog verilator yosys graphviz gtkwave make git curl unzip', 'every tool the repository uses'],
+    ['sudo apt-get install -y nodejs iverilog verilator yosys graphviz gtkwave python3-serial make git curl unzip', 'every tool the repository uses'],
     [`git clone ${REPO}.git && cd ${REPO.split('/').pop()}`, 'get the code'],
     ['make test', 'all programs on the RTL and the model, compared cycle by cycle'],
     ['make serve', 'this page and the lab at http://localhost:8000/'],
@@ -291,6 +291,8 @@ const CMDS = {
   ],
   'FPGA board': [
     ['make fpga-sim', 'the whole FPGA computer in simulation: firmware, upload over the UART, run, report'],
+    ['make fpga-virtual PROG=calculator', 'a virtual board on a pseudo serial port: try fpga_load.py and a terminal without hardware'],
+    ['make fpga-basys3 PROG=calculator', 'bitstream for the Digilent Basys 3 (Vivado); the centre button runs the calculator'],
     ['make fpga-ulx3s PROG=20_leds_and_buttons', 'bitstream for the ULX3S (yosys + nextpnr-ecp5 + ecppack)'],
     ['openFPGALoader -b ulx3s build/ulx3s/sixfold.bit', 'program the board over USB'],
     ['python3 tools/fpga_load.py programs/22_multitasking.s --port /dev/ttyUSB0', 'send a program to the firmware and show what it prints'],

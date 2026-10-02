@@ -174,7 +174,7 @@ command's bytes into the upload stream that `fpga/sim/system_testbench.sv` plays
 
 ## Lab 20: a pipelined data cache for a faster FPGA clock
 
-On the FPGA the longest path is the data cache ([FPGA.md](FPGA.md#6-results)): the address add, both tag
+On the FPGA the longest path is the data cache ([FPGA.md](FPGA.md#7-results)): the address add, both tag
 reads, the compare and a store's write enables all happen in EXECUTE. Real FPGA soft cores split this.
 Register the address at the end of EXECUTE, then read and compare the tags in MEMORY: loads get one
 more cycle of latency (a load-use now waits two cycles instead of one), and stores write the line one

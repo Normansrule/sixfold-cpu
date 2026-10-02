@@ -27,7 +27,7 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 | **Clock (logic only)** | about **244 MHz** on SkyWater 130 nm and **1.95 GHz** on the ASAP7 7 nm research kit, with the full M and B extensions and interrupts: [PERFORMANCE.md](docs/PERFORMANCE.md) |
 | **FPGA** | a complete computer around the core: 64 KiB block-RAM main memory, UART with queues, 16 LEDs, 16 switches, 5 buttons, a four-digit seven-segment display, memory-mapped device registers, boot firmware that loads programs over USB and reports PASS and cycles. Builds for the **Digilent Basys 3** (Artix-7 XC7A35T, Vivado: every switch, button, LED and digit; about 86% of the chip), the **ULX3S** (Lattice ECP5-85F, open-source tools, placed and routed here) and the **Arty A7-100T** (Vivado): [FPGA.md](docs/FPGA.md). A hands-on example, [`calculator.s`](fpga/examples/calculator.s), does arithmetic on the switches when you press the buttons and shows the answer on the digits and the LEDs |
 | **Two builds** | the performance edition (default) and a simple baseline pipeline (`-DBASELINE`), both in the same RTL behind parameters |
-| **Verified** | 23 programs, a 1,630-case self-checking test (expected values from an independent Python model) and a 388-interrupt stress test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (100 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`) |
+| **Verified** | 23 programs, a 1,630-case self-checking test (expected values from an independent Python model) and a 388-interrupt stress test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (100 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
 | **Silicon** | the original design's real sky130 layout, timing and area, plus sky130 synthesis of this RTL |
 | **Runs on** | Icarus Verilog, Verilator, Yosys, nextpnr, Vivado, an FPGA board, any web browser |
 
@@ -140,7 +140,8 @@ cycle-exact model gives. The whole sequence runs in simulation too: `make fpga-s
 On a Basys 3, no PC is needed after programming it: the display says `bIOS`, the centre button runs the
 built-in program, and [`calculator.s`](fpga/examples/calculator.s) turns the board into a calculator (switches
 15–8 and 7–0 are the numbers; up, down, left and right add, subtract, multiply and divide) and a light
-painter. `make fpga-basys3 PROG=calculator` builds it.
+painter. `make fpga-basys3 PROG=calculator` builds it. No board yet? `make fpga-virtual PROG=calculator` runs the
+same computer behind a pseudo serial port, so `tools/fpga_load.py` and a terminal work exactly as with a board.
 
 ### 11. An interrupt, cycle by cycle
 
@@ -193,7 +194,7 @@ Or start with the [learning path](docs/learn/README.md) (9 short chapters) and t
 ## Quick start (Ubuntu or WSL)
 
 ```bash
-sudo apt-get install -y nodejs iverilog verilator yosys graphviz gtkwave make git curl unzip
+sudo apt-get install -y nodejs iverilog verilator yosys graphviz gtkwave python3-serial make git curl unzip
 git clone <this repository> && cd sixfold-cpu
 
 make test                          # every program on the RTL and the model, compared cycle by cycle
@@ -332,6 +333,9 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
   boots in simulation, receives every program over its serial port, runs it and reports. The
   reported cycle count must equal the model's. For the board examples it flips switches and presses
   buttons, and checks what is printed, lit and displayed.
+* `make fpga-load-test`: [`tools/fpga_load.py`](tools/fpga_load.py), the program that talks to a real board,
+  loads and runs programs on a virtual board behind a pseudo serial port and must read PASS.
+* `make check-links`: every relative link, image and `#anchor` in the documentation resolves.
 * Continuous integration runs all of it on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Experiments

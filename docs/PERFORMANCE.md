@@ -194,8 +194,12 @@ the next-PC multiplexer. The numbers move by a few percent from run to run of AB
 (this round saw 3.75 to 4.10 ns at 130 nm and 501 to 536 ps at 7 nm for very similar netlists), so a
 change smaller than about 5% is below what this logic-only flow can resolve.
 
+Re-measured after the Basys 3 round (which changed no logic of the core): `make timing` gives 3.66 ns
+(273 MHz) for the performance build and 3.35 ns for the baseline without its M unit. That is the same
+spread again, so this page, the README and the site keep the conservative 244 MHz.
+
 The caches are not in this measurement (they would be SRAM macros on a chip, timed separately). On an
-FPGA they are real logic, and there they set the clock: see [FPGA.md](FPGA.md#6-results).
+FPGA they are real logic, and there they set the clock: see [FPGA.md](FPGA.md#7-results).
 
 ## 2.5 GHz and 5 GHz
 

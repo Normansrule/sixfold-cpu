@@ -16,15 +16,15 @@ BPFLAG = $(if $(filter 0,$(BP)),--bp=off) --history=$(HIST) --config=$(CONFIG)
 
 TBDEF = $(if $(filter baseline,$(CONFIG)),-DBASELINE)
 FPGA_RTL = $(filter-out src/Scratchpad_Memory.sv src/Riscv64_top.sv,$(RTL)) $(shell cat fpga/sources.f)
-.PHONY: fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
+.PHONY: check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
 
 help:            ## list targets
-	@grep -E '^[a-z-]+:.*##' Makefile | sed 's/:.*##/\t/' | expand -t 14
-	@echo "\nvariables: PROG=<name in programs/ or tests/> (default $(PROG))  BP=1|0  HIST=<history bits> (default 6)  CONFIG=performance|baseline"
+	@grep -E '^[a-z0-9-]+:.*##' Makefile | sed 's/:.*##/\t/' | expand -t 14
+	@echo "\nvariables: PROG=<name in programs/, tests/ or fpga/examples/> (default $(PROG))  BP=1|0  HIST=<history bits> (default 6)  CONFIG=performance|baseline"
 
 deps:            ## install Ubuntu packages (needs sudo)
 	sudo apt-get update
-	sudo apt-get install -y nodejs npm iverilog verilator gtkwave yosys graphviz librsvg2-bin make git curl unzip
+	sudo apt-get install -y nodejs npm iverilog verilator gtkwave yosys graphviz librsvg2-bin python3-serial make git curl unzip
 
 test:            ## full regression: both builds, predictor on and off, RTL vs model cycle-exact (Verilator, else Icarus)
 	node tools/test.mjs
@@ -41,8 +41,8 @@ run:             ## run PROG on the model:   make run PROG=09_primes_sieve BP=0
 pipe:            ## ASCII pipeline chart of PROG
 	node tools/rv.mjs pipe $(SRC) --cycles 48 $(BPFLAG)
 
-bp:              ## predictor off vs gshare with 1..12 history bits on PROG
-	node tools/rv.mjs bp $(SRC)
+bp:              ## predictor off vs gshare with 1..12 history bits on PROG (CONFIG=baseline for the baseline build)
+	node tools/rv.mjs bp $(SRC) --config=$(CONFIG)
 
 cycle:           ## explain one cycle:        make cycle PROG=03_load_use C=5
 	node tools/rv.mjs cycle $(SRC) $(C) $(BPFLAG)
@@ -79,6 +79,12 @@ fpga-lint:       ## Verilator lint of the FPGA system (core + block RAM memory +
 
 fpga-sim:        ## the FPGA system in simulation: boot firmware, UART upload, run, report; cycles checked against the model
 	node tools/fpga_sim.mjs
+
+fpga-virtual:    ## a virtual board on a pseudo serial port, PROG in memory: talk to it with fpga_load.py or screen
+	python3 tools/virtual_board.py --program $(SRC) --show
+
+fpga-load-test:  ## tools/fpga_load.py against a virtual board: load, run and check PASS for a few programs (needs pyserial)
+	python3 tools/virtual_board.py --test programs/01_hello.s programs/09_primes_sieve.s programs/21_timer_interrupts.s programs/22_multitasking.s
 
 fpga-image:      ## block RAM image for the boards: firmware + PROG (build/fpga/memory.hex)
 	node tools/fpga_image.mjs $(SRC) --out build/fpga
@@ -140,6 +146,9 @@ schematics: build/synth/flat.v  ## Yosys schematics of small modules (docs/img/s
 	yosys -q -p "read_verilog build/synth/flat.v; chparam -set HISTORY_BITS 2 GSharePredictor; hierarchy -top GSharePredictor; proc; opt -full; clean; show -format svg -width -stretch -prefix docs/img/schematics/gshare_2bit GSharePredictor"
 	yosys -q -p "read_verilog build/synth/flat.v; hierarchy -top BranchControl; proc; opt -full; clean; show -format svg -width -stretch -prefix docs/img/schematics/branch_control BranchControl"
 	rm -f docs/img/schematics/*.dot
+
+check-links:     ## every relative link, image and #anchor in the Markdown and HTML files resolves
+	node tools/check_links.mjs
 
 serve:           ## the site at http://localhost:8000/ and the lab at http://localhost:8000/web/
 	@echo "open http://localhost:8000/ (site) or http://localhost:8000/web/ (lab)   Ctrl+C to stop"

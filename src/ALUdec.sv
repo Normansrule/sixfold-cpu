@@ -50,7 +50,7 @@ module ALUdec (
       FNC_SLT: base_operation = ALU_SLT;
       FNC_SLTU: base_operation = ALU_SLTU;
       FNC_XOR: base_operation = ALU_XOR;
-      FNC_SRL_SRA: base_operation = sra_type ? ALU_SRA : ALU_SRL;
+      FNC_SRL_SRA: if (sra_type) base_operation = ALU_SRA; else base_operation = ALU_SRL; // (if/else, not ?: : Icarus Verilog wants enums assigned directly)
       FNC_OR: base_operation = ALU_OR;
       FNC_AND: base_operation = ALU_AND;
       default: base_operation = ALU_XXX;
@@ -114,7 +114,7 @@ module ALUdec (
             end
           endcase
         end else if (funct == FNC_SRL_SRA) begin
-          ALUop = (funct7 == 7'b0110000) ? ALU_ROR : base_operation; // roriw, srliw, sraiw
+          if (funct7 == 7'b0110000) ALUop = ALU_ROR; else ALUop = base_operation; // roriw, srliw, sraiw
         end else begin
           ALUop = base_operation;
         end

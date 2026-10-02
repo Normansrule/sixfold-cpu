@@ -79,7 +79,11 @@ function cmdRun(args) {
   const max = +opt(args, '--max', 5e6), tf = opt(args, '--trace', null), lines = [];
   while (!core.halted && core.cycle < max) { const ev = core.step(); if (tf) lines.push(Core.traceLine(ev)); }
   if (tf) fs.writeFileSync(tf, lines.join('\n') + '\n');
-  if (!core.halted) { console.error(C(31, `no tohost write after ${max} cycles`)); process.exit(2); }
+  if (!core.halted) {
+    const waits = /FPGA-STEPS|FPGA-INPUT|fpga\/examples\//.test(args[0] + (fs.existsSync(args[0]) ? fs.readFileSync(args[0], 'utf8') : ''));
+    console.error(C(31, `no tohost write after ${max} cycles`) + (waits ? `\n(this program waits for buttons, switches or keys: try it in the site's FPGA console, or run node tools/fpga_sim.mjs ${args[0]})` : ''));
+    process.exit(2);
+  }
   if (core.output) { console.log(C(1, '── program output ─────────────────────────────────')); process.stdout.write(core.output); if (!core.output.endsWith('\n')) console.log(); }
   console.log(C(1, '── summary ────────────────────────────────────────'));
   for (const l of summary(core)) console.log(l);
@@ -195,13 +199,17 @@ export function predictorSweep(img, maxBits = 12, base = CONFIGS.performance) {
 
 function cmdBp(args) {
   const { img } = load(args[0]);
+  const config = CONFIGS[opt(args, '--config', 'performance')] ? opt(args, '--config', 'performance') : 'performance';
+  console.log(config === 'baseline' ? 'the baseline build (gshare alone, no BTB, no RAS): predictor off, then gshare with 1 to 12 history bits:\n'
+    : 'the performance edition (BHT + gshare + chooser, BTB, RAS): predictor off, then gshare with 1 to 12 history bits:\n');
   console.log('predictor                              cycles     CPI  mispredicts  accuracy');
-  for (const r of predictorSweep(img)) {
-    const mark = r.bits === 4 ? '  <- baseline' : r.bits === DEFAULT_HISTORY_BITS ? '  <- performance edition default' : '';
+  for (const r of predictorSweep(img, 12, CONFIGS[config])) {
+    const mark = r.bits === CONFIGS[config].historyBits ? `  <- this build's GSHARE_HISTORY_BITS` : '';
     console.log(`${r.label.padEnd(38)} ${String(r.cycles).padStart(7)}  ${r.cpi.toFixed(3)}  ${String(r.mispredicts).padStart(11)}  ${(100 * r.accuracy).toFixed(1).padStart(7)}%${mark}`);
   }
   console.log('\naccuracy = conditional branches predicted correctly / all conditional branches');
-  console.log('(JAL is always right: FETCH2 reads its target from the instruction. JALR always flushes.)');
+  console.log(config === 'baseline' ? '(JAL is always right: FETCH2 reads its target from the instruction. JALR always flushes.)'
+    : '(JALs are always right: the BTB or FETCH2 knows the target. Returns use the return address stack; other JALRs flush.)');
 }
 
 function cmdIsa() {
