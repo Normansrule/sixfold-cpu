@@ -52,6 +52,14 @@ module ALU (
     assign CTZ_RESULT = CTZ_ALL_ZERO ? 64'd64 : {58'd0, CTZ_COUNT};
     assign CPOP_RESULT = {44'd0, QUARTER_POPULATIONS}; // finished in MEMORY (src/Population_Count.sv)
 
+    // Rotations for Zknh: a rotate by a constant is only wiring.
+    function automatic logic [63:0] ror64(input logic [63:0] x, input int n);
+        return (x >> n) | (x << (64 - n));
+    endfunction
+    function automatic logic [31:0] ror32(input logic [31:0] x, input int n);
+        return (x >> n) | (x << (32 - n));
+    endfunction
+
     function automatic logic [63:0] alu (
         input logic [63:0] rs1, // First operand
         input logic [63:0] rs2, // Second operand
@@ -69,6 +77,7 @@ module ALU (
     logic [63:0] or_result; // Precomputed OR Result
     logic [63:0] xor_result; // Precomputed XOR Result
     logic [63:0] csr_result; // Precomputed CSR Clear-Bits Result
+    logic [31:0] sha256_sum0, sha256_sum1, sha256_sig0, sha256_sig1; // Zknh, on rs1[31:0]
     logic [63:0] sll_result; // Precomputed Shift Left Logical Result
     logic [63:0] sra_result; // Precomputed Shift Right Arithmetic Result
     logic [63:0] srl_result; // Precomputed Shift Right Logical Result
@@ -88,6 +97,10 @@ module ALU (
         bit_shift = rs2[5:0];
         word_bit_shift = rs2[4:0];
 
+        sha256_sum0 = ror32(rs1[31:0], 2) ^ ror32(rs1[31:0], 13) ^ ror32(rs1[31:0], 22);
+        sha256_sum1 = ror32(rs1[31:0], 6) ^ ror32(rs1[31:0], 11) ^ ror32(rs1[31:0], 25);
+        sha256_sig0 = ror32(rs1[31:0], 7) ^ ror32(rs1[31:0], 18) ^ (rs1[31:0] >> 3);
+        sha256_sig1 = ror32(rs1[31:0], 17) ^ ror32(rs1[31:0], 19) ^ (rs1[31:0] >> 10);
         and_result = rs1 & rs2; // Operand 1 AND Operand 2 (andn: DECODE already inverted rs2)
         or_result = rs1 | rs2; // Operand 1 OR Operand 2 (orn: inverted rs2)
         xor_result = rs1 ^ rs2; // Operand 1 XOR Operand 2 (xnor: inverted rs2)
@@ -140,6 +153,19 @@ module ALU (
             ALU_REV8: alu_result = rev8_result;
             ALU_ORC_B: alu_result = orc_b_result;
             ALU_BEXT: alu_result = {63'd0, srl_result[0]}; // the bit the right shifter brings down to position 0
+            // Zknh: rotations are free (wires), so each is a 3-input XOR per bit. The 32-bit SHA-256 forms
+            // sign-extend their result, as the specification requires.
+            ALU_SHA256SUM0: alu_result = {{32{sha256_sum0[31]}}, sha256_sum0};
+            ALU_SHA256SUM1: alu_result = {{32{sha256_sum1[31]}}, sha256_sum1};
+            ALU_SHA256SIG0: alu_result = {{32{sha256_sig0[31]}}, sha256_sig0};
+            ALU_SHA256SIG1: alu_result = {{32{sha256_sig1[31]}}, sha256_sig1};
+            ALU_SHA512SUM0: alu_result = ror64(rs1, 28) ^ ror64(rs1, 34) ^ ror64(rs1, 39);
+            ALU_SHA512SUM1: alu_result = ror64(rs1, 14) ^ ror64(rs1, 18) ^ ror64(rs1, 41);
+            ALU_SHA512SIG0: alu_result = ror64(rs1, 1)  ^ ror64(rs1, 8)  ^ (rs1 >> 7);
+            ALU_SHA512SIG1: alu_result = ror64(rs1, 19) ^ ror64(rs1, 61) ^ (rs1 >> 6);
+            // hsec.cteq: equality WITHOUT a branch. A compare-and-branch leaks, through timing, how far
+            // two secrets agree; one ALU operation takes the same cycle whatever the operands are.
+            ALU_CTEQ: alu_result = {63'd0, (xor_result == 64'd0)};
             default: alu_result = 64'd0; // Default Case for any edge cases not covered (ALU_XXX and the M extension which uses the Multiply Divide Unit)
         endcase
 

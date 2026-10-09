@@ -13,7 +13,7 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 
 | | |
 |---|---|
-| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr: **113 instructions**, every one documented [in binary](binary/README.md) |
+| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr + **Zknh** (SHA-2, `sha256sig0` ...) + one custom instruction, `hsec.cteq`, added step by step in [chapter 10](docs/learn/10_adding_instructions.md): **122 instructions**, every one documented [in binary](binary/README.md) |
 | **Pipeline** | FETCH1 → FETCH2 → DECODE → EXECUTE → MEMORY → WRITEBACK, in order, one instruction per cycle |
 | **Hazards** | forwarding into DECODE from EXECUTE / MEMORY / WRITEBACK (the late EXECUTE value takes its own short path), 1-cycle `LOAD_STALL` for loads and the 2-cycle Zbb results (`cpop`, which finishes its count in MEMORY, and `min`, `max`) |
 | **Branch prediction** | tournament: a per-branch Branch History Table and `GSharePredictor` (PC xor global history, checkpoint repair) with a chooser; a 16-entry Branch Target Buffer (known taken branches cost 0 cycles); an 8-entry Return Address Stack |
@@ -218,7 +218,7 @@ stage the instruction is in. Rings are forwarded operands, hatched boxes are hel
 grey crossed-out rows were fetched down a wrong path and squashed. Above: a `jal` squashes one
 instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 
-## Learn it: eight chapters
+## Learn it: ten chapters
 
 | | chapter | picture you will be able to read |
 |---|---|---|
@@ -230,6 +230,8 @@ instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 | 6 | [Measuring performance](docs/learn/06_performance.md) | the CPI stack |
 | 7 | [From RTL to silicon](docs/learn/07_silicon.md) | a chip layout, a timing path |
 | 8 | [Using the CPU: write your own program](docs/learn/08_using_the_cpu.md) | your own program's pipeline |
+| 9 | [Devices, interrupts and booting](docs/learn/09_devices_and_interrupts.md) | the memory map, an interrupt cycle by cycle |
+| 10 | [Adding an instruction: SHA-2 in hardware, and one of our own](docs/learn/10_adding_instructions.md) | an instruction's bit pattern, through all five layers |
 
 ## Instructions in binary
 
@@ -303,6 +305,7 @@ performance edition.
 | [`20_leds_and_buttons`](programs/20_leds_and_buttons.s) | talking to devices (memory-mapped I/O) and Zbs | 1196 | 1.18 | 1449 | 1.43 |
 | [`21_timer_interrupts`](programs/21_timer_interrupts.s) | a timer interrupt, taken precisely in the middle of a loop | 10056 | 1.03 | 19255 | 2.02 |
 | [`22_multitasking`](programs/22_multitasking.s) | a tiny preemptive operating-system kernel, three tasks | 82959 | 2.43 | 90159 | 2.60 |
+| [`23_sha256`](programs/23_sha256.s) | SHA-256 with and without the Zknh instructions | 7648 | 1.05 | 8324 | 1.15 |
 
 ## Down to silicon
 

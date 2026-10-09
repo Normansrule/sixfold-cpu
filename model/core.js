@@ -42,7 +42,7 @@ export const CONFIGS = {
 // ControlUnit USES_REGISTER1 / USES_REGISTER2 (by opcode, exactly as src/Control_Unit.sv)
 export function usesRegisters(word) {
   const op = word & 0x7f, f3 = (word >>> 12) & 7;
-  if (op === 0x33 || op === 0x3b || op === 0x23 || op === 0x63) return { rs1: true, rs2: true };
+  if (op === 0x33 || op === 0x3b || op === 0x23 || op === 0x63 || op === 0x0b) return { rs1: true, rs2: true };
   if (op === 0x13 || op === 0x1b || op === 0x03 || op === 0x67) return { rs1: true, rs2: false };
   if (op === 0x73) return { rs1: f3 === 1 || f3 === 2 || f3 === 3, rs2: false };
   return { rs1: false, rs2: false };
@@ -68,7 +68,7 @@ const sextN = (v, n) => BigInt.asIntN(n, BigInt(v));
 // ---------------------------------------------------------------- ControlUnit + ALUdec
 // Mirrors src/Control_Unit.sv and src/ALUdec.sv exactly (by opcode/funct bits, not by name).
 export const OPC = { LUI: 0x37, AUIPC: 0x17, JAL: 0x6f, JALR: 0x67, BRANCH: 0x63, STORE: 0x23, LOAD: 0x03,
-  OP: 0x33, OP_IMM: 0x13, OP_32: 0x3b, OP_IMM_32: 0x1b, SYSTEM: 0x73 };
+  OP: 0x33, OP_IMM: 0x13, OP_32: 0x3b, OP_IMM_32: 0x1b, SYSTEM: 0x73, CUSTOM0: 0x0b };
 export const WB = { ALU: 0, MEMORY: 1, PC_ADD_4: 2, CSR: 3 };
 export const WB_NAMES = ['ALU', 'MEMORY', 'PC_ADD_4', 'CSR'];
 const ARITH = ['ADD', 'SLL', 'SLT', 'SLTU', 'XOR', 'SRL_SRA', 'OR', 'AND'];
@@ -84,7 +84,9 @@ export function aluDecode(word) {
   switch (op) {
     case OPC.OP_IMM:
       if (f3 === 0b001) {
-        r.aluOp = ({ 0x600: 'CLZ', 0x601: 'CTZ', 0x602: 'CPOP', 0x604: 'SEXT_B', 0x605: 'SEXT_H' })[f12] || 'SLL';
+        r.aluOp = ({ 0x600: 'CLZ', 0x601: 'CTZ', 0x602: 'CPOP', 0x604: 'SEXT_B', 0x605: 'SEXT_H',
+          0x100: 'SHA256SUM0', 0x101: 'SHA256SUM1', 0x102: 'SHA256SIG0', 0x103: 'SHA256SIG1', // Zknh
+          0x104: 'SHA512SUM0', 0x105: 'SHA512SUM1', 0x106: 'SHA512SIG0', 0x107: 'SHA512SIG1' })[f12] || 'SLL';
         if (r.aluOp === 'SLL') { // Zbs immediates: bseti bclri binvi are OR / AND / XOR with 1 << shamt
           if (f6 === 0b001010) Object.assign(r, { aluOp: 'OR', oneB: 1 });
           else if (f6 === 0b010010) Object.assign(r, { aluOp: 'AND', oneB: 1, invB: 1 });
@@ -120,6 +122,9 @@ export function aluDecode(word) {
       else if (f7 === 0b0000100 && word32 && f3 === 0b100) Object.assign(r, { aluOp: 'ZEXT_H', full: 1 });
       break;
     }
+    case OPC.CUSTOM0: // hsec.cteq (custom-0, funct7 0, funct3 110)
+      if (f7 === 0 && f3 === 0b110) r.aluOp = 'CTEQ';
+      break;
     default: break;
   }
   return r;
@@ -146,6 +151,11 @@ export function control(word) {
     case OPC.OP: case OPC.OP_32: {
       Object.assign(c, { regWrite: 1, isMulDiv: md ? 1 : 0 });
       const d = dec(); c.isWord = op === OPC.OP_32 && !d.full ? 1 : 0;
+      break;
+    }
+    case OPC.CUSTOM0: { // hsec.cteq: an R-type ALU instruction in an opcode of our own
+      c.regWrite = (f7 === 0 && f3 === 0b110) ? 1 : 0;
+      dec();
       break;
     }
     case OPC.OP_IMM: case OPC.OP_IMM_32: {
@@ -190,6 +200,7 @@ export function immediate(word, type) {
 const clz64 = x => { if (x === 0n) return 64n; let n = 0n; for (let i = 63n; i >= 0n && !((x >> i) & 1n); i--) n++; return n; };
 const ctz64 = x => { if (x === 0n) return 64n; let n = 0n; while (!((x >> n) & 1n)) n++; return n; };
 const cpop64 = x => { let n = 0n; while (x) { n += x & 1n; x >>= 1n; } return n; };
+const ror32 = (x, n) => u32((u32(x) >> n) | (u32(x) << (32n - n)));
 const rot = (x, s, w, left) => { const m = (1n << w) - 1n; s %= w; if (s === 0n) return x & m; return left ? (((x << s) | (x >> (w - s))) & m) : (((x >> s) | (x << (w - s))) & m); };
 export const SUBTRACTS = new Set(['SUB', 'SLT', 'SLTU', 'MIN', 'MINU', 'MAX', 'MAXU']);
 export function alu(a, b, op, isWord) {
@@ -236,6 +247,16 @@ export function alu(a, b, op, isWord) {
     case 'ZEXT_H': return a & 0xffffn;
     case 'REV8': { let r = 0n; for (let i = 0n; i < 8n; i++) r |= ((a >> (8n * i)) & 0xffn) << (8n * (7n - i)); return r; }
     case 'BEXT': return (a >> sh) & 1n;
+    // Zknh: SHA-2 sigma and sum functions (SHA-256 forms work on rs1[31:0] and sign-extend)
+    case 'SHA256SUM0': return sx32(ror32(a, 2n) ^ ror32(a, 13n) ^ ror32(a, 22n));
+    case 'SHA256SUM1': return sx32(ror32(a, 6n) ^ ror32(a, 11n) ^ ror32(a, 25n));
+    case 'SHA256SIG0': return sx32(ror32(a, 7n) ^ ror32(a, 18n) ^ (u32(a) >> 3n));
+    case 'SHA256SIG1': return sx32(ror32(a, 17n) ^ ror32(a, 19n) ^ (u32(a) >> 10n));
+    case 'SHA512SUM0': return rot(a, 28n, 64n, false) ^ rot(a, 34n, 64n, false) ^ rot(a, 39n, 64n, false);
+    case 'SHA512SUM1': return rot(a, 14n, 64n, false) ^ rot(a, 18n, 64n, false) ^ rot(a, 41n, 64n, false);
+    case 'SHA512SIG0': return rot(a, 1n, 64n, false) ^ rot(a, 8n, 64n, false) ^ (a >> 7n);
+    case 'SHA512SIG1': return rot(a, 19n, 64n, false) ^ rot(a, 61n, 64n, false) ^ (a >> 6n);
+    case 'CTEQ': return (a ^ b) === 0n ? 1n : 0n; // hsec.cteq: equality with no branch
     case 'ORC_B': { let r = 0n; for (let i = 0n; i < 8n; i++) if ((a >> (8n * i)) & 0xffn) r |= 0xffn << (8n * i); return r; }
     default: return 0n;
   }

@@ -9,7 +9,7 @@ introduction read the [learning path](learn/README.md) first.
 
 | property | value |
 |---|---|
-| instruction set | RV64I + M (multiply/divide) + B (Zba address generation, Zbb bit manipulation, Zbs single-bit) + Zicsr (CSR instructions) + machine-mode traps and interrupts (`ecall`, `ebreak`, `mret`, `wfi`): 113 instructions, see [`binary/`](../binary/README.md) |
+| instruction set | RV64I + M (multiply/divide) + B (Zba address generation, Zbb bit manipulation, Zbs single-bit) + Zicsr (CSR instructions) + Zknh (SHA-2 hash functions) + `hsec.cteq` (custom-0, constant-time equality; [chapter 10](learn/10_adding_instructions.md)) + machine-mode traps and interrupts (`ecall`, `ebreak`, `mret`, `wfi`): 122 instructions, see [`binary/`](../binary/README.md) |
 | traps | `ecall` / `ebreak` save the PC in `mepc` and the cause in `mcause` (11 / 3) and jump to `mtvec`; `mret` returns to `mepc`; `mstatus` MIE/MPIE are saved and restored |
 | pipeline | 6 stages, in order, single issue: FETCH1, FETCH2, DECODE, EXECUTE, MEMORY, WRITEBACK |
 | data hazards | forwarding **into DECODE** from EXECUTE, MEMORY, WRITEBACK; 1-cycle `LOAD_STALL` |

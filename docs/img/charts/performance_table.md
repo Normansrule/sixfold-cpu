@@ -23,7 +23,9 @@
 | `20_leds_and_buttons` |  | 1,266 | 1.25 | 1,196 | **1.18** | 168.8 µs | 4.90 µs | 0.61 µs |
 | `21_timer_interrupts` |  | 13,236 | 1.36 | 10,056 | **1.03** | 1764.8 µs | 41.21 µs | 5.16 µs |
 | `22_multitasking` | yes | 35,510 | 1.35 | 82,959 | **2.43** | 4734.7 µs | 340.00 µs | 42.56 µs |
+| `23_sha256` |  | 7,574 | 1.04 | 7,648 | **1.05** | 1009.9 µs | 31.34 µs | 3.92 µs |
 | `interrupt_stress` | yes | 16,062 | 1.48 | 21,540 | **1.90** | 2141.6 µs | 88.28 µs | 11.05 µs |
 | `isa_selfcheck` | yes | 14,346 | 1.15 | 31,292 | **2.51** | 1912.8 µs | 128.25 µs | 16.06 µs |
+| `zknh_selfcheck` |  | 2,401 | 1.12 | 4,494 | **2.09** | 320.1 µs | 18.42 µs | 2.31 µs |
 
-Geometric-mean speed-up of the performance edition over the baseline, both on 130 nm: **24.3x** (clock and cycles together). Cache misses are included: these programs are tiny, so their few cold misses weigh heavily.
+Geometric-mean speed-up of the performance edition over the baseline, both on 130 nm: **24.2x** (clock and cycles together). Cache misses are included: these programs are tiny, so their few cold misses weigh heavily.

@@ -35,6 +35,10 @@ package opcode_pkg;
   // Control status register
   localparam logic [6:0] OPC_CSR       = 7'b1110011;
 
+  // custom-0: an opcode the RISC-V specification reserves for vendor extensions, so
+  // no standard instruction will ever land here (docs/learn/10_adding_instructions.md)
+  localparam logic [6:0] OPC_CUSTOM0   = 7'b0001011;
+
   // ***** Function codes (funct3) *****
 
   // Branch funct3 codes

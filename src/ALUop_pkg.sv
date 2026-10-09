@@ -42,6 +42,18 @@ package alu_op_pkg;
     ALU_REV8   = 6'd44, // byte reverse
     ALU_ORC_B  = 6'd45, // OR-combine each byte
     ALU_BEXT   = 6'd46, // Zbs: extract bit rs2[5:0] (bset / bclr / binv are OR / AND / XOR with a prepared operand)
+    // Zknh (ratified, Scalar Cryptography): the SHA-2 sigma and sum functions, one per instruction.
+    // See docs/learn/10_adding_instructions.md -- these are the worked example of adding an extension.
+    ALU_SHA256SUM0 = 6'd47,
+    ALU_SHA256SUM1 = 6'd48,
+    ALU_SHA256SIG0 = 6'd49,
+    ALU_SHA256SIG1 = 6'd50,
+    ALU_SHA512SUM0 = 6'd51,
+    ALU_SHA512SUM1 = 6'd52,
+    ALU_SHA512SIG0 = 6'd53,
+    ALU_SHA512SIG1 = 6'd54,
+    // Custom (custom-0 opcode): constant-time equality, the worked example of inventing an instruction
+    ALU_CTEQ   = 6'd55,
     // (Zba needs no new operation: shNadd and .uw are an ADD or SLL with operand A prepared in DECODE,
     //  andn / orn / xnor are AND / OR / XOR with operand B inverted in DECODE)
     // ===============================================

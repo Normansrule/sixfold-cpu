@@ -70,7 +70,7 @@ module ControlUnit (
     // so "addi a1, zero, 5" right after "ld t0" no longer stalls just because its immediate looks like x5.
     always_comb begin
         unique case (INSTRUCTION_OPCODE)
-            OPC_ARI_RTYPE, OPC_ARI_RTYPE_WORD, OPC_STORE, OPC_BRANCH: begin USES_REGISTER1 = 1'b1; USES_REGISTER2 = 1'b1; end
+            OPC_ARI_RTYPE, OPC_ARI_RTYPE_WORD, OPC_STORE, OPC_BRANCH, OPC_CUSTOM0: begin USES_REGISTER1 = 1'b1; USES_REGISTER2 = 1'b1; end
             OPC_ARI_ITYPE, OPC_ARI_ITYPE_WORD, OPC_LOAD, OPC_JALR: begin USES_REGISTER1 = 1'b1; USES_REGISTER2 = 1'b0; end
             OPC_CSR: begin USES_REGISTER1 = (INSTRUCTION_FUNCT3 == FNC_RW) || (INSTRUCTION_FUNCT3 == FNC_RS) || (INSTRUCTION_FUNCT3 == FNC_RC); USES_REGISTER2 = 1'b0; end
             default: begin USES_REGISTER1 = 1'b0; USES_REGISTER2 = 1'b0; end // LUI, AUIPC, JAL, FENCE
@@ -143,6 +143,10 @@ module ControlUnit (
             OPC_ARI_RTYPE: begin
                 REGISTER_WRITE_ENABLE = 1'b1;
                 IS_A_MULTIPLY_DIVIDE_INSTRUCTION = INSTRUCTION_MULTIPLY_DIVIDE_TYPE;
+                WRITEBACK_SELECT = WRITEBACK_ALU;
+            end
+            OPC_CUSTOM0: begin // hsec.cteq: an R-type ALU instruction in an opcode of our own
+                REGISTER_WRITE_ENABLE = (INSTRUCTION_FUNCT7 == 7'b0000000) && (INSTRUCTION_FUNCT3 == 3'b110);
                 WRITEBACK_SELECT = WRITEBACK_ALU;
             end
             OPC_ARI_ITYPE: begin

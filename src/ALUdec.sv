@@ -80,6 +80,14 @@ module ALUdec (
             12'h602: ALUop = ALU_CPOP;
             12'h604: ALUop = ALU_SEXT_B;
             12'h605: ALUop = ALU_SEXT_H;
+            12'h100: ALUop = ALU_SHA256SUM0; // Zknh: same opcode and funct3 as clz, a new funct12
+            12'h101: ALUop = ALU_SHA256SUM1;
+            12'h102: ALUop = ALU_SHA256SIG0;
+            12'h103: ALUop = ALU_SHA256SIG1;
+            12'h104: ALUop = ALU_SHA512SUM0;
+            12'h105: ALUop = ALU_SHA512SUM1;
+            12'h106: ALUop = ALU_SHA512SIG0;
+            12'h107: ALUop = ALU_SHA512SIG1;
             default: begin
               unique case (funct6)
                 6'b001010: begin ALUop = ALU_OR; OPERAND_B_SINGLE_BIT = 1'b1; end // bseti
@@ -200,6 +208,9 @@ module ALUdec (
           FNC_RWI: ALUop = ALU_COPY_B;
           default: ALUop = ALU_XXX;
         endcase
+      end
+      OPC_CUSTOM0: begin // custom-0, R-type: hsec.cteq is funct7 = 0, funct3 = 110
+        if (funct7 == 7'b0000000 && funct == 3'b110) ALUop = ALU_CTEQ;
       end
     default: ALUop = ALU_XXX;
     endcase

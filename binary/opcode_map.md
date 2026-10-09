@@ -6,7 +6,7 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 | inst[6:5] \ inst[4:2] | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
 |---|---|---|---|---|---|---|---|---|
-| **00** | **LOAD**<br>`0000011` | · | · | **MISC_MEM**<br>`0001111` | **OP_IMM**<br>`0010011` | **AUIPC**<br>`0010111` | **OP_IMM_32**<br>`0011011` | · |
+| **00** | **LOAD**<br>`0000011` | · | **CUSTOM_0**<br>`0001011` | **MISC_MEM**<br>`0001111` | **OP_IMM**<br>`0010011` | **AUIPC**<br>`0010111` | **OP_IMM_32**<br>`0011011` | · |
 | **01** | **STORE**<br>`0100011` | · | · | · | **OP**<br>`0110011` | **LUI**<br>`0110111` | **OP_32**<br>`0111011` | · |
 | **10** | · | · | · | · | · | · | · | · |
 | **11** | **BRANCH**<br>`1100011` | **JALR**<br>`1100111` | · | **JAL**<br>`1101111` | **SYSTEM**<br>`1110011` | · | · | · |
@@ -23,7 +23,7 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 ### OP_IMM `0010011`
 
-[`addi`](RV64I/addi.md) · [`slti`](RV64I/slti.md) · [`sltiu`](RV64I/sltiu.md) · [`xori`](RV64I/xori.md) · [`ori`](RV64I/ori.md) · [`andi`](RV64I/andi.md) · [`slli`](RV64I/slli.md) · [`srli`](RV64I/srli.md) · [`srai`](RV64I/srai.md) · [`rori`](Zbb/rori.md) · [`clz`](Zbb/clz.md) · [`ctz`](Zbb/ctz.md) · [`cpop`](Zbb/cpop.md) · [`sext.b`](Zbb/sext.b.md) · [`sext.h`](Zbb/sext.h.md) · [`rev8`](Zbb/rev8.md) · [`orc.b`](Zbb/orc.b.md) · [`bseti`](Zbs/bseti.md) · [`bclri`](Zbs/bclri.md) · [`binvi`](Zbs/binvi.md) · [`bexti`](Zbs/bexti.md)
+[`addi`](RV64I/addi.md) · [`slti`](RV64I/slti.md) · [`sltiu`](RV64I/sltiu.md) · [`xori`](RV64I/xori.md) · [`ori`](RV64I/ori.md) · [`andi`](RV64I/andi.md) · [`slli`](RV64I/slli.md) · [`srli`](RV64I/srli.md) · [`srai`](RV64I/srai.md) · [`rori`](Zbb/rori.md) · [`clz`](Zbb/clz.md) · [`ctz`](Zbb/ctz.md) · [`cpop`](Zbb/cpop.md) · [`sext.b`](Zbb/sext.b.md) · [`sext.h`](Zbb/sext.h.md) · [`rev8`](Zbb/rev8.md) · [`orc.b`](Zbb/orc.b.md) · [`bseti`](Zbs/bseti.md) · [`bclri`](Zbs/bclri.md) · [`binvi`](Zbs/binvi.md) · [`bexti`](Zbs/bexti.md) · [`sha256sum0`](Zknh/sha256sum0.md) · [`sha256sum1`](Zknh/sha256sum1.md) · [`sha256sig0`](Zknh/sha256sig0.md) · [`sha256sig1`](Zknh/sha256sig1.md) · [`sha512sum0`](Zknh/sha512sum0.md) · [`sha512sum1`](Zknh/sha512sum1.md) · [`sha512sig0`](Zknh/sha512sig0.md) · [`sha512sig1`](Zknh/sha512sig1.md)
 
 ### AUIPC `0010111`
 
@@ -64,4 +64,8 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 ### SYSTEM `1110011`
 
 [`ecall`](RV64I/ecall.md) · [`ebreak`](RV64I/ebreak.md) · [`mret`](Priv/mret.md) · [`wfi`](Priv/wfi.md) · [`csrrw`](Zicsr/csrrw.md) · [`csrrs`](Zicsr/csrrs.md) · [`csrrc`](Zicsr/csrrc.md) · [`csrrwi`](Zicsr/csrrwi.md) · [`csrrsi`](Zicsr/csrrsi.md) · [`csrrci`](Zicsr/csrrci.md)
+
+### CUSTOM_0 `0001011`
+
+[`hsec.cteq`](Xhydrasec/hsec.cteq.md)
 
