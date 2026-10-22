@@ -22,7 +22,7 @@ export const RESET_PC = 0x2000; // programs start here (src/const_pkg.sv PC_RESE
 
 const MEM_SIZE = 0x10000;
 
-function stripComment(line) {
+export function stripComment(line) {
   let out = '', inStr = false, inChr = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
@@ -34,7 +34,7 @@ function stripComment(line) {
   return out.trim();
 }
 
-function splitOperands(s) {
+export function splitOperands(s) {
   const out = []; let cur = '', depth = 0, inStr = false;
   for (const c of s) {
     if (c === '"') inStr = !inStr;
@@ -46,13 +46,13 @@ function splitOperands(s) {
   return out;
 }
 
-function unescape(s) {
+export function unescape(s) {
   return s.replace(/\\(n|t|r|0|\\|"|')/g, (_, c) => ({ n: '\n', t: '\t', r: '\r', 0: '\0', '\\': '\\', '"': '"', "'": "'" }[c]));
 }
 
 // Tiny expression evaluator: numbers, 'c', labels, + - * / << >> & | ( ).
 // Returns a BigInt.
-function evalExpr(expr, symbols, allowUnknown = false) {
+export function evalExpr(expr, symbols, allowUnknown = false) {
   const toks = expr.match(/0x[0-9a-fA-F_]+|0b[01_]+|\d+|'(?:\\.|[^'])'|<<|>>|[A-Za-z_.$][\w.$]*|[-+*/&|()~^%]/g);
   if (!toks) throw new Error(`bad expression "${expr}"`);
   let i = 0;

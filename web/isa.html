@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sixfold: three architectures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <p class="home"><a href="../index.html">Sixfold home</a> · <a href="index.html">the full RISC-V lab</a></p>
+    <h1>One program, three instruction sets</h1>
+    <p>Switch between RISC-V, MIPS and x86-64. The same seven programs are written in each, assembled to real machine code, and run cycle by cycle on a model of a typical pipeline for that architecture. All three get the same memory, the same multiply/divide timing and the same branch predictor, so what differs is the instruction set itself.</p>
+  </div>
+  <div class="controls" role="toolbar" aria-label="Architecture and simulation controls">
+    <div class="archswitch" role="radiogroup" aria-label="Architecture" id="archswitch"></div>
+    <label class="field">Program <select id="prog"></select></label>
+    <label class="field" id="fusewrap" hidden title="Fuse cmp/test + conditional jump into one micro-op, for the pairs canMacroFuse() in model/isas/x86_core.js allows (docs/EXPERIMENTS.md, Lab 24)"><input type="checkbox" id="fusion"> macro-fusion</label>
+    <button id="back" title="Step back one cycle (←)">◀ Back</button>
+    <button id="step" class="primary" title="Advance one clock cycle (→ or space)">Step ▶</button>
+    <button id="run" title="Run / pause (R)">Run</button>
+    <button id="end" title="Run to the end (E)">To the end ⏭</button>
+    <button id="reset" title="Back to cycle 0">Reset</button>
+  </div>
+</header>
+
+<main>
+  <section class="card archinfo" id="archinfo" aria-live="polite"></section>
+
+  <section class="pipe" aria-label="Pipeline">
+    <div class="cyclebar"><span>cycle</span> <strong id="cycle">0</strong><span id="status" class="status"></span></div>
+    <div id="stages" class="stages"></div>
+    <ol id="notes" class="narration" aria-live="polite"></ol>
+  </section>
+
+  <section class="card chartcard">
+    <h2>Pipeline chart</h2>
+    <p class="hint">Rows are instructions in fetch order, columns are cycles. On MIPS, watch the instruction after every branch: it runs either way (the delay slot). On x86-64, an instruction of several micro-ops holds DECODE for several cycles.</p>
+    <div class="chartwrap"><table id="chart" class="chart"></table></div>
+  </section>
+
+  <div class="grid">
+    <section class="card code">
+      <h2>Machine code</h2>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="listing">Listing</button>
+        <button role="tab" aria-selected="false" data-tab="edit">Edit source</button>
+      </div>
+      <div id="tab-listing" class="tabpanel"><div class="listwrap"><table id="listing" class="listing isalisting"></table></div>
+        <div id="bits" class="bits"></div></div>
+      <div id="tab-edit" class="tabpanel" hidden>
+        <textarea id="src" spellcheck="false" aria-label="Assembly source"></textarea>
+        <div class="row"><button id="assemble" class="primary">Assemble and load</button><span id="asmerr" class="err"></span></div>
+      </div>
+    </section>
+
+    <section class="card regs">
+      <h2>Registers</h2>
+      <div id="regs" class="reggrid"></div>
+      <h2 class="mt">Output</h2>
+      <pre id="output" class="output"></pre>
+    </section>
+
+    <section class="card stats">
+      <h2>This run</h2>
+      <dl id="stats" class="statlist"></dl>
+      <p class="hint" id="eqnote"></p>
+    </section>
+
+    <section class="card compare">
+      <h2>The same program on all three</h2>
+      <p class="hint">Measured by running each version to the end on its model. Bars are relative to the largest of the three.</p>
+      <table id="compare" class="cmptable"></table>
+      <p class="hint mt" id="cmpnote"></p>
+    </section>
+  </div>
+</main>
+<footer>The models: model/isas/ (MIPS and x86-64) and model/core.js (Sixfold). Each is checked against the Unicorn CPU emulator and the Capstone disassembler by tools/isa_crosscheck.py. Keyboard: → or space step, ← back, R run/pause, E to the end.</footer>
+<script type="module" src="isa.js"></script>
+</body>
+</html>

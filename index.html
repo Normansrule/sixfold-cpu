@@ -31,6 +31,7 @@
     <a href="#caches">Caches</a>
     <a href="#bits">Bits</a>
     <a href="#multiply">Multiply</a>
+    <a href="#isa">ISAs</a>
     <a href="#fpga">FPGA</a>
     <a href="#os">OS</a>
     <a href="#silicon">Silicon</a>
@@ -241,8 +242,23 @@
   </div>
 </section>
 
+<!-- ============================================================== THREE INSTRUCTION SETS -->
+<section class="band alt" id="isa">
+  <div class="wrap">
+    <div class="copy narrow">
+      <h2>One program, three instruction sets.</h2>
+      <p>The same seven programs, written for <b>RISC-V</b>, <b>MIPS</b> and <b>x86-64</b>, assembled to real machine code and run to the end on a pipeline model for each: Sixfold for RISC-V, the classic five stages with a branch delay slot for MIPS, and an in-order core that splits instructions into micro-ops for x86-64. They share the same memory, multiply/divide timing and branch predictor, so the differences below come from the instruction sets. Every encoding is checked against the GNU assembler, and every run against the Unicorn CPU emulator.</p>
+    </div>
+    <div class="bt-chips" id="isa-progs" role="group" aria-label="Program"></div>
+    <div class="isa-cols" id="isa-cols"></div>
+    <div class="isa-bars" id="isa-bars" aria-live="polite"></div>
+    <p class="isa-note" id="isa-note"></p>
+    <p class="isa-links"><a href="web/isa.html">Open the three-architecture lab</a> · <a href="docs/ISA_COMPARISON.md">How they differ, in detail</a></p>
+  </div>
+</section>
+
 <!-- ============================================================== FPGA -->
-<section class="band alt" id="fpga">
+<section class="band" id="fpga">
   <div class="wrap">
     <div class="copy narrow">
       <h2>A whole computer: boot it right here.</h2>
@@ -287,7 +303,7 @@
 </section>
 
 <!-- ============================================================== OPERATING SYSTEM -->
-<section class="band" id="os">
+<section class="band alt" id="os">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Three programs, one CPU.</h2>
@@ -314,7 +330,7 @@
 </section>
 
 <!-- ============================================================== SILICON -->
-<section class="band alt" id="silicon">
+<section class="band" id="silicon">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Then it became a chip.</h2>
@@ -346,7 +362,7 @@
 </section>
 
 <!-- ============================================================== NUMBERS -->
-<section class="band" id="numbers">
+<section class="band alt" id="numbers">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Where every cycle goes, for every program.</h2>
@@ -357,7 +373,7 @@
 </section>
 
 <!-- ============================================================== FASTER -->
-<section class="band alt" id="faster">
+<section class="band" id="faster">
   <div class="wrap">
     <div class="copy narrow">
       <h2>A shorter critical path, and fewer wasted cycles.</h2>
@@ -375,10 +391,10 @@
 </section>
 
 <!-- ============================================================== LEARN -->
-<section class="band" id="learn">
+<section class="band alt" id="learn">
   <div class="wrap">
     <div class="copy narrow">
-      <h2>Learn it in nine short chapters.</h2>
+      <h2>Learn it in ten short chapters.</h2>
       <p>Each chapter explains one idea, shows the picture that goes with it, points at the lines of SystemVerilog that do it, and gives you a program to run.</p>
     </div>
     <ol class="chapters" id="chapters"></ol>
@@ -386,7 +402,7 @@
 </section>
 
 <!-- ============================================================== COMMANDS -->
-<section class="band alt" id="commands">
+<section class="band" id="commands">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Run it yourself.</h2>
@@ -407,5 +423,6 @@
 <script type="module" src="site/extras.js"></script>
 <script type="module" src="site/console.js"></script>
 <script type="module" src="site/os.js"></script>
+<script type="module" src="site/isa.js"></script>
 </body>
 </html>

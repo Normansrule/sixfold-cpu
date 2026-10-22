@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 900" width="1500" height="900">
+<defs><marker id="m-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2B3A31"/></marker><marker id="m-pred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#00796B"/></marker><marker id="m-flush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C2185B"/></marker><marker id="m-F1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E86C1"/></marker><marker id="m-F2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-E" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E08E0B"/></marker><marker id="m-M" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#27AE60"/></marker><marker id="m-tag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9982E"/></marker><marker id="m-idx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-off" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-hit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1E8449"/></marker><marker id="m-miss" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker><marker id="m-sub" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4A5A50"/></marker></defs>
+<rect width="100%" height="100%" rx="12" fill="#FBFCF8" stroke="#D5DBD0"/>
+<text x="24" y="34" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#17251D" text-anchor="start">Three pipelines: where each one learns about a branch</text>
+<text x="24" y="56" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#4A5A50" text-anchor="start">The models in model/core.js (Sixfold, RISC-V) and model/isas/ (MIPS, x86-64): same memory, same multiply/divide timing, same predictor where one is used.</text>
+<text x="40" y="98" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2E86C1" text-anchor="start">RISC-V on Sixfold</text>
+<rect x="40" y="110" width="158" height="44" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="119" y="137" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">FETCH1</text>
+<rect x="210" y="110" width="158" height="44" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="289" y="137" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">FETCH2</text>
+<path d="M198,132 L209,132" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="380" y="110" width="158" height="44" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="459" y="137" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">DECODE</text>
+<path d="M368,132 L379,132" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="550" y="110" width="158" height="44" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="629" y="137" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">EXECUTE</text>
+<path d="M538,132 L549,132" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="720" y="110" width="158" height="44" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="799" y="137" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">MEMORY</text>
+<path d="M708,132 L719,132" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="890" y="110" width="158" height="44" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="969" y="137" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">WRITEBACK</text>
+<path d="M878,132 L889,132" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<path d="M629,154 L629,176" fill="none" stroke="#C2185B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-flush)"/>
+<text x="637" y="180" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#C2185B" text-anchor="start">a wrong guess, or any jalr: flush, 3 bubbles</text>
+<path d="M289,154 L289,206" fill="none" stroke="#00796B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-pred)"/>
+<text x="297" y="210" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#00796B" text-anchor="start">jumps and branches guessed taken: redirect, 1 bubble</text>
+<text x="40" y="246" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">Branches are predicted (gshare). Compare and branch are one instruction.</text>
+<text x="40" y="288" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#6A5ACD" text-anchor="start">MIPS, the classic five stages</text>
+<rect x="40" y="300" width="158" height="44" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="119" y="327" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6A5ACD" text-anchor="middle">IF</text>
+<rect x="210" y="300" width="158" height="44" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="289" y="327" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6A5ACD" text-anchor="middle">ID</text>
+<path d="M198,322 L209,322" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="380" y="300" width="158" height="44" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="459" y="327" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6A5ACD" text-anchor="middle">EX</text>
+<path d="M368,322 L379,322" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="550" y="300" width="158" height="44" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="629" y="327" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6A5ACD" text-anchor="middle">MEM</text>
+<path d="M538,322 L549,322" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="720" y="300" width="158" height="44" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="799" y="327" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6A5ACD" text-anchor="middle">WB</text>
+<path d="M708,322 L719,322" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<path d="M289,344 L289,366" fill="none" stroke="#00796B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-pred)"/>
+<text x="297" y="370" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#00796B" text-anchor="start">branches and jumps resolve here: the next instruction (the delay slot) runs anyway, 0 bubbles</text>
+<path d="M289,344 L289,396" fill="none" stroke="#C2185B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-flush)"/>
+<text x="297" y="400" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#C2185B" text-anchor="start">but a branch needing a value still in EX waits 1 cycle</text>
+<text x="40" y="436" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">No prediction at all: the instruction set itself hides the branch.</text>
+<text x="40" y="478" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#C0392B" text-anchor="start">x86-64, in-order with micro-ops</text>
+<rect x="40" y="490" width="158" height="44" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="119" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">FETCH</text>
+<rect x="210" y="490" width="158" height="44" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="289" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">PREDECODE</text>
+<path d="M198,512 L209,512" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="380" y="490" width="158" height="44" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="459" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">DECODE</text>
+<path d="M368,512 L379,512" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="550" y="490" width="158" height="44" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="629" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">EXECUTE</text>
+<path d="M538,512 L549,512" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="720" y="490" width="158" height="44" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="799" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">MEMORY</text>
+<path d="M708,512 L719,512" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<rect x="890" y="490" width="158" height="44" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.12"/>
+<text x="969" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">WRITEBACK</text>
+<path d="M878,512 L889,512" fill="none" stroke="#2B3A31" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-data)"/>
+<path d="M629,534 L629,556" fill="none" stroke="#C2185B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-flush)"/>
+<text x="637" y="560" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#C2185B" text-anchor="start">a wrong guess, ret, indirect jumps: flush, 3 bubbles</text>
+<path d="M459,534 L459,586" fill="none" stroke="#00796B" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-pred)"/>
+<text x="467" y="590" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="600" fill="#00796B" text-anchor="start">decoded into 1 to 3 micro-ops; jumps known here: redirect, 2 bubbles</text>
+<text x="40" y="626" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">PREDECODE finds where each instruction ends. cmp and jcc are two instructions.</text>
+<text x="40" y="690" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#17251D" text-anchor="start">All seven comparison programs together (programs/compare/), measured on these models:</text>
+<text x="40" y="722" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#17251D" text-anchor="start">bytes of code</text>
+<text x="40" y="751" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="start">RISC-V</text>
+<rect x="110" y="736" width="224.72727272727272" height="22" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="340.72727272727275" y="752" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">412</text>
+<text x="40" y="785" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="start">MIPS</text>
+<rect x="110" y="770" width="240" height="22" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="356" y="786" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">440</text>
+<text x="40" y="819" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="start">x86-64</text>
+<rect x="110" y="804" width="202.36363636363637" height="22" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="318.3636363636364" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">371</text>
+<text x="530" y="722" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#17251D" text-anchor="start">instructions executed</text>
+<text x="530" y="751" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="start">RISC-V</text>
+<rect x="600" y="736" width="215.27896995708156" height="22" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="821.2789699570816" y="752" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">1,045</text>
+<text x="530" y="785" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="start">MIPS</text>
+<rect x="600" y="770" width="240" height="22" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="846" y="786" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">1,165</text>
+<text x="530" y="819" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="start">x86-64</text>
+<rect x="600" y="804" width="238.1459227467811" height="22" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="844.1459227467811" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">1,156 (1,224 micro-ops)</text>
+<text x="1020" y="722" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="600" fill="#17251D" text-anchor="start">cycles</text>
+<text x="1020" y="751" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="start">RISC-V</text>
+<rect x="1090" y="736" width="183.85321100917432" height="22" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="1279.8532110091744" y="752" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">1,670</text>
+<text x="1020" y="785" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="start">MIPS</text>
+<rect x="1090" y="770" width="160.73394495412845" height="22" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="1256.7339449541284" y="786" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">1,460</text>
+<text x="1020" y="819" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="start">x86-64</text>
+<rect x="1090" y="804" width="240" height="22" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.25"/>
+<text x="1336" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">2,180</text>
+<text x="40" y="878" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">x86-64 has the smallest code and the most cycles here: dense instructions, but a simple in-order core spends extra stages finding and splitting them. Real x86 cores add wide decoders, micro-op caches and fusion to win that back.</text>
+</svg>

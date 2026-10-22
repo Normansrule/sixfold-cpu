@@ -399,3 +399,29 @@ label { font-size: .88rem; color: var(--ink2); display: inline-flex; gap: .5em; 
 .os-term { margin: 4px 0 0; background: #0B1418; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; font: .78rem/1.45 var(--mono); color: var(--M); min-height: 6.6em; white-space: pre-wrap; }
 @media (max-width: 900px) { .os-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 620px) { .os-tcbs { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------------------------------------------------------------- three instruction sets */
+.isa-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
+.isa-col { background: var(--panel); border: 1px solid var(--rule); border-top: 3px solid var(--ac); border-radius: 12px; padding: 14px 14px 12px; min-width: 0; display: flex; flex-direction: column; }
+.isa-col h3 { margin: 0; color: var(--ac); font-size: 1.15rem; }
+.isa-pipe { margin: 4px 0 10px; color: var(--ink3); font-size: .78rem; line-height: 1.4; }
+.isa-code { overflow: auto; max-height: 420px; flex: 1; border-top: 1px solid var(--rule); }
+.isa-code table { border-collapse: collapse; font: 400 .74rem/1.5 var(--mono); white-space: nowrap; }
+.isa-code td { padding: 1px 8px 1px 0; vertical-align: top; }
+.isa-code .ia { color: var(--ink3); }
+.isa-code .ib { color: var(--ink2); }
+.isa-code .ib b { font-weight: 500; }
+.isa-code .it { color: var(--ink); }
+.isa-code .it i { color: var(--E); font-style: normal; font-size: .9em; cursor: help; }
+.isa-open { margin-top: 10px; font-size: .85rem; color: var(--ac); }
+.isa-bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 28px; margin-top: 22px; }
+.isa-metric h4 { margin: 0 0 8px; font-size: .9rem; color: var(--ink2); font-weight: 600; }
+.isa-bar { display: grid; grid-template-columns: 4.6em 1fr; align-items: center; gap: 2px 8px; margin-bottom: 6px; font-size: .8rem; }
+.isa-bar span { color: var(--ac); font-weight: 600; grid-row: span 2; }
+.isa-bar i { display: block; height: 10px; border-radius: 3px; background: var(--ac); opacity: .75; transition: width .4s; }
+.isa-bar b { font: 500 .78rem var(--mono); color: var(--ink); }
+.isa-bar small { color: var(--ink3); font-weight: 400; }
+.isa-note { margin: 14px 0 0; color: var(--ink2); font-size: .92rem; }
+.isa-links { margin: 6px 0 0; font-size: .92rem; }
+#isa-progs button[aria-pressed="true"] { background: var(--ink); color: var(--sub); }
+@media (max-width: 860px) { .isa-cols, .isa-bars { grid-template-columns: 1fr; } .isa-code { max-height: 260px; } }

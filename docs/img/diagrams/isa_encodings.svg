@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1130" width="1500" height="1130">
+<defs><marker id="m-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2B3A31"/></marker><marker id="m-pred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#00796B"/></marker><marker id="m-flush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C2185B"/></marker><marker id="m-F1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E86C1"/></marker><marker id="m-F2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-E" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E08E0B"/></marker><marker id="m-M" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#27AE60"/></marker><marker id="m-tag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9982E"/></marker><marker id="m-idx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-off" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-hit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1E8449"/></marker><marker id="m-miss" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker><marker id="m-sub" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4A5A50"/></marker></defs>
+<rect width="100%" height="100%" rx="12" fill="#FBFCF8" stroke="#D5DBD0"/>
+<text x="24" y="34" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#17251D" text-anchor="start">Three ways to encode an instruction: RISC-V, MIPS, x86-64</text>
+<text x="24" y="56" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#4A5A50" text-anchor="start">Fixed 32-bit words with fields in the same places (RISC-V, MIPS) against a variable-length sequence of optional bytes (x86-64). Examples encoded by model/asm.js and model/isas/.</text>
+<text x="40" y="100" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2E86C1" text-anchor="start">RISC-V: six formats, all 32 bits. rd, rs1 and rs2 are in the same place in every format that has them.</text>
+<text x="136" y="134" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">R</text>
+<text x="136" y="149" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">register-register</text>
+<rect x="150" y="114" width="182" height="30" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="241" y="133" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="middle">funct7</text>
+<rect x="332" y="114" width="130" height="30" rx="3" fill="#17A2B8" stroke="#17A2B8" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="397" y="133" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#17A2B8" text-anchor="middle">rs2</text>
+<rect x="462" y="114" width="130" height="30" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="527" y="133" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#E08E0B" text-anchor="middle">rs1</text>
+<rect x="592" y="114" width="78" height="30" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="631" y="133" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="middle">funct3</text>
+<rect x="670" y="114" width="130" height="30" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="735" y="133" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#27AE60" text-anchor="middle">rd</text>
+<rect x="800" y="114" width="182" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="891" y="133" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="136" y="174" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">I</text>
+<text x="136" y="189" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">immediate, loads, jalr</text>
+<rect x="150" y="154" width="312" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="306" y="173" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[11:0]</text>
+<rect x="462" y="154" width="130" height="30" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="527" y="173" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#E08E0B" text-anchor="middle">rs1</text>
+<rect x="592" y="154" width="78" height="30" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="631" y="173" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="middle">funct3</text>
+<rect x="670" y="154" width="130" height="30" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="735" y="173" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#27AE60" text-anchor="middle">rd</text>
+<rect x="800" y="154" width="182" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="891" y="173" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="136" y="214" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">S</text>
+<text x="136" y="229" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">stores</text>
+<rect x="150" y="194" width="182" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="241" y="213" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[11:5]</text>
+<rect x="332" y="194" width="130" height="30" rx="3" fill="#17A2B8" stroke="#17A2B8" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="397" y="213" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#17A2B8" text-anchor="middle">rs2</text>
+<rect x="462" y="194" width="130" height="30" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="527" y="213" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#E08E0B" text-anchor="middle">rs1</text>
+<rect x="592" y="194" width="78" height="30" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="631" y="213" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="middle">funct3</text>
+<rect x="670" y="194" width="130" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="735" y="213" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[4:0]</text>
+<rect x="800" y="194" width="182" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="891" y="213" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="136" y="254" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">B</text>
+<text x="136" y="269" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">branches</text>
+<rect x="150" y="234" width="182" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="241" y="253" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[12|10:5]</text>
+<rect x="332" y="234" width="130" height="30" rx="3" fill="#17A2B8" stroke="#17A2B8" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="397" y="253" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#17A2B8" text-anchor="middle">rs2</text>
+<rect x="462" y="234" width="130" height="30" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="527" y="253" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#E08E0B" text-anchor="middle">rs1</text>
+<rect x="592" y="234" width="78" height="30" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="631" y="253" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="middle">funct3</text>
+<rect x="670" y="234" width="130" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="735" y="253" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[4:1|11]</text>
+<rect x="800" y="234" width="182" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="891" y="253" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="136" y="294" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">U</text>
+<text x="136" y="309" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">lui, auipc</text>
+<rect x="150" y="274" width="520" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="410" y="293" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[31:12]</text>
+<rect x="670" y="274" width="130" height="30" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="735" y="293" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#27AE60" text-anchor="middle">rd</text>
+<rect x="800" y="274" width="182" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="891" y="293" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="136" y="334" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">J</text>
+<text x="136" y="349" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">jal</text>
+<rect x="150" y="314" width="520" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="410" y="333" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">imm[20|10:1|11|19:12]</text>
+<rect x="670" y="314" width="130" height="30" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="735" y="333" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#27AE60" text-anchor="middle">rd</text>
+<rect x="800" y="314" width="182" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="891" y="333" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="163" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">31</text>
+<text x="267" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">27</text>
+<text x="371" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">23</text>
+<text x="475" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">19</text>
+<text x="579" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">15</text>
+<text x="683" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">11</text>
+<text x="787" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">7</text>
+<text x="891" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">3</text>
+<text x="969" y="112" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">0</text>
+<text x="40" y="380" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#6A5ACD" text-anchor="start">MIPS: three formats, all 32 bits. The opcode is on the left; 16-bit immediates; 26-bit jump targets.</text>
+<text x="136" y="414" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">R</text>
+<text x="136" y="429" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">register-register</text>
+<rect x="150" y="394" width="156" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="228" y="413" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<rect x="306" y="394" width="130" height="30" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="371" y="413" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#E08E0B" text-anchor="middle">rs</text>
+<rect x="436" y="394" width="130" height="30" rx="3" fill="#17A2B8" stroke="#17A2B8" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="501" y="413" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#17A2B8" text-anchor="middle">rt</text>
+<rect x="566" y="394" width="130" height="30" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="631" y="413" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#27AE60" text-anchor="middle">rd</text>
+<rect x="696" y="394" width="130" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="761" y="413" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">shamt</text>
+<rect x="826" y="394" width="156" height="30" rx="3" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="904" y="413" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#6A5ACD" text-anchor="middle">funct</text>
+<text x="136" y="454" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">I</text>
+<text x="136" y="469" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">loads, stores, branches</text>
+<rect x="150" y="434" width="156" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="228" y="453" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<rect x="306" y="434" width="130" height="30" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="371" y="453" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#E08E0B" text-anchor="middle">rs</text>
+<rect x="436" y="434" width="130" height="30" rx="3" fill="#17A2B8" stroke="#17A2B8" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="501" y="453" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#17A2B8" text-anchor="middle">rt</text>
+<rect x="566" y="434" width="416" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="774" y="453" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">immediate</text>
+<text x="136" y="494" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#17251D" text-anchor="end">J</text>
+<text x="136" y="509" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">j, jal</text>
+<rect x="150" y="474" width="156" height="30" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="228" y="493" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<rect x="306" y="474" width="676" height="30" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="644" y="493" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" fill="#C0392B" text-anchor="middle">target</text>
+<text x="40" y="540" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#C0392B" text-anchor="start">x86-64: one instruction is 1 to 15 bytes, built from optional parts in a fixed order.</text>
+<rect x="150" y="556" width="112" height="44" rx="4" fill="#C9982E" stroke="#C9982E" stroke-width="1.5" stroke-dasharray="5 3" fill-opacity="0.16"/>
+<text x="206" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C9982E" text-anchor="middle">prefixes</text>
+<text x="206" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">0-4 bytes</text>
+<text x="206" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">size, rep, lock</text>
+<rect x="268" y="556" width="112" height="44" rx="4" fill="#C9982E" stroke="#C9982E" stroke-width="1.5" stroke-dasharray="5 3" fill-opacity="0.16"/>
+<text x="324" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C9982E" text-anchor="middle">REX</text>
+<text x="324" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">0-1 bytes</text>
+<text x="324" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">W: 64-bit; r8-r15</text>
+<rect x="386" y="556" width="112" height="44" rx="4" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.16"/>
+<text x="442" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#2E86C1" text-anchor="middle">opcode</text>
+<text x="442" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">1-3 bytes</text>
+<text x="442" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">the operation</text>
+<rect x="504" y="556" width="112" height="44" rx="4" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" stroke-dasharray="5 3" fill-opacity="0.16"/>
+<text x="560" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#27AE60" text-anchor="middle">ModRM</text>
+<text x="560" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">0-1 bytes</text>
+<text x="560" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">register and r/m operand</text>
+<rect x="622" y="556" width="112" height="44" rx="4" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" stroke-dasharray="5 3" fill-opacity="0.16"/>
+<text x="678" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#E08E0B" text-anchor="middle">SIB</text>
+<text x="678" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">0-1 bytes</text>
+<text x="678" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">scale, index, base</text>
+<rect x="740" y="556" width="112" height="44" rx="4" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" stroke-dasharray="5 3" fill-opacity="0.16"/>
+<text x="796" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C0392B" text-anchor="middle">displacement</text>
+<text x="796" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">0, 1, 2, 4 bytes</text>
+<text x="796" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">the address offset</text>
+<rect x="858" y="556" width="112" height="44" rx="4" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" stroke-dasharray="5 3" fill-opacity="0.16"/>
+<text x="914" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C0392B" text-anchor="middle">immediate</text>
+<text x="914" y="592" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">0, 1, 2, 4, 8 bytes</text>
+<text x="914" y="618" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">a constant</text>
+<text x="986" y="584" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="start" font-style="italic">dashed = optional</text>
+<text x="40" y="658" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#17251D" text-anchor="start">The same operations, encoded (bytes as they lie in memory, lowest address first)</text>
+<text x="230" y="684" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#2E86C1" text-anchor="start">RISC-V</text>
+<text x="650" y="684" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#6A5ACD" text-anchor="start">MIPS</text>
+<text x="1070" y="684" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#C0392B" text-anchor="start">x86-64</text>
+<text x="40" y="722" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="start">add two registers</text>
+<text x="230" y="718" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">add a0, a0, t0</text>
+<rect x="230" y="724" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="290" y="738" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">33 05 55 00</text>
+<text x="290" y="755" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, R-type</text>
+<text x="650" y="718" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">addu $v0, $v0, $t0</text>
+<rect x="650" y="724" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="710" y="738" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">21 10 48 00</text>
+<text x="710" y="755" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, R-type</text>
+<text x="1070" y="718" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">add rax, rcx</text>
+<rect x="1070" y="724" width="34" height="20" rx="3" fill="#C9982E" stroke="#C9982E" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1087" y="738" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">48</text>
+<text x="1087" y="755" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">REX</text>
+<rect x="1107" y="724" width="34" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1124" y="738" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">01</text>
+<text x="1124" y="755" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">opcode</text>
+<rect x="1144" y="724" width="34" height="20" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1161" y="738" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">c8</text>
+<text x="1161" y="755" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">ModRM</text>
+<text x="40" y="810" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="start">add a small constant</text>
+<text x="230" y="806" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">addi sp, sp, -16</text>
+<rect x="230" y="812" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="290" y="826" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">13 01 01 ff</text>
+<text x="290" y="843" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, I-type</text>
+<text x="650" y="806" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">addiu $sp, $sp, -16</text>
+<rect x="650" y="812" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="710" y="826" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">f0 ff bd 27</text>
+<text x="710" y="843" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, I-type</text>
+<text x="1070" y="806" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">sub rsp, 16</text>
+<rect x="1070" y="812" width="34" height="20" rx="3" fill="#C9982E" stroke="#C9982E" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1087" y="826" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">48</text>
+<text x="1087" y="843" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">REX</text>
+<rect x="1107" y="812" width="34" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1124" y="826" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">83</text>
+<text x="1124" y="843" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">opcode</text>
+<rect x="1144" y="812" width="34" height="20" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1161" y="826" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">ec</text>
+<text x="1161" y="843" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">ModRM</text>
+<rect x="1181" y="812" width="34" height="20" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1198" y="826" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">10</text>
+<text x="1198" y="843" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">imm8</text>
+<text x="40" y="898" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="start">load from memory</text>
+<text x="230" y="894" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">ld t3, 8(t0)</text>
+<rect x="230" y="900" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="290" y="914" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">03 be 82 00</text>
+<text x="290" y="931" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, I-type</text>
+<text x="650" y="894" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">lw $t3, 8($t0)</text>
+<rect x="650" y="900" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="710" y="914" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">08 00 0b 8d</text>
+<text x="710" y="931" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, I-type</text>
+<text x="1070" y="894" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">mov rdx, [rsi + 8]</text>
+<rect x="1070" y="900" width="34" height="20" rx="3" fill="#C9982E" stroke="#C9982E" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1087" y="914" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">48</text>
+<text x="1087" y="931" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">REX</text>
+<rect x="1107" y="900" width="34" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1124" y="914" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">8b</text>
+<text x="1124" y="931" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">opcode</text>
+<rect x="1144" y="900" width="34" height="20" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1161" y="914" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">56</text>
+<text x="1161" y="931" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">ModRM</text>
+<rect x="1181" y="900" width="34" height="20" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1198" y="914" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">08</text>
+<text x="1198" y="931" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">disp8</text>
+<text x="40" y="986" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="start">add a value from memory</text>
+<text x="230" y="982" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">ld t3, 8(t0)</text>
+<rect x="230" y="988" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="290" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">03 be 82 00</text>
+<text x="290" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, I-type</text>
+<text x="230" y="1040" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">add a0, a0, t3</text>
+<rect x="230" y="1046" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="290" y="1060" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">33 05 c5 01</text>
+<text x="290" y="1077" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, R-type</text>
+<text x="650" y="982" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">lw $t3, 8($t0)</text>
+<rect x="650" y="988" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="710" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">08 00 0b 8d</text>
+<text x="710" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, I-type</text>
+<text x="650" y="1040" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">addu $v0, $v0, $t3</text>
+<rect x="650" y="1046" width="120" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="710" y="1060" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">21 10 4b 00</text>
+<text x="710" y="1077" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">4 bytes, R-type</text>
+<text x="1070" y="982" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#17251D" text-anchor="start">add rax, [rsi + rcx*8 + 8]</text>
+<rect x="1070" y="988" width="34" height="20" rx="3" fill="#C9982E" stroke="#C9982E" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1087" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">48</text>
+<text x="1087" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">REX</text>
+<rect x="1107" y="988" width="34" height="20" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1124" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">03</text>
+<text x="1124" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">opcode</text>
+<rect x="1144" y="988" width="34" height="20" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1161" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">44</text>
+<text x="1161" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">ModRM</text>
+<rect x="1181" y="988" width="34" height="20" rx="3" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1198" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">ce</text>
+<text x="1198" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">SIB</text>
+<rect x="1218" y="988" width="34" height="20" rx="3" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1235" y="1002" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#17251D" text-anchor="middle">08</text>
+<text x="1235" y="1019" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="8.5" font-weight="400" fill="#8A968E" text-anchor="middle">disp8</text>
+<text x="40" y="1108" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">RISC-V and MIPS need two instructions (8 bytes) to add a value from memory; x86-64 does it in one 5-byte instruction, which its decoder splits into a load and an add.</text>
+</svg>

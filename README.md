@@ -26,6 +26,7 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 | **Multiply / divide** | iterative: a 64 x 16-bit Wallace-tree step with a carry-save accumulator (multiply in 8 cycles), 1 quotient bit per cycle after a leading-zero-counter skip (divide in 5 + significant bits) |
 | **Clock (logic only)** | about **244 MHz** on SkyWater 130 nm and **1.95 GHz** on the ASAP7 7 nm research kit, with the full M and B extensions and interrupts: [PERFORMANCE.md](docs/PERFORMANCE.md) |
 | **FPGA** | a complete computer around the core: 64 KiB block-RAM main memory, UART with queues, 16 LEDs, 16 switches, 5 buttons, a four-digit seven-segment display, memory-mapped device registers, boot firmware that loads programs over USB and reports PASS and cycles. Builds for the **Digilent Basys 3** (Artix-7 XC7A35T, Vivado: every switch, button, LED and digit; about 86% of the chip), the **ULX3S** (Lattice ECP5-85F, open-source tools, placed and routed here) and the **Arty A7-100T** (Vivado): [FPGA.md](docs/FPGA.md). A hands-on example, [`calculator.s`](fpga/examples/calculator.s), does arithmetic on the switches when you press the buttons and shows the answer on the digits and the LEDs |
+| **Three architectures** | the same seven programs written for **RISC-V, MIPS and x86-64**, assembled to real machine code and run cycle by cycle on a pipeline model for each (Sixfold; the classic 5 stages with a delay slot; an in-order core with micro-ops), side by side in the [three-architecture lab](web/isa.html). Encodings match the GNU assembler, runs match the Unicorn emulator (`make isa-check`): [ISA_COMPARISON.md](docs/ISA_COMPARISON.md) |
 | **Two builds** | the performance edition (default) and a simple baseline pipeline (`-DBASELINE`), both in the same RTL behind parameters |
 | **Verified** | 23 programs, a 1,630-case self-checking test (expected values from an independent Python model) and a 388-interrupt stress test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (100 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
 | **Silicon** | the original design's real sky130 layout, timing and area, plus sky130 synthesis of this RTL |
@@ -166,6 +167,17 @@ the task's 31 registers and PC into that task's control block, loads another tas
 with `mret`. That is the core mechanism of every multitasking operating system. Here it costs about 108
 cycles per switch.
 
+### 13. Three instruction sets: RISC-V, MIPS, x86-64
+
+![Three encodings](docs/img/diagrams/isa_encodings.svg)
+
+The same seven programs, in three instruction sets, on three pipelines
+([ISA_COMPARISON.md](docs/ISA_COMPARISON.md), [the lab](web/isa.html)). RISC-V and MIPS use fixed 32-bit
+words; x86-64 builds each instruction from 1 to 15 bytes and splits it into micro-ops. MIPS resolves
+branches early and hides them with a delay slot; x86-64 needs a separate `cmp` before each jump.
+
+![Three pipelines](docs/img/diagrams/isa_pipelines.svg)
+
 ## Open the live site
 
 [![The front page: the CPU running in 3D](docs/img/site_preview.png)](https://normansrule.github.io/sixfold-cpu/)
@@ -181,12 +193,13 @@ your browser, with no install:
 * **the FPGA computer in your browser**: the boot firmware on a serial console, LEDs and buttons, upload and run;
 * **three programs, one CPU**: the tiny operating system of program 22, its tasks taking turns live, with a
   quantum slider and the task control blocks read from memory;
+* **one program, three instruction sets**: the same program as RISC-V, MIPS and x86-64 machine code, with code size, instructions and cycles measured on each;
 * **a live dashboard** of where every cycle goes, for every program;
 * **the lab** ([`web/`](web/index.html)): step forward and back through any program, or your own, or run
   it to the end; see the branch predictor's tables, the trap registers and the timer, and for programs
   that share the CPU, a timeline of who ran when.
 
-Or start with the [learning path](docs/learn/README.md) (9 short chapters) and the
+Or start with the [learning path](docs/learn/README.md) (10 short chapters) and the
 [architecture reference](docs/ARCHITECTURE.md).
 
 ---
@@ -218,7 +231,7 @@ stage the instruction is in. Rings are forwarded operands, hatched boxes are hel
 grey crossed-out rows were fetched down a wrong path and squashed. Above: a `jal` squashes one
 instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 
-## Learn it: eight chapters
+## Learn it: ten chapters
 
 | | chapter | picture you will be able to read |
 |---|---|---|
@@ -230,6 +243,8 @@ instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 | 6 | [Measuring performance](docs/learn/06_performance.md) | the CPI stack |
 | 7 | [From RTL to silicon](docs/learn/07_silicon.md) | a chip layout, a timing path |
 | 8 | [Using the CPU: write your own program](docs/learn/08_using_the_cpu.md) | your own program's pipeline |
+| 9 | [Devices, interrupts and booting](docs/learn/09_devices_and_interrupts.md) | a memory map, an interrupt in the pipeline chart |
+| 10 | [Three architectures: RISC-V, MIPS and x86-64](docs/learn/10_three_architectures.md) | the same program in three encodings and three pipelines |
 
 ## Instructions in binary
 
@@ -335,18 +350,21 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
   buttons, and checks what is printed, lit and displayed.
 * `make fpga-load-test`: [`tools/fpga_load.py`](tools/fpga_load.py), the program that talks to a real board,
   loads and runs programs on a virtual board behind a pseudo serial port and must read PASS.
+* `make isa-check`: the MIPS and x86-64 models: every comparison program's result and cycle equation,
+  every x86-64 encoding against the GNU assembler (251 forms, byte for byte), and every run against the
+  Unicorn emulator and the Capstone disassembler.
 * `make check-links`: every relative link, image and `#anchor` in the documentation resolves.
 * Continuous integration runs all of it on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Experiments
 
-Twenty-three labs in [EXPERIMENTS.md](docs/EXPERIMENTS.md): history length, counter reset values, a
+Twenty-four labs in [EXPERIMENTS.md](docs/EXPERIMENTS.md): history length, counter reset values, a
 multi-cycle divider, removing false load stalls, a return address stack, a branch target buffer, a
 faster adder for the critical path, forwarding into EXECUTE, cache experiments, bigger and smarter
 predictors, chasing the 7 nm critical path, Booth recoding for the multiplier, your own CPI stack from
 the hardware counters, rewriting a program with Zba and Zbb, a bitmap allocator with Zbs, a new device
 register for the FPGA computer, a new command for its boot firmware, a pipelined data cache for a
-faster FPGA clock, interrupt latency with vectored interrupts, a yield system call for the tiny OS, and your own program for the Basys 3's switches, buttons and digits.
+faster FPGA clock, interrupt latency with vectored interrupts, a yield system call for the tiny OS, your own program for the Basys 3's switches, buttons and digits, and macro-fusion for the x86-64 model.
 
 ## Repository map
 
@@ -355,12 +373,12 @@ faster FPGA clock, interrupt latency with vectored interrupts, a yield system ca
 | [`src/`](src) | the SystemVerilog RTL: `Riscv64.sv` and one file per module ([file list](src/sources.f)) |
 | [`tb/`](tb) | the testbench (per-cycle trace, register dump, `+BP=0` to disable prediction) |
 | [`fpga/`](fpga) | the FPGA computer: `rtl/` (memory, UART, devices, boot control), `firmware/bios.s`, `sim/`, `boards/` (Basys 3, ULX3S, Arty A7), `examples/` (calculator, interrupt echo) |
-| [`model/`](model) | ISA table, assembler, cycle-exact pipeline model (JavaScript) |
-| [`programs/`](programs), [`tests/`](tests) | example programs and the self-check |
+| [`model/`](model) | ISA table, assembler, cycle-exact pipeline model (JavaScript); [`model/isas/`](model/isas) the MIPS and x86-64 assemblers and pipeline models |
+| [`programs/`](programs), [`tests/`](tests) | example programs and the self-check; [`programs/compare/`](programs/compare) the seven programs in all three ISAs |
 | [`binary/`](binary/README.md) | every instruction and every program in binary |
 | [`docs/`](docs) | [learning path](docs/learn/README.md), [architecture](docs/ARCHITECTURE.md), [performance](docs/PERFORMANCE.md), [modern CPUs](docs/MODERN_CPUS.md), [math](docs/MATH.md), [experiments](docs/EXPERIMENTS.md), [silicon](docs/SILICON.md), [references](docs/REFERENCES.md) |
 | [`index.html`](index.html), [`site/`](site) | the GitHub Pages front page: 3D pipeline, bit playground, predictor race, caches, FPGA console, operating system, chip scope, dashboard (vanilla JavaScript modules + vendored three.js, no build step) |
-| [`web/`](web/index.html) | the pipeline lab: step-by-step simulator |
+| [`web/`](web/index.html) | the pipeline lab: step-by-step simulator, and [`isa.html`](web/isa.html), the three-architecture lab |
 | [`tools/`](tools) | CLI, test runner, doc/chart/diagram generators, chip and cell renderers |
 | [`docs/silicon/`](docs/silicon) | the 32-bit prototype's placed-and-routed layout (DEF) and timing/power reports |
 
@@ -373,6 +391,7 @@ make run / pipe / cycle / bp         explore a program     (PROG=..., BP=0, HIST
 make rtl / vsim / wave               run on Icarus, Verilator, or open GTKWave
 make docs / charts / diagram / diagrams / animations / arena   regenerate generated pages and pictures
 make synth / schematics              sky130 synthesis per module, Yosys schematics
+make isa-check / isa-compare         RISC-V, MIPS, x86-64: verify the models, print the comparison table
 make lint / serve / clean
 ```
 

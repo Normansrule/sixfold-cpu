@@ -36,6 +36,8 @@ select { background: var(--panel); border: 1px solid var(--rule); border-radius:
 .title p { color: var(--sub); }
 .controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .field { display: flex; flex-direction: column; font-size: .75rem; color: var(--sub); gap: .15rem; }
+.field[hidden] { display: none; }
+#fusewrap { flex-direction: row; align-items: center; gap: .35rem; align-self: flex-end; padding-bottom: .45rem; }
 .speed input { width: 7rem; }
 .toggle { display: flex; gap: .4rem; align-items: center; font-size: .9rem; }
 
@@ -187,3 +189,25 @@ footer { color: var(--sub); font-size: .8rem; padding: 1rem 1.5rem 2rem; border-
 .sevenseg { display: block; width: 11rem; max-width: 100%; height: auto; margin-top: .4rem; background: #1A0B09; border-radius: 6px; }
 .sevenseg polygon, .sevenseg circle { fill: #3A1A16; }
 .sevenseg .on { fill: #FF4A2A; }
+
+/* ---------- the architecture switch (web/isa.html and the lab header) ---------- */
+.archswitch { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.archswitch button, .archswitch a { border: 0; border-radius: 0; padding: .45rem .9rem; font-weight: 600; color: var(--ink); text-decoration: none; font-size: .92rem; background: transparent; }
+.archswitch > * + * { border-left: 1px solid var(--rule); }
+.archswitch [aria-checked="true"], .archswitch .cur { background: var(--ink); color: var(--paper); }
+.archswitch a:hover, .archswitch button:hover { background: var(--tint); }
+.archswitch [aria-checked="true"]:hover, .archswitch .cur:hover { background: var(--ink); }
+.archinfo { margin-bottom: 1rem; }
+.infolist { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; margin: 0; font-size: .9rem; }
+.infolist dt { color: var(--sub); }
+.infolist dd { margin: 0; }
+.cmptable { border-collapse: collapse; width: 100%; font-size: .85rem; }
+.cmptable th, .cmptable td { padding: .3rem .4rem; text-align: left; border-bottom: 1px solid var(--rule); }
+.cmptable th.cur, .cmptable td.cur { background: var(--tint); }
+.cmptable td { position: relative; }
+.cmptable td .bar { position: absolute; left: .4rem; top: 25%; height: 50%; background: var(--FETCH1); opacity: .22; border-radius: 3px; max-width: calc(100% - .8rem); }
+.cmptable td .v { position: relative; font-family: var(--mono); }
+.isalisting .bin { white-space: nowrap; }
+.isalisting th { text-align: left; font-size: .75rem; color: var(--sub); font-weight: 500; }
+@media (max-width: 560px) { .archswitch button, .archswitch a { padding: .4rem .55rem; font-size: .85rem; } }
+.archswitch span { padding: .45rem .9rem; font-weight: 600; font-size: .92rem; }

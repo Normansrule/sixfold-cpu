@@ -28,6 +28,25 @@ branch target buffers), Appendix C (pipelining: basic and intermediate concepts)
 Morgan Kaufmann, 2021. Ch. 7 (single-cycle, multicycle and pipelined RISC-V microarchitectures
 drawn at the Register Transfer Level, with HDL).
 
+## Instruction set manuals
+
+Used for the MIPS and x86-64 models ([ISA_COMPARISON.md](ISA_COMPARISON.md)).
+
+* *MIPS32 Architecture for Programmers, Volume II: The MIPS32 Instruction Set* (MIPS Technologies /
+  Imagination). Every MIPS32 encoding, the delay slot, HI and LO.
+* *Intel 64 and IA-32 Architectures Software Developer's Manual (SDM)*, Volume 2 (instruction set
+  reference): the encoding tables (REX, ModRM, SIB) and every instruction. Volume 1 for the flags.
+* *Intel 64 and IA-32 Architectures Optimization Reference Manual*: macro-fusion rules and the stack
+  engine (Lab 24).
+* Andrew Waterman, *Design of the RISC-V Instruction Set Architecture*, PhD thesis, 2016: why RISC-V
+  left out delay slots, condition codes and variable-length decoding, with measurements against MIPS and
+  x86-64.
+* John L. Hennessy and David A. Patterson, *Computer Architecture: A Quantitative Approach*, appendix A
+  (instruction set principles) and appendix K (a survey of instruction sets).
+* [Unicorn](https://www.unicorn-engine.org/) (CPU emulator built on QEMU) and
+  [Capstone](https://www.capstone-engine.org/) (disassembler): the independent references
+  `tools/isa_crosscheck.py` compares against.
+
 ## Branch prediction papers
 
 **[5]** J. E. Smith, "A Study of Branch Prediction Strategies," *Proc. 8th International

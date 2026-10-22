@@ -216,3 +216,29 @@ presses to the program's `# FPGA-STEPS:` lines and its answers to `# FPGA-EXPECT
 `node tools/fpga_sim.mjs fpga/examples/calculator.s` checks it on the RTL of the whole FPGA computer,
 buttons and all.
 
+
+## Lab 24: teach the x86-64 model a real processor's tricks
+
+The x86-64 model ([ISA_COMPARISON.md](ISA_COMPARISON.md)) is the slowest of the three on every program,
+partly because `cmp` and `jcc` are two instructions and two micro-ops where RISC-V needs one `blt`. Real
+x86 decoders fix that with **macro-fusion**: a flag-setting instruction and the conditional jump right
+behind it become a single micro-op. The pipeline in `model/isas/x86_core.js` already knows how to run a
+fused pair (one EXECUTE slot, and a jump guessed taken redirects FETCH a cycle earlier); it only needs
+to know which pairs a decoder can fuse. Write `canMacroFuse(first, second)` in that file.
+
+Things to decide: `cmp` and `test` are the obvious first halves, but can `add`, `sub`, `and`, `inc` and
+`dec` fuse too? `inc` and `dec` leave the carry flag alone, so what should happen with `jb` or `ja`,
+which read it? Should a first half with a memory operand fuse? (Intel's optimisation manual lists the
+rules for each generation: compare yours.) Then measure: tick **macro-fusion** in the
+[lab](../web/isa.html?arch=x86&fusion=1) or run
+
+```bash
+node -e "import('./model/isas/index.js').then(async ({ measure }) => { const fs = await import('node:fs');
+  for (const f of fs.readdirSync('programs/compare/x86')) { const s = fs.readFileSync('programs/compare/x86/' + f, 'utf8');
+    console.log(f, measure('x86', s).cycles, '->', measure('x86', s, 5e6, { macroFusion: true }).cycles); } })"
+```
+
+`make isa-check` must still pass (fusion changes timing, never results), and the cycle equation gains a
+term, G, for the gap the front end leaves after a fused pair: why does that gap appear only when the
+jump is guessed not taken? Harder: a **stack engine** keeps `rsp` in the decoder, so `push` and `pop`
+become one micro-op each. Change `microOps()` in `model/isas/x86.js` and measure `factorial_recursive`.

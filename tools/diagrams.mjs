@@ -884,7 +884,8 @@ if (isMain) {
   fs.mkdirSync('docs/img/diagrams', { recursive: true });
   const figs = { branch_prediction: branchPrediction(), cache: cache(), memory_hierarchy: hierarchy(), clock_roadmap: clockRoadmap(CLOCK_DATA),
     multiply_divide: multiplyDivideUnit(), operands_and_alu: operandsAndAlu(), performance_counters: performanceCounters(await program19Counters()),
-    cache_interfaces: cacheInterfaces(), memory_map: memoryMap(), boot_sequence: bootSequence(), fpga_system: fpgaSystem(FPGA_RESULTS), interrupt: await interruptDiagram(), multitasking: await multitaskingDiagram() };
+    cache_interfaces: cacheInterfaces(), memory_map: memoryMap(), boot_sequence: bootSequence(), fpga_system: fpgaSystem(FPGA_RESULTS), interrupt: await interruptDiagram(), multitasking: await multitaskingDiagram(),
+    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines() };
   for (const [n, svg] of Object.entries(figs)) { fs.writeFileSync(`docs/img/diagrams/${n}.svg`, svg); console.log(`wrote docs/img/diagrams/${n}.svg`); }
 }
 
@@ -1132,5 +1133,150 @@ export function fpgaSystem(results) {
   wire([[1270, 700], [1252, 700], [1252, 370], [1200, 370]], 'D', { dash: '5 3' });
   wire([[1200, 470], [1230, 470], [1230, 660], [1060, 660], [1060, 680]], 'W', { dash: '5 3' }); lbl(1140, 655, 'DISPLAY', C.W);
   wire([[1200, 745], [1270, 800]], 'W');
+  return g.done();
+}
+
+// =============================================================================
+// Three instruction sets (docs/ISA_COMPARISON.md): their encodings, and their pipelines
+// =============================================================================
+function FIELD_COLOR(name) {
+  const n = name.toLowerCase();
+  if (n.startsWith('opcode') || n === 'funct3' || n.startsWith('funct')) return n.startsWith('opcode') ? C.F1 : C.D;
+  if (n === 'rd' || n === 'modrm') return C.M;
+  if (n === 'rs1' || n === 'rs' || n === 'sib') return C.E;
+  if (n === 'rs2' || n === 'rt') return C.F2;
+  if (n === 'rex' || n === 'prefixes') return C.tag;
+  return C.W; // immediates, displacements, shift amounts, targets
+}
+
+// The formats of RISC-V and MIPS (bit fields) and the parts of an x86 instruction (bytes), with three real
+// instructions encoded by the assemblers in model/ (so the bytes in the figure are the bytes the models run)
+export async function isaEncodings() {
+  const { FORMATS } = await import('../model/isa.js');
+  const { ARCHS } = await import('../model/isas/index.js');
+  const W = 1500, H = 1130;
+  const g = canvas(W, H, 'Three ways to encode an instruction: RISC-V, MIPS, x86-64',
+    'Fixed 32-bit words with fields in the same places (RISC-V, MIPS) against a variable-length sequence of optional bytes (x86-64). Examples encoded by model/asm.js and model/isas/.');
+  const { text, rect } = g;
+  const X0 = 150, BW = 26; // one bit = 26 px: 32 bits = 832 px
+  const bitRow = (y, label, fields, sub) => {
+    text(X0 - 14, y + 20, label, { size: 12.5, weight: 700, anchor: 'end' });
+    if (sub) text(X0 - 14, y + 35, sub, { size: 9.5, anchor: 'end', fill: C.faint });
+    for (const [name, hi, lo] of fields) {
+      const x = X0 + (31 - hi) * BW, w = (hi - lo + 1) * BW, col = FIELD_COLOR(name);
+      rect(x, y, w, 30, { fill: col, stroke: col, op: 0.16, rx: 3 });
+      text(x + w / 2, y + 19, name, { size: w < 70 ? 9.5 : 11, anchor: 'middle', fill: col, weight: 700 });
+    }
+  };
+  // RISC-V
+  text(40, 100, 'RISC-V: six formats, all 32 bits. rd, rs1 and rs2 are in the same place in every format that has them.', { size: 14, weight: 700, fill: C.F1 });
+  [['R', 'register-register'], ['I', 'immediate, loads, jalr'], ['S', 'stores'], ['B', 'branches'], ['U', 'lui, auipc'], ['J', 'jal']].forEach(([f, sub], i) => bitRow(114 + i * 40, f, FORMATS[f], sub));
+  for (let b = 31; b >= 0; b -= 1) if (b % 4 === 3 || b === 0) text(X0 + (31 - b) * BW + BW / 2, 112, String(b), { size: 8.5, anchor: 'middle', fill: C.faint });
+  // MIPS
+  const MIPS = { R: [['opcode', 31, 26], ['rs', 25, 21], ['rt', 20, 16], ['rd', 15, 11], ['shamt', 10, 6], ['funct', 5, 0]], I: [['opcode', 31, 26], ['rs', 25, 21], ['rt', 20, 16], ['immediate', 15, 0]], J: [['opcode', 31, 26], ['target', 25, 0]] };
+  text(40, 380, 'MIPS: three formats, all 32 bits. The opcode is on the left; 16-bit immediates; 26-bit jump targets.', { size: 14, weight: 700, fill: C.D });
+  [['R', 'register-register'], ['I', 'loads, stores, branches'], ['J', 'j, jal']].forEach(([f, sub], i) => bitRow(394 + i * 40, f, MIPS[f], sub));
+  // x86
+  text(40, 540, 'x86-64: one instruction is 1 to 15 bytes, built from optional parts in a fixed order.', { size: 14, weight: 700, fill: C.W });
+  const parts = [['prefixes', '0-4', 'size, rep, lock'], ['REX', '0-1', 'W: 64-bit; r8-r15'], ['opcode', '1-3', 'the operation'], ['ModRM', '0-1', 'register and r/m operand'], ['SIB', '0-1', 'scale, index, base'], ['displacement', '0, 1, 2, 4', 'the address offset'], ['immediate', '0, 1, 2, 4, 8', 'a constant']];
+  let x = X0;
+  parts.forEach(([name, bytes, what]) => {
+    const w = 118, col = FIELD_COLOR(name === 'displacement' || name === 'immediate' ? 'imm' : name);
+    rect(x, 556, w - 6, 44, { fill: col, stroke: col, op: 0.16, rx: 4, dash: name === 'opcode' ? null : '5 3' });
+    text(x + (w - 6) / 2, 575, name, { size: 11.5, weight: 700, anchor: 'middle', fill: col });
+    text(x + (w - 6) / 2, 592, `${bytes} bytes`, { size: 9.5, anchor: 'middle', fill: C.sub });
+    text(x + (w - 6) / 2, 618, what, { size: 9, anchor: 'middle', fill: C.faint });
+    x += w;
+  });
+  text(x + 10, 584, 'dashed = optional', { size: 10, fill: C.faint, italic: true });
+  // Examples
+  const ex = [
+    ['add two registers', { riscv: 'add a0, a0, t0', mips: 'addu $v0, $v0, $t0', x86: 'add rax, rcx' }],
+    ['add a small constant', { riscv: 'addi sp, sp, -16', mips: 'addiu $sp, $sp, -16', x86: 'sub rsp, 16' }],
+    ['load from memory', { riscv: 'ld t3, 8(t0)', mips: 'lw $t3, 8($t0)', x86: 'mov rdx, [rsi + 8]' }],
+    ['add a value from memory', { riscv: 'ld t3, 8(t0) then add a0, a0, t3', mips: 'lw $t3, 8($t0) then addu $v0, $v0, $t3', x86: 'add rax, [rsi + rcx*8 + 8]' }],
+  ];
+  const ey = 672;
+  text(40, ey - 14, 'The same operations, encoded (bytes as they lie in memory, lowest address first)', { size: 14, weight: 700 });
+  const colX = { riscv: 230, mips: 650, x86: 1070 };
+  for (const [a, cx] of Object.entries(colX)) text(cx, ey + 12, ARCHS[a].name, { size: 13, weight: 700, fill: a === 'riscv' ? C.F1 : a === 'mips' ? C.D : C.W });
+  ex.forEach(([what, srcs], i) => {
+    const y = ey + 34 + i * 88;
+    text(40, y + 16, what, { size: 11.5, weight: 600 });
+    for (const [a, cx] of Object.entries(colX)) {
+      const lines = srcs[a].split(' then ');
+      let yy = y;
+      for (const line of lines) {
+        const img = ARCHS[a].assemble(line), row = ARCHS[a].listing(img)[0];
+        text(cx, yy + 12, line, { size: 11, mono: true });
+        let bx = cx;
+        const groups = a === 'x86' ? row.parts.map(p => ({ name: p.name, bytes: p.bits })) : [{ name: `${row.size} bytes, ${row.format}-type`, bytes: row.bytes.map(b => b.toString(16).padStart(2, '0')).join(' ') }];
+        for (const gp of groups) {
+          const w = Math.max(gp.bytes.length * 7.4 + 12, a === 'x86' ? 34 : 120), col = a === 'x86' ? FIELD_COLOR(gp.name.startsWith('disp') || gp.name.startsWith('imm') ? 'imm' : gp.name) : C.F1;
+          rect(bx, yy + 18, w, 20, { fill: col, stroke: col, op: 0.14, rx: 3 });
+          text(bx + w / 2, yy + 32, gp.bytes, { size: 10.5, mono: true, anchor: 'middle', fill: C.ink });
+          text(bx + w / 2, yy + 49, a === 'x86' ? gp.name.replace('displacement', 'disp').replace('immediate', 'imm') : gp.name, { size: 8.5, anchor: 'middle', fill: C.faint });
+          bx += w + 3;
+        }
+        yy += lines.length > 1 ? 58 : 0;
+      }
+    }
+  });
+  text(40, H - 22, 'RISC-V and MIPS need two instructions (8 bytes) to add a value from memory; x86-64 does it in one 5-byte instruction, which its decoder splits into a load and an add.', { size: 11.5, fill: C.sub });
+  return g.done();
+}
+
+// Where each pipeline finds out about branches, and what the seven comparison programs cost on each
+export async function isaPipelines() {
+  const { ARCHS, measure } = await import('../model/isas/index.js');
+  const progs = fs.readdirSync(new URL('../programs/compare/riscv/', import.meta.url)).filter(f => f.endsWith('.s')).sort();
+  const totals = Object.fromEntries(Object.keys(ARCHS).map(a => [a, { cycles: 0, instructions: 0, uops: 0, codeBytes: 0 }]));
+  for (const f of progs) for (const a of Object.keys(ARCHS)) {
+    const m = measure(a, fs.readFileSync(new URL(`../programs/compare/${a}/${f}`, import.meta.url), 'utf8'));
+    for (const k of ['cycles', 'instructions', 'uops', 'codeBytes']) totals[a][k] += m[k] || 0;
+  }
+  const W = 1500, H = 900;
+  const g = canvas(W, H, 'Three pipelines: where each one learns about a branch',
+    'The models in model/core.js (Sixfold, RISC-V) and model/isas/ (MIPS, x86-64): same memory, same multiply/divide timing, same predictor where one is used.');
+  const { text, rect, wire, pill } = g;
+  const rows = [
+    ['riscv', 'RISC-V on Sixfold', ['FETCH1', 'FETCH2', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK'], C.F1,
+      [[1, 'jumps and branches guessed taken: redirect, 1 bubble'], [3, 'a wrong guess, or any jalr: flush, 3 bubbles']], 'Branches are predicted (gshare). Compare and branch are one instruction.'],
+    ['mips', 'MIPS, the classic five stages', ['IF', 'ID', 'EX', 'MEM', 'WB'], C.D,
+      [[1, 'branches and jumps resolve here: the next instruction (the delay slot) runs anyway, 0 bubbles'], [1, 'but a branch needing a value still in EX waits 1 cycle']], 'No prediction at all: the instruction set itself hides the branch.'],
+    ['x86', 'x86-64, in-order with micro-ops', ['FETCH', 'PREDECODE', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK'], C.W,
+      [[2, 'decoded into 1 to 3 micro-ops; jumps known here: redirect, 2 bubbles'], [3, 'a wrong guess, ret, indirect jumps: flush, 3 bubbles']], 'PREDECODE finds where each instruction ends. cmp and jcc are two instructions.'],
+  ];
+  rows.forEach(([a, title, stages, col, marks, foot], r) => {
+    const y = 110 + r * 190, sw = 158;
+    text(40, y - 12, title, { size: 15, weight: 700, fill: col });
+    stages.forEach((s, i) => {
+      rect(40 + i * (sw + 12), y, sw, 44, { fill: col, stroke: col, op: 0.12 });
+      text(40 + i * (sw + 12) + sw / 2, y + 27, s, { size: 12, weight: 700, anchor: 'middle', fill: col });
+      if (i) wire([[40 + i * (sw + 12) - 12, y + 22], [40 + i * (sw + 12) - 1, y + 22]], 'data', { width: 1.5 });
+    });
+    [...marks].sort((p, q) => q[0] - p[0]).forEach(([i, s], k) => { // the rightmost mark on the top row, so no arrow crosses a label
+      const mx = 40 + i * (sw + 12) + sw / 2, my = y + 60 + k * 30;
+      const bad = /wrong|waits/.test(s);
+      wire([[mx, y + 44], [mx, my + 6]], bad ? 'flush' : 'pred', { width: 1.5 });
+      text(mx + 8, my + 10, s, { size: 11, fill: bad ? C.flush : C.pred, weight: 600 });
+    });
+    text(40, y + 136, foot, { size: 11.5, fill: C.sub });
+  });
+  // Totals over the seven programs
+  const ty = 690, archs = Object.keys(ARCHS);
+  text(40, ty, `All seven comparison programs together (programs/compare/), measured on these models:`, { size: 14, weight: 700 });
+  const metrics = [['bytes of code', 'codeBytes'], ['instructions executed', 'instructions'], ['cycles', 'cycles']];
+  metrics.forEach(([label, key], m) => {
+    const x0 = 40 + m * 490, max = Math.max(...archs.map(a => totals[a][key]));
+    text(x0, ty + 32, label, { size: 12, weight: 600 });
+    archs.forEach((a, i) => {
+      const y = ty + 46 + i * 34, w = 240 * totals[a][key] / max, col = a === 'riscv' ? C.F1 : a === 'mips' ? C.D : C.W;
+      text(x0, y + 15, ARCHS[a].name, { size: 11, fill: col, weight: 700 });
+      rect(x0 + 70, y, w, 22, { fill: col, stroke: col, op: 0.25, rx: 3 });
+      text(x0 + 76 + w, y + 16, totals[a][key].toLocaleString('en-US') + (a === 'x86' && key === 'instructions' ? ` (${totals[a].uops.toLocaleString('en-US')} micro-ops)` : ''), { size: 11, mono: true });
+    });
+  });
+  text(40, H - 22, 'x86-64 has the smallest code and the most cycles here: dense instructions, but a simple in-order core spends extra stages finding and splitting them. Real x86 cores add wide decoders, micro-op caches and fusion to win that back.', { size: 11, fill: C.sub });
   return g.done();
 }

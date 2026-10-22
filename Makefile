@@ -16,7 +16,7 @@ BPFLAG = $(if $(filter 0,$(BP)),--bp=off) --history=$(HIST) --config=$(CONFIG)
 
 TBDEF = $(if $(filter baseline,$(CONFIG)),-DBASELINE)
 FPGA_RTL = $(filter-out src/Scratchpad_Memory.sv src/Riscv64_top.sv,$(RTL)) $(shell cat fpga/sources.f)
-.PHONY: check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
+.PHONY: isa-check isa-compare check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
 
 help:            ## list targets
 	@grep -E '^[a-z0-9-]+:.*##' Makefile | sed 's/:.*##/\t/' | expand -t 14
@@ -146,6 +146,14 @@ schematics: build/synth/flat.v  ## Yosys schematics of small modules (docs/img/s
 	yosys -q -p "read_verilog build/synth/flat.v; chparam -set HISTORY_BITS 2 GSharePredictor; hierarchy -top GSharePredictor; proc; opt -full; clean; show -format svg -width -stretch -prefix docs/img/schematics/gshare_2bit GSharePredictor"
 	yosys -q -p "read_verilog build/synth/flat.v; hierarchy -top BranchControl; proc; opt -full; clean; show -format svg -width -stretch -prefix docs/img/schematics/branch_control BranchControl"
 	rm -f docs/img/schematics/*.dot
+
+isa-check:       ## RISC-V, MIPS, x86-64 models: results, cycle equations, encodings vs GNU as, runs vs Unicorn
+	node tools/isa_test.mjs
+	node tools/x86_as_check.mjs
+	python3 tools/isa_crosscheck.py
+
+isa-compare:     ## the code size / instructions / cycles table of docs/ISA_COMPARISON.md
+	@node tools/isa_test.mjs --table
 
 check-links:     ## every relative link, image and #anchor in the Markdown and HTML files resolves
 	node tools/check_links.mjs
