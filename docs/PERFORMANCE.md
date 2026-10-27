@@ -198,6 +198,13 @@ Re-measured after the Basys 3 round (which changed no logic of the core): `make 
 (273 MHz) for the performance build and 3.35 ns for the baseline without its M unit. That is the same
 spread again, so this page, the README and the site keep the conservative 244 MHz.
 
+Re-measured after adding custom instructions ([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md)), with the
+four examples built in: 4.05 ns (247 MHz) at 130 nm and 521 ps (1.92 GHz) at 7 nm. At both nodes the
+longest path now starts in the custom unit (the 64-bit population count of `hamming`, which runs in the
+MEMORY stage), but both numbers are inside the run-to-run spread above; without `hamming` the 130 nm
+figure is 3.90 ns with the core's own path the longest. The published 244 MHz holds; at 7 nm the default
+build is about 1.92 GHz rather than 1.95 GHz.
+
 The caches are not in this measurement (they would be SRAM macros on a chip, timed separately). On an
 FPGA they are real logic, and there they set the clock: see [FPGA.md](FPGA.md#7-results).
 

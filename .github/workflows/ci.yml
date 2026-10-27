@@ -39,6 +39,10 @@ jobs:
         run: |
           make docs charts diagram diagrams animations arena && node tools/perf_report.mjs > /dev/null && node tools/readme_table.mjs --write
           git diff --exit-code -- binary docs/img/pipeline docs/img/instructions docs/img/formats docs/img/charts docs/img/diagrams docs/img/animations docs/img/cpu_block_diagram.svg web/programs.js README.md docs/PERFORMANCE.md
+      - name: Custom instructions (the generated RTL is current; random instructions on the RTL against the model)
+        run: |
+          node tools/custom.mjs --check
+          make custom-check
       - name: Three instruction sets (models, encodings vs GNU as, runs vs the Unicorn emulator)
         run: |
           pip install unicorn capstone

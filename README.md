@@ -13,7 +13,7 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 
 | | |
 |---|---|
-| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr: **113 instructions**, every one documented [in binary](binary/README.md) |
+| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr: **113 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (four built in: `absdiff`, `avgu`, `hamming`, `clampi`) |
 | **Pipeline** | FETCH1 → FETCH2 → DECODE → EXECUTE → MEMORY → WRITEBACK, in order, one instruction per cycle |
 | **Hazards** | forwarding into DECODE from EXECUTE / MEMORY / WRITEBACK (the late EXECUTE value takes its own short path), 1-cycle `LOAD_STALL` for loads and the 2-cycle Zbb results (`cpop`, which finishes its count in MEMORY, and `min`, `max`) |
 | **Branch prediction** | tournament: a per-branch Branch History Table and `GSharePredictor` (PC xor global history, checkpoint repair) with a chooser; a 16-entry Branch Target Buffer (known taken branches cost 0 cycles); an 8-entry Return Address Stack |
@@ -24,11 +24,13 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 | **A tiny OS** | a preemptive round-robin kernel in ~200 lines of assembly: three tasks, timer-driven context switches, task control blocks ([`22_multitasking.s`](programs/22_multitasking.s)) |
 | **Interrupts** | precise machine timer and external interrupts (`mie`, `mip`, `wfi`, a memory-mapped MTIME/MTIMECMP timer), taken by replacing the instruction in DECODE: 4 cycles each, and the interrupted program cannot tell ([`21_timer_interrupts.s`](programs/21_timer_interrupts.s), a 388-interrupt stress test) |
 | **Multiply / divide** | iterative: a 64 x 16-bit Wallace-tree step with a carry-save accumulator (multiply in 8 cycles), 1 quotient bit per cycle after a leading-zero-counter skip (divide in 5 + significant bits) |
-| **Clock (logic only)** | about **244 MHz** on SkyWater 130 nm and **1.95 GHz** on the ASAP7 7 nm research kit, with the full M and B extensions and interrupts: [PERFORMANCE.md](docs/PERFORMANCE.md) |
+| **Clock (logic only)** | about **244 MHz** on SkyWater 130 nm and **1.95 GHz** on the ASAP7 7 nm research kit (1.92 GHz with the four example custom instructions built in), with the full M and B extensions and interrupts: [PERFORMANCE.md](docs/PERFORMANCE.md) |
 | **FPGA** | a complete computer around the core: 64 KiB block-RAM main memory, UART with queues, 16 LEDs, 16 switches, 5 buttons, a four-digit seven-segment display, memory-mapped device registers, boot firmware that loads programs over USB and reports PASS and cycles. Builds for the **Digilent Basys 3** (Artix-7 XC7A35T, Vivado: every switch, button, LED and digit; about 86% of the chip), the **ULX3S** (Lattice ECP5-85F, open-source tools, placed and routed here) and the **Arty A7-100T** (Vivado): [FPGA.md](docs/FPGA.md). A hands-on example, [`calculator.s`](fpga/examples/calculator.s), does arithmetic on the switches when you press the buttons and shows the answer on the digits and the LEDs |
+| **Your own instructions** | write what an instruction computes as one expression in the [instruction workshop](web/custom.html); it gets an encoding, the assembler and the model learn it, and `make custom` generates the SystemVerilog ([`src/Custom_Unit.sv`](src/Custom_Unit.sv)). The RTL is checked against the model on every cycle, and on 60 random instructions using every operator (`make custom-check`): [CUSTOM_INSTRUCTIONS.md](docs/CUSTOM_INSTRUCTIONS.md) |
+| **Desktop app** | the site and all three labs as an app for **Windows, macOS and Linux**, built by GitHub Actions for every release ([`desktop/`](desktop/README.md)) |
 | **Three architectures** | the same seven programs written for **RISC-V, MIPS and x86-64**, assembled to real machine code and run cycle by cycle on a pipeline model for each (Sixfold; the classic 5 stages with a delay slot; an in-order core with micro-ops), side by side in the [three-architecture lab](web/isa.html). Encodings match the GNU assembler, runs match the Unicorn emulator (`make isa-check`): [ISA_COMPARISON.md](docs/ISA_COMPARISON.md) |
 | **Two builds** | the performance edition (default) and a simple baseline pipeline (`-DBASELINE`), both in the same RTL behind parameters |
-| **Verified** | 23 programs, a 1,630-case self-checking test (expected values from an independent Python model) and a 388-interrupt stress test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (100 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
+| **Verified** | 24 programs, a 1,630-case self-checking test (expected values from an independent Python model), a 388-interrupt stress test and a custom-instruction pipeline test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (108 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
 | **Silicon** | the original design's real sky130 layout, timing and area, plus sky130 synthesis of this RTL |
 | **Runs on** | Icarus Verilog, Verilator, Yosys, nextpnr, Vivado, an FPGA board, any web browser |
 
@@ -194,6 +196,7 @@ your browser, with no install:
 * **three programs, one CPU**: the tiny operating system of program 22, its tasks taking turns live, with a
   quantum slider and the task control blocks read from memory;
 * **one program, three instruction sets**: the same program as RISC-V, MIPS and x86-64 machine code, with code size, instructions and cycles measured on each;
+* **invent an instruction**: type what it computes and see its result, its encoding, its circuits and its SystemVerilog, and how much Sixfold's four custom instructions save;
 * **a live dashboard** of where every cycle goes, for every program;
 * **the lab** ([`web/`](web/index.html)): step forward and back through any program, or your own, or run
   it to the end; see the branch predictor's tables, the trap registers and the timer, and for programs
@@ -318,6 +321,7 @@ performance edition.
 | [`20_leds_and_buttons`](programs/20_leds_and_buttons.s) | talking to devices (memory-mapped I/O) and Zbs | 1196 | 1.18 | 1449 | 1.43 |
 | [`21_timer_interrupts`](programs/21_timer_interrupts.s) | a timer interrupt, taken precisely in the middle of a loop | 10056 | 1.03 | 19255 | 2.02 |
 | [`22_multitasking`](programs/22_multitasking.s) | a tiny preemptive operating-system kernel, three tasks | 82959 | 2.43 | 90159 | 2.60 |
+| [`23_custom_instructions`](programs/23_custom_instructions.s) | four instructions that are not in RISC-V, designed in custom/instructions.json | 638 | 1.50 | 667 | 1.57 |
 
 ## Down to silicon
 
@@ -353,18 +357,21 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
 * `make isa-check`: the MIPS and x86-64 models: every comparison program's result and cycle equation,
   every x86-64 encoding against the GNU assembler (251 forms, byte for byte), and every run against the
   Unicorn emulator and the Capstone disassembler.
+* `make custom-check`: 60 random custom instructions that use every operator and function of the
+  expression language, compiled into the RTL and run against the model on random and edge-case
+  operands, cycle by cycle. A planted one-character bug in the compiler's SystemVerilog fails it.
 * `make check-links`: every relative link, image and `#anchor` in the documentation resolves.
 * Continuous integration runs all of it on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Experiments
 
-Twenty-four labs in [EXPERIMENTS.md](docs/EXPERIMENTS.md): history length, counter reset values, a
+Twenty-five labs in [EXPERIMENTS.md](docs/EXPERIMENTS.md): history length, counter reset values, a
 multi-cycle divider, removing false load stalls, a return address stack, a branch target buffer, a
 faster adder for the critical path, forwarding into EXECUTE, cache experiments, bigger and smarter
 predictors, chasing the 7 nm critical path, Booth recoding for the multiplier, your own CPI stack from
 the hardware counters, rewriting a program with Zba and Zbb, a bitmap allocator with Zbs, a new device
 register for the FPGA computer, a new command for its boot firmware, a pipelined data cache for a
-faster FPGA clock, interrupt latency with vectored interrupts, a yield system call for the tiny OS, your own program for the Basys 3's switches, buttons and digits, and macro-fusion for the x86-64 model.
+faster FPGA clock, interrupt latency with vectored interrupts, a yield system call for the tiny OS, your own program for the Basys 3's switches, buttons and digits, macro-fusion for the x86-64 model, and an instruction of your own for a real workload.
 
 ## Repository map
 
@@ -373,12 +380,14 @@ faster FPGA clock, interrupt latency with vectored interrupts, a yield system ca
 | [`src/`](src) | the SystemVerilog RTL: `Riscv64.sv` and one file per module ([file list](src/sources.f)) |
 | [`tb/`](tb) | the testbench (per-cycle trace, register dump, `+BP=0` to disable prediction) |
 | [`fpga/`](fpga) | the FPGA computer: `rtl/` (memory, UART, devices, boot control), `firmware/bios.s`, `sim/`, `boards/` (Basys 3, ULX3S, Arty A7), `examples/` (calculator, interrupt echo) |
-| [`model/`](model) | ISA table, assembler, cycle-exact pipeline model (JavaScript); [`model/isas/`](model/isas) the MIPS and x86-64 assemblers and pipeline models |
+| [`model/`](model) | ISA table, assembler, cycle-exact pipeline model (JavaScript); [`model/custom.js`](model/custom.js) the custom-instruction compiler; [`model/isas/`](model/isas) the MIPS and x86-64 assemblers and pipeline models |
+| [`custom/`](custom/instructions.json) | your custom instructions, one JSON file (`make custom` turns it into RTL) |
 | [`programs/`](programs), [`tests/`](tests) | example programs and the self-check; [`programs/compare/`](programs/compare) the seven programs in all three ISAs |
 | [`binary/`](binary/README.md) | every instruction and every program in binary |
-| [`docs/`](docs) | [learning path](docs/learn/README.md), [architecture](docs/ARCHITECTURE.md), [performance](docs/PERFORMANCE.md), [modern CPUs](docs/MODERN_CPUS.md), [math](docs/MATH.md), [experiments](docs/EXPERIMENTS.md), [silicon](docs/SILICON.md), [references](docs/REFERENCES.md) |
+| [`docs/`](docs) | [learning path](docs/learn/README.md), [architecture](docs/ARCHITECTURE.md), [performance](docs/PERFORMANCE.md), [modern CPUs](docs/MODERN_CPUS.md), [math](docs/MATH.md), [experiments](docs/EXPERIMENTS.md), [silicon](docs/SILICON.md), [three ISAs](docs/ISA_COMPARISON.md), [custom instructions](docs/CUSTOM_INSTRUCTIONS.md), [glossary](docs/GLOSSARY.md), [references](docs/REFERENCES.md) |
 | [`index.html`](index.html), [`site/`](site) | the GitHub Pages front page: 3D pipeline, bit playground, predictor race, caches, FPGA console, operating system, chip scope, dashboard (vanilla JavaScript modules + vendored three.js, no build step) |
-| [`web/`](web/index.html) | the pipeline lab: step-by-step simulator, and [`isa.html`](web/isa.html), the three-architecture lab |
+| [`web/`](web/index.html) | the pipeline lab: step-by-step simulator; [`isa.html`](web/isa.html), the three-architecture lab; [`custom.html`](web/custom.html), the instruction workshop |
+| [`desktop/`](desktop/README.md) | the desktop app (Electron) for Windows, macOS and Linux |
 | [`tools/`](tools) | CLI, test runner, doc/chart/diagram generators, chip and cell renderers |
 | [`docs/silicon/`](docs/silicon) | the 32-bit prototype's placed-and-routed layout (DEF) and timing/power reports |
 
@@ -392,15 +401,30 @@ make rtl / vsim / wave               run on Icarus, Verilator, or open GTKWave
 make docs / charts / diagram / diagrams / animations / arena   regenerate generated pages and pictures
 make synth / schematics              sky130 synthesis per module, Yosys schematics
 make isa-check / isa-compare         RISC-V, MIPS, x86-64: verify the models, print the comparison table
+make custom / custom-check           custom/instructions.json -> RTL + model; random instructions, RTL vs model
 make lint / serve / clean
 ```
 
-## Publish the site
+## Publish the site and the desktop apps
+
+The site deploys itself with GitHub Actions ([`.github/workflows/pages.yml`](.github/workflows/pages.yml))
+on every push to `main`. Turn it on once:
 
 ```bash
-cd ~/sixfold-cpu && git push           # the site is plain static files
-# GitHub: Settings -> Pages -> Build and deployment -> Deploy from a branch -> main, / (root) -> Save
-# about a minute later: https://<your-user>.github.io/sixfold-cpu/
+# GitHub: Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+# or, with the GitHub command-line tool (https://cli.github.com):
+gh api -X POST repos/<your-user>/sixfold-cpu/pages -f build_type=workflow     # PUT instead of POST if Pages was already on
+git push                                                                        # about a minute later: https://<your-user>.github.io/sixfold-cpu/
+```
+
+The desktop apps for Windows, macOS and Linux are built on GitHub's machines by
+[`.github/workflows/release.yml`](.github/workflows/release.yml) whenever you push a version tag, and
+attached to a GitHub Release (the site's download section links to the newest one):
+
+```bash
+git tag v2.1.0 && git push origin v2.1.0      # Actions -> "release" builds all three and publishes the release
+cd desktop && npm ci && npm start             # or run the app locally
+npm run dist:linux                            # build it yourself: dist:win on Windows, dist:mac on macOS
 ```
 
 The front page was inspired by interactive explainers such as bbycroft's llm-viz and Georgia Tech's

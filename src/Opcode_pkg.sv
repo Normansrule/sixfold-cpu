@@ -32,6 +32,10 @@ package opcode_pkg;
   localparam logic [6:0] OPC_ARI_RTYPE_WORD = 7'b0111011;
   // ===============================================
 
+  // Custom instructions: RISC-V reserves custom-0 for extensions like these (src/Custom_Unit.sv, generated
+  // from custom/instructions.json). funct3 0-3: R format (rd, rs1, rs2); funct3 4-7: I format (rd, rs1, imm)
+  localparam logic [6:0] OPC_CUSTOM0   = 7'b0001011;
+
   // Control status register
   localparam logic [6:0] OPC_CSR       = 7'b1110011;
 

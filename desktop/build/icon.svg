@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="#101B22"/>
+  <!-- package pins -->
+  <g fill="#2A3E49">
+    <rect x="100" y="40" width="24" height="44" rx="6"/><rect x="164" y="40" width="24" height="44" rx="6"/><rect x="228" y="40" width="24" height="44" rx="6"/><rect x="292" y="40" width="24" height="44" rx="6"/><rect x="356" y="40" width="24" height="44" rx="6"/>
+    <rect x="100" y="428" width="24" height="44" rx="6"/><rect x="164" y="428" width="24" height="44" rx="6"/><rect x="228" y="428" width="24" height="44" rx="6"/><rect x="292" y="428" width="24" height="44" rx="6"/><rect x="356" y="428" width="24" height="44" rx="6"/>
+  </g>
+  <rect x="76" y="92" width="360" height="328" rx="40" fill="#15242D" stroke="#2A3E49" stroke-width="6"/>
+  <!-- six stages as a staircase -->
+  <rect x="104" y="128" width="88" height="40" rx="10" fill="#5B9BD5"/>
+  <rect x="152" y="176" width="88" height="40" rx="10" fill="#6CC4BA"/>
+  <rect x="200" y="224" width="88" height="40" rx="10" fill="#A884D6"/>
+  <rect x="248" y="272" width="88" height="40" rx="10" fill="#E8A33C"/>
+  <rect x="296" y="320" width="88" height="40" rx="10" fill="#6DBE6D"/>
+  <rect x="340" y="366" width="76" height="36" rx="10" fill="#E0584F"/>
+</svg>

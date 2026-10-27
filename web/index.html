@@ -11,9 +11,10 @@
 <body>
 <header class="top">
   <div class="title">
-    <p class="home"><a href="../index.html">Sixfold home</a></p>
+    <p class="home"><a href="../index.html">Sixfold home</a> · <a href="isa.html">three architectures</a> · <a href="custom.html">instruction workshop</a></p>
     <h1>Pipeline lab: six stages, one instruction per clock</h1>
     <p>Load a program, press <kbd>Step</kbd>, and watch each instruction move FETCH1 → FETCH2 → DECODE → EXECUTE → MEMORY → WRITEBACK. This page runs the same cycle-exact model the SystemVerilog in <code>src/</code> is tested against.</p>
+    <p id="customnote" class="customnote" hidden></p>
   </div>
   <div class="controls" role="toolbar" aria-label="Simulation controls">
     <nav class="archswitch" aria-label="Architecture"><span class="cur" aria-current="page">RISC-V</span><a href="isa.html?arch=mips">MIPS</a><a href="isa.html?arch=x86">x86-64</a></nav>

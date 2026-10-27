@@ -1,0 +1,150 @@
+/* web/custom.css: the instruction workshop (on top of style.css: same paper, ink and stage colours) */
+.ws {
+  display: grid; gap: 1rem;
+  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-areas:
+    "set editor encode"
+    "set editor tryit"
+    "set cost   tryit"
+    "program program verilog";
+  align-items: start;
+}
+.setcard { grid-area: set; position: sticky; top: 1rem; }
+.editor { grid-area: editor; }
+.encode { grid-area: encode; }
+.tryit { grid-area: tryit; }
+.costcard { grid-area: cost; }
+.program { grid-area: program; }
+.verilog { grid-area: verilog; min-width: 0; }
+
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.1rem; min-width: 0; }
+.card h2 { font-size: 1.02rem; letter-spacing: -0.005em; }
+.sub { color: var(--sub); font-weight: 400; }
+.quiet { background: transparent; border-color: transparent; color: var(--sub); }
+.quiet:hover { color: var(--ink); border-color: var(--rule); }
+.edhead { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+
+/* ---------- the set ---------- */
+.setlist { list-style: none; margin: 0 0 .9rem; padding: 0; display: grid; gap: .35rem; }
+.setlist button {
+  width: 100%; text-align: left; display: grid; grid-template-columns: 1fr auto; gap: .1rem .5rem;
+  padding: .5rem .6rem; border-radius: 8px; border: 1px solid var(--rule); background: var(--paper);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.setlist button:hover { border-color: var(--sub); }
+.setlist button[aria-current="true"] { border-color: var(--DECODE); background: color-mix(in srgb, var(--DECODE) 9%, var(--panel)); box-shadow: inset 3px 0 0 var(--DECODE); }
+.setlist button.bad { border-color: var(--WRITEBACK); }
+.setlist .nm { font: 600 .95rem var(--mono); }
+.setlist .fm { font: .75rem var(--mono); color: var(--sub); align-self: center; font-variant-numeric: tabular-nums; }
+.setlist code { grid-column: 1 / -1; color: var(--sub); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setactions { display: grid; gap: .6rem; }
+.setactions select { width: 100%; }
+.setstatus { margin-top: .8rem; font-size: .85rem; }
+.setstatus.ok { color: var(--MEMORY); }
+.setstatus.bad { color: var(--WRITEBACK); font-weight: 600; }
+
+/* ---------- the editor ---------- */
+.edgrid { display: flex; flex-wrap: wrap; gap: .8rem 1rem; align-items: flex-end; margin: .4rem 0 .9rem; }
+.edgrid > .field:first-child { flex: 1 1 9rem; }
+.edgrid input[type=text], .field.grow input { width: 100%; }
+.field input[type=text], .field textarea, .field input:not([type]) { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: .45rem .55rem; color: var(--ink); font-size: .95rem; }
+#f-name { font-family: var(--mono); }
+.field.grow { display: flex; flex-direction: column; gap: .25rem; margin-top: .3rem; font-size: .8rem; }
+.seg { border: 0; padding: 0; margin: 0; display: flex; gap: .25rem; flex-wrap: wrap; }
+.seg legend { font-size: .75rem; color: var(--sub); padding: 0; margin-bottom: .15rem; }
+.seg label { display: flex; align-items: center; gap: .35rem; border: 1px solid var(--rule); border-radius: 6px; padding: .35rem .6rem; font-size: .85rem; cursor: pointer; background: var(--paper); }
+.seg label:has(input:checked) { border-color: var(--DECODE); background: color-mix(in srgb, var(--DECODE) 10%, var(--panel)); font-weight: 600; }
+.seg input { accent-color: var(--DECODE); margin: 0; }
+.expr { font: 500 1.05rem/1.5 var(--mono); width: 100%; resize: vertical; min-height: 3.2rem; caret-color: var(--EXECUTE); }
+.expr[aria-invalid="true"] { border-color: var(--WRITEBACK); }
+.experr { color: var(--WRITEBACK); font-size: .85rem; min-height: 1.3em; margin: .3rem 0 .2rem; }
+.palette { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0 .9rem; }
+.tok { font: .78rem var(--mono); padding: .2rem .5rem; border-radius: 5px; background: var(--tint); border-color: transparent; transition: background-color .12s ease, transform .12s ease; }
+.tok:hover { background: color-mix(in srgb, var(--EXECUTE) 18%, var(--tint)); }
+.tok:active { transform: scale(.96); }
+.fieldmsg { color: var(--WRITEBACK); font-size: .85rem; margin-top: .5rem; }
+.fieldmsg:empty { display: none; }
+
+/* ---------- encoding ---------- */
+.bitfield { display: flex; gap: 2px; margin: .4rem 0 .6rem; }
+.bf { display: flex; flex-direction: column; align-items: center; min-width: 0; border-radius: 6px; padding: .35rem .15rem; background: var(--tint); text-align: center; }
+.bf .bn { font: 600 .72rem var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bf .bb { font: 500 .8rem var(--mono); letter-spacing: .02em; overflow-wrap: anywhere; line-height: 1.25; }
+.bf .bw { font-size: .66rem; color: var(--sub); line-height: 1.2; margin-top: .15rem; }
+.bf.f-opcode { background: color-mix(in srgb, var(--FETCH1) 16%, var(--panel)); }
+.bf.f-rd { background: color-mix(in srgb, var(--MEMORY) 16%, var(--panel)); }
+.bf.f-rs1 { background: color-mix(in srgb, var(--EXECUTE) 18%, var(--panel)); }
+.bf.f-rs2 { background: color-mix(in srgb, var(--FETCH2) 16%, var(--panel)); }
+.bf.f-funct3, .bf.f-funct7 { background: color-mix(in srgb, var(--DECODE) 16%, var(--panel)); }
+.bf.f-imm { background: color-mix(in srgb, var(--WRITEBACK) 13%, var(--panel)); }
+.encword { font-size: .85rem; color: var(--sub); }
+.encword code { color: var(--ink); }
+
+/* ---------- try it ---------- */
+.tryrow { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.tryrow input { width: 100%; font-family: var(--mono); }
+.tryrow input[aria-invalid="true"] { border-color: var(--WRITEBACK); }
+.tryout { margin: .8rem 0; }
+.res { display: grid; grid-template-columns: auto 1fr; gap: .1rem .8rem; margin: 0; }
+.res dt { grid-row: span 3; font: 600 .85rem var(--mono); color: var(--sub); }
+.res dd { margin: 0; font-variant-numeric: tabular-nums; }
+.res dd b { font: 600 1.6rem/1.1 var(--mono); }
+.edges { border-collapse: collapse; font: .74rem var(--mono); width: 100%; font-variant-numeric: tabular-nums; }
+.edges caption { text-align: left; font: .78rem var(--sans); color: var(--sub); margin-bottom: .3rem; }
+.edges th, .edges td { border: 1px solid var(--rule); padding: .2rem .3rem; text-align: right; white-space: nowrap; }
+.edges th { background: var(--tint); font-weight: 600; }
+
+/* ---------- cost ---------- */
+.cost ul { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .45rem; }
+.cost li { display: grid; gap: .05rem; }
+.cost .sub { font-size: .82rem; }
+.warn { color: var(--stall); font-size: .85rem; font-weight: 600; }
+
+/* ---------- program ---------- */
+.psrc { width: 100%; font: .88rem/1.5 var(--mono); background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: .6rem .7rem; resize: vertical; tab-size: 4; }
+.row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .6rem; }
+.btnlink { font-size: .9rem; color: var(--FETCH1); text-underline-offset: 3px; }
+.err { color: var(--WRITEBACK); font-size: .88rem; margin-top: .5rem; white-space: pre-wrap; }
+.pout { margin-top: .6rem; }
+.pstat { font-size: .92rem; font-variant-numeric: tabular-nums; margin-bottom: .5rem; }
+.regs { border-collapse: collapse; font: .82rem var(--mono); font-variant-numeric: tabular-nums; }
+.regs caption { text-align: left; font: .8rem var(--sans); color: var(--sub); margin-bottom: .3rem; }
+.regs th { text-align: left; padding: .15rem .8rem .15rem 0; color: var(--sub); font-weight: 500; }
+.regs td { padding: .15rem .9rem .15rem 0; text-align: right; }
+
+/* ---------- SystemVerilog ---------- */
+.svcode { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: .7rem .8rem; margin: 0; overflow: auto; max-height: 30rem; font: .74rem/1.5 var(--mono); tab-size: 2; }
+
+/* ---------- import button ---------- */
+.filebtn { display: inline-flex; align-items: center; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: .4rem .8rem; cursor: pointer; font-size: .95rem; }
+.filebtn:hover { border-color: var(--sub); }
+.filebtn:focus-within { outline: 3px solid var(--FETCH1); outline-offset: 2px; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+footer { color: var(--sub); font-size: .82rem; padding: 0 1.5rem 2rem; max-width: 1500px; margin: 0 auto; }
+
+@media (max-width: 1180px) {
+  .ws { grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr); grid-template-areas: "set editor" "set encode" "set tryit" "set cost" "program program" "verilog verilog"; }
+}
+@media (max-width: 760px) {
+  .ws { grid-template-columns: minmax(0, 1fr); grid-template-areas: "set" "editor" "encode" "tryit" "cost" "program" "verilog"; }
+  .setcard { position: static; }
+  .edgrid > .field:first-child, .seg { flex-basis: 100%; }
+  .bitfield { flex-wrap: wrap; }
+  .bf { flex: 1 1 28% !important; }
+  .edges { font-size: .68rem; }
+}
+@media (prefers-reduced-motion: reduce) { .setlist button, .tok { transition: none; } }
+.edgewrap { overflow-x: auto; max-width: 100%; }
+.edgewrap:focus-visible { outline: 3px solid var(--FETCH1); outline-offset: 2px; }
+
+/* ---------- depth meter ---------- */
+.depth { margin: .2rem 0 .8rem; padding: .7rem .8rem; border-radius: 8px; background: var(--tint); }
+.depth p { margin: 0; }
+.depth.ok b { color: var(--MEMORY); }
+.depth.slow b { color: var(--WRITEBACK); }
+.meter { position: relative; height: 8px; border-radius: 4px; background: var(--rule); margin: .5rem 0 .4rem; overflow: hidden; }
+.meter i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--MEMORY); transition: width .3s cubic-bezier(.2,.8,.2,1); }
+.depth.slow .meter i { background: var(--WRITEBACK); }
+.meter span { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .meter i { transition: none; } }

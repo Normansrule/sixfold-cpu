@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sixfold: instruction workshop</title>
+<meta name="description" content="Design your own RISC-V instructions for the Sixfold CPU: write what it computes, see its encoding, its circuit cost and the SystemVerilog, and run a program that uses it on the pipeline.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="custom.css">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <p class="home"><a href="../index.html">Sixfold home</a> · <a href="index.html">pipeline lab</a> · <a href="isa.html">three architectures</a></p>
+    <h1>Instruction workshop: add your own instructions to the CPU</h1>
+    <p>RISC-V keeps one opcode, <code>custom-0</code>, free for instructions you invent. Write what yours computes as one expression; the workshop gives it an encoding, teaches it to the assembler and the pipeline model, counts the circuits it needs and writes the SystemVerilog that puts it in the hardware.</p>
+  </div>
+  <div class="controls" role="toolbar" aria-label="Your instruction set">
+    <button id="share" title="Copy a link that opens this workshop with your instructions">Copy share link</button>
+    <button id="download" title="Save custom/instructions.json for make custom">Download JSON</button>
+    <label class="filebtn"><input id="import" type="file" accept=".json,application/json"> Import JSON</label>
+    <button id="reset" title="Back to Sixfold's four example instructions">Reset to the examples</button>
+  </div>
+</header>
+
+<main class="ws">
+  <aside class="card setcard" aria-label="Your instruction set">
+    <h2>Your instruction set</h2>
+    <p class="hint">On opcode <code>0001011</code>. Pick one to edit.</p>
+    <ol id="set" class="setlist"></ol>
+    <div class="setactions">
+      <button id="add" class="primary">New instruction</button>
+      <label class="field">Or start from an idea <select id="ideas"><option value="">Choose an idea…</option></select></label>
+    </div>
+    <p id="setstatus" class="setstatus" role="status"></p>
+  </aside>
+
+  <section class="card editor" aria-labelledby="ed-title">
+    <div class="edhead">
+      <h2 id="ed-title">Edit <span id="ed-name">instruction</span></h2>
+      <button id="remove" class="quiet" title="Delete this instruction">Delete</button>
+    </div>
+    <div class="edgrid">
+      <label class="field">Name <input id="f-name" type="text" spellcheck="false" autocomplete="off" maxlength="16"></label>
+      <fieldset class="seg" aria-label="Format">
+        <legend>Format</legend>
+        <label><input type="radio" name="fmt" value="R"> R: two registers</label>
+        <label><input type="radio" name="fmt" value="I"> I: register and immediate</label>
+      </fieldset>
+      <label class="field">funct3 <select id="f-funct3"></select></label>
+      <label class="field" id="f7wrap">funct7 <select id="f-funct7"></select></label>
+    </div>
+    <label class="field grow">What it computes <span class="sub">(the result written to rd)</span>
+      <textarea id="f-expr" class="expr" rows="2" spellcheck="false" autocomplete="off" aria-describedby="f-err"></textarea>
+    </label>
+    <p id="f-err" class="experr" aria-live="polite"></p>
+    <div class="palette" id="palette" aria-label="Insert into the expression"></div>
+    <label class="field grow">Description <input id="f-desc" type="text" maxlength="160" placeholder="What is it for?"></label>
+    <div id="fieldmsg" class="fieldmsg" role="alert"></div>
+  </section>
+
+  <section class="card encode" aria-labelledby="enc-title">
+    <h2 id="enc-title">Its encoding</h2>
+    <p class="hint">How <code id="enc-asm"></code> is stored: 32 bits, the same fields as every RISC-V instruction of its format.</p>
+    <div id="enc-bits" class="bitfield"></div>
+    <p class="encword">Machine word <code id="enc-hex"></code></p>
+  </section>
+
+  <section class="card tryit" aria-labelledby="try-title">
+    <h2 id="try-title">Try it</h2>
+    <div class="tryrow">
+      <label class="field">rs1 (a) <input id="t-a" type="text" value="200" spellcheck="false"></label>
+      <label class="field" id="t-bl">rs2 (b) <input id="t-b" type="text" value="56" spellcheck="false"></label>
+    </div>
+    <div id="t-out" class="tryout" aria-live="polite"></div>
+    <div class="edgewrap" tabindex="0" aria-label="Edge cases, scrolls sideways on narrow screens">
+      <table class="edges" id="t-edges" aria-label="Results for edge-case operands"></table>
+    </div>
+  </section>
+
+  <section class="card costcard" aria-labelledby="cost-title">
+    <h2 id="cost-title">What the hardware needs</h2>
+    <div id="cost" class="cost"></div>
+    <p class="hint">Custom logic runs in the MEMORY stage, a clock cycle it shares with nothing, so it cannot slow the rest of the processor if it fits in one cycle. The price: an instruction right behind it that needs the result waits two cycles, one with an instruction in between.</p>
+  </section>
+
+  <section class="card program" aria-labelledby="prog-title">
+    <h2 id="prog-title">Run it on the pipeline</h2>
+    <p class="hint">A program that uses your instructions, on the same cycle-exact model the RTL is tested against.</p>
+    <textarea id="p-src" class="psrc" rows="14" spellcheck="false" aria-label="Assembly program"></textarea>
+    <div class="row">
+      <button id="p-run" class="primary">Assemble and run</button>
+      <button id="p-sample" class="quiet">Write a test for the selected instruction</button>
+      <a id="p-lab" class="btnlink" href="index.html">Step through it in the pipeline lab</a>
+    </div>
+    <p id="p-err" class="err" role="alert"></p>
+    <div id="p-out" class="pout"></div>
+  </section>
+
+  <section class="card verilog" aria-labelledby="sv-title">
+    <div class="edhead"><h2 id="sv-title">The SystemVerilog</h2><button id="sv-copy" class="quiet">Copy</button></div>
+    <p class="hint">This is <code>src/Custom_Unit.sv</code> for your set. To build it into Sixfold: save the JSON as <code>custom/instructions.json</code>, run <code>make custom</code>, then <code>make test</code> (the RTL against the model on every cycle).</p>
+    <pre id="sv" class="svcode"></pre>
+  </section>
+</main>
+<footer>The language and the compiler: <code>model/custom.js</code>. The generator: <code>tools/custom.mjs</code>. The guide: <code>docs/CUSTOM_INSTRUCTIONS.md</code>. Your set is kept in this browser and in the share link; nothing is sent anywhere.</footer>
+<script type="module" src="custom.js"></script>
+</body>
+</html>

@@ -8,6 +8,7 @@ src/Prefix_Negate.sv
 src/Leading_Zero_Counter.sv
 src/Population_Count.sv
 src/ALU.sv
+src/Custom_Unit.sv
 src/Multiply_Divide_Unit.sv
 src/Carry_Save_Multiplier.sv
 src/Iterative_Multiply_Divide_Unit.sv

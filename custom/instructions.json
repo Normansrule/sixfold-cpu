@@ -1,0 +1,13 @@
+{
+  "about": "Sixfold's custom instructions (opcode custom-0). Edit this file or design them in web/custom.html, then run `make custom` to regenerate src/Custom_Unit.sv and the model, and `make test` to check the RTL against the model. Language: model/custom.js. Guide: docs/CUSTOM_INSTRUCTIONS.md.",
+  "instructions": [
+    { "name": "absdiff", "format": "R", "funct3": 0, "funct7": 0, "expr": "a > b ? a - b : b - a",
+      "desc": "Absolute difference (unsigned): the core of motion search in video encoders (sum of absolute differences)" },
+    { "name": "avgu", "format": "R", "funct3": 0, "funct7": 1, "expr": "(a & b) + ((a ^ b) >> 1)",
+      "desc": "Average of two unsigned numbers, rounded down, that cannot overflow (the shared bits plus half the different ones)" },
+    { "name": "hamming", "format": "R", "funct3": 1, "funct7": 0, "expr": "popcount(a ^ b)",
+      "desc": "Hamming distance: how many bits differ (error-correcting codes, comparing fingerprints)" },
+    { "name": "clampi", "format": "I", "funct3": 4, "expr": "min(max(a, 0), imm)",
+      "desc": "Clamp a signed number to 0 ... imm (saturate a pixel to 0 ... 255 in one instruction)" }
+  ]
+}

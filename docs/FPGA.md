@@ -294,6 +294,11 @@ checks it). The Basys 3 estimate fell to 86%, and the ULX3S build from 44% to 41
 maximum clock moved from 26.6 MHz to between 24 and 25 MHz: the slowest path is still the data cache, and
 placements vary by a few MHz from run to run. So its default clock is now 20 MHz, with a 25% margin.
 
+Custom instructions ([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md)) are in the FPGA build too: the four
+examples add 346 LUT4s in ECP5 synthesis (26,419 against 26,073 without them, 1.3%), which would put the
+Basys 3 estimate at about 87%. A set with multipliers or many popcounts grows faster; the instruction
+workshop counts the circuits each expression needs.
+
 ## 8. Bring-up checklist
 
 1. **Nothing on the serial port.** Check the baud rate (115200). On the Arty and the Basys 3, try the

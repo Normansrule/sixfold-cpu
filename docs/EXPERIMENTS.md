@@ -242,3 +242,17 @@ node -e "import('./model/isas/index.js').then(async ({ measure }) => { const fs 
 term, G, for the gap the front end leaves after a fused pair: why does that gap appear only when the
 jump is guessed not taken? Harder: a **stack engine** keeps `rsp` in the decoder, so `push` and `pop`
 become one micro-op each. Change `microOps()` in `model/isas/x86.js` and measure `factorial_recursive`.
+
+## Lab 25: design an instruction for a real workload
+
+Pick a small kernel that a real program spends its time in: a checksum (the 8-bit Fletcher sum or the
+Internet checksum), a byte-wise string compare, a hash step (FNV-1a: `(h ^ byte) * 0x100000001b3`), or
+the inner loop of a blur filter. Write it in plain RV64I with `rdcycle` around it, as
+`programs/23_custom_instructions.s` does. Then design one custom instruction for its hot step in the
+[instruction workshop](../web/custom.html), save it to `custom/instructions.json`, and run `make custom`
+and `make test`. How many cycles does it save, and what does it cost? Run `make timing` before and
+after: does your logic lengthen the critical path (the report names where the slowest path starts)? If
+it does, what could you take out of the expression, or how would you split the work across two cycles?
+Harder: give your instruction a third source register (a multiply-add, `rd = rs1 * rs2 + rs3`, in the
+R4 format RISC-V uses for fused floating-point instructions). What has to change in the register file,
+the forwarding network and `src/Control_Unit.sv`?

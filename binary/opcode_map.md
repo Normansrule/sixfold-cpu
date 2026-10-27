@@ -6,7 +6,7 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 | inst[6:5] \ inst[4:2] | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
 |---|---|---|---|---|---|---|---|---|
-| **00** | **LOAD**<br>`0000011` | · | · | **MISC_MEM**<br>`0001111` | **OP_IMM**<br>`0010011` | **AUIPC**<br>`0010111` | **OP_IMM_32**<br>`0011011` | · |
+| **00** | **LOAD**<br>`0000011` | · | **CUSTOM_0**<br>`0001011` | **MISC_MEM**<br>`0001111` | **OP_IMM**<br>`0010011` | **AUIPC**<br>`0010111` | **OP_IMM_32**<br>`0011011` | · |
 | **01** | **STORE**<br>`0100011` | · | · | · | **OP**<br>`0110011` | **LUI**<br>`0110111` | **OP_32**<br>`0111011` | · |
 | **10** | · | · | · | · | · | · | · | · |
 | **11** | **BRANCH**<br>`1100011` | **JALR**<br>`1100111` | · | **JAL**<br>`1101111` | **SYSTEM**<br>`1110011` | · | · | · |
@@ -64,4 +64,8 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 ### SYSTEM `1110011`
 
 [`ecall`](RV64I/ecall.md) · [`ebreak`](RV64I/ebreak.md) · [`mret`](Priv/mret.md) · [`wfi`](Priv/wfi.md) · [`csrrw`](Zicsr/csrrw.md) · [`csrrs`](Zicsr/csrrs.md) · [`csrrc`](Zicsr/csrrc.md) · [`csrrwi`](Zicsr/csrrwi.md) · [`csrrsi`](Zicsr/csrrsi.md) · [`csrrci`](Zicsr/csrrci.md)
+
+### CUSTOM_0 `0001011`
+
+[`absdiff`](Custom/absdiff.md) · [`avgu`](Custom/avgu.md) · [`hamming`](Custom/hamming.md) · [`clampi`](Custom/clampi.md)
 

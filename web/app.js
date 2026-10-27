@@ -4,7 +4,8 @@
 // =============================================================================
 import { assemble } from '../model/asm.js';
 import { Core, STAGES, SHORT, DEFAULT_HISTORY_BITS, WB_NAMES, control } from '../model/core.js';
-import { decode, disasm, FORMATS, ABI } from '../model/isa.js';
+import { decode, disasm, FORMATS, ABI, registerCustom, DEFAULT_CUSTOM } from '../model/isa.js';
+import { decodeShare } from '../model/custom.js';
 import { PROGRAMS } from './programs.js';
 import { parseRegions, RegionTracker, profile, drawTimeline } from './regions.js';
 import { buildDisplay } from './sevenseg.js';
@@ -360,4 +361,32 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'r' || e.key === 'R') run();
   else if (e.key === 'e' || e.key === 'E') runToEnd();
 });
-loadSource(PROGRAMS[sel.value]);
+// Custom instructions (web/custom.html): a link from the workshop carries the set and a program in the
+// hash; otherwise the set saved in this browser (if any) is used, so programs that use it assemble here too.
+// The lab starts with the instructions the hardware ships with (custom/instructions.json), so the example
+// programs always mean what the RTL does. A link from the workshop brings its own set with its program; a
+// set saved in the workshop can be switched on here with one click.
+let customSet = null, customProgram = null;
+const shared = location.hash.length > 1 ? decodeShare(location.hash.slice(1)) : null;
+if (shared && shared.list.length && shared.program) { customSet = shared.list; customProgram = shared.program; }
+const showCustomNote = list => {
+  $('customnote').hidden = false;
+  $('customnote').innerHTML = `Using your custom instructions: <code>${list.map(c => esc(c.name)).join('</code>, <code>')}</code> (<a href="custom.html">edit them in the workshop</a>, or <a href="index.html">go back to the shipped ones</a>).`;
+};
+if (customSet && registerCustom(customSet).ok) showCustomNote(customSet);
+else {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('sixfold.custom.v1')); } catch { /* storage unavailable */ }
+  const same = Array.isArray(saved) && JSON.stringify(saved.map(c => [c.name, c.format, c.funct3, c.funct7 ?? 0, c.expr])) === JSON.stringify(DEFAULT_CUSTOM.map(c => [c.name, c.format, c.funct3, c.funct7 ?? 0, c.expr]));
+  if (Array.isArray(saved) && saved.length && !same) {
+    $('customnote').hidden = false;
+    $('customnote').innerHTML = 'You have your own custom instructions in the workshop. <button type="button" id="usecustom">Use them here</button>';
+    $('usecustom').onclick = () => { if (registerCustom(saved).ok) { showCustomNote(saved); loadSource($('src').value); } else $('customnote').textContent = 'Your saved set has an error: fix it in the workshop first.'; };
+  }
+}
+if (customProgram) {
+  sel.add(new Option('your program (from the workshop)', '__custom'), 0);
+  sel.value = '__custom';
+  sel.onchange = () => loadSource(sel.value === '__custom' ? customProgram : PROGRAMS[sel.value]);
+  loadSource(customProgram);
+} else loadSource(PROGRAMS[sel.value]);

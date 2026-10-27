@@ -211,3 +211,21 @@ footer { color: var(--sub); font-size: .8rem; padding: 1rem 1.5rem 2rem; border-
 .isalisting th { text-align: left; font-size: .75rem; color: var(--sub); font-weight: 500; }
 @media (max-width: 560px) { .archswitch button, .archswitch a { padding: .4rem .55rem; font-size: .85rem; } }
 .archswitch span { padding: .45rem .9rem; font-weight: 600; font-size: .92rem; }
+.customnote { margin-top: .4rem; font-size: .85rem; color: var(--sub); }
+.customnote code { color: var(--DECODE); }
+.customnote { margin-top: .4rem; font-size: .85rem; color: var(--sub); }
+.customnote code { color: var(--DECODE); }
+
+/* ---------- browser surfaces: themed from the palette, not left at defaults ---------- */
+::selection { background: color-mix(in srgb, var(--FETCH1) 28%, transparent); color: var(--ink); }
+html { scrollbar-color: var(--rule) var(--paper); accent-color: var(--DECODE); }
+input, textarea { caret-color: var(--EXECUTE); }
+a { color: var(--FETCH1); text-underline-offset: .18em; text-decoration-thickness: from-font; }
+h1, h2 { text-wrap: balance; }
+p, .hint { text-wrap: pretty; }
+button { transition: border-color .15s ease, background-color .15s ease, transform .1s ease; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.home a { color: var(--sub); }
+.home a:hover { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } button:active:not(:disabled) { transform: none; } }

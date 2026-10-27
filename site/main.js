@@ -259,6 +259,7 @@ const CHAPTERS = [
   ['08_using_the_cpu', 'Write your own program', 'Assemble, run, test and debug on the model and the RTL.'],
   ['09_devices_and_interrupts', 'Devices, interrupts, booting', 'Memory-mapped devices, a timer interrupt taken precisely, and how the FPGA computer boots.'],
   ['10_three_architectures', 'Three architectures', 'The same program on RISC-V, MIPS and x86-64: encodings, delay slots and micro-ops.'],
+  ['11_custom_instructions', 'Your own instructions', 'Design an instruction, give it an encoding, and put it in the hardware.'],
 ];
 $('chapters').innerHTML = CHAPTERS.map(([f, t, d]) => `<li><a href="${blob(`docs/learn/${f}.md`)}"><strong>${t}</strong><span>${d}</span></a></li>`).join('');
 
@@ -403,10 +404,16 @@ showCmds('Quick start');
 // ---------------------------------------------------------------- motion: scroll reveal and count-up numbers
 (() => {
   if (reducedMotion) return;
-  const targets = document.querySelectorAll('.band .copy, .band .bitlab, .band .lanes, .band .race-foot, .band .scope, .band .facts, .band .cp, .band .cells, .band .dash, .band .chapters, .band .term, .band .cache-grid-wrap, .band .arena');
+  const targets = document.querySelectorAll('.band .copy, .band .bitlab, .band .lanes, .band .race-foot, .band .scope, .band .facts, .band .cp, .band .cells, .band .dash, .band .chapters, .band .term, .band .ws-try, .band .dl-grid, .band .cache-grid-wrap, .band .arena');
   targets.forEach(el => el.classList.add('reveal'));
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0, rootMargin: '0px 0px -8% 0px' }); // any part on screen: a very tall block still appears
   targets.forEach(el => io.observe(el));
+  // A block can jump past the screen without ever intersecting it (a section above grows while you scroll,
+  // or a link jumps further down): reveal everything that is already above the bottom of the screen.
+  let pending = false;
+  const catchUp = () => { pending = false; document.querySelectorAll('.reveal:not(.in)').forEach(el => { if (el.getBoundingClientRect().top < innerHeight) { el.classList.add('in'); io.unobserve(el); } }); };
+  addEventListener('scroll', () => { if (!pending) { pending = true; requestAnimationFrame(catchUp); } }, { passive: true });
+  addEventListener('hashchange', () => setTimeout(catchUp, 50));
   document.querySelectorAll('.facts strong').forEach(el => {
     const m = el.textContent.match(/^([\d.,]+)(.*)$/); if (!m) return;
     const end = parseFloat(m[1].replace(/,/g, '')), dec = (m[1].split('.')[1] || '').length, suffix = m[2], comma = m[1].includes(',');

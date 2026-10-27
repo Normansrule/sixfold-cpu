@@ -10,7 +10,7 @@
 import fs from 'node:fs'; import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const files = [];
-const walk = d => { for (const f of fs.readdirSync(d)) { if (['.git', 'build', 'node_modules'].includes(f)) continue; const p = path.join(d, f); const st = fs.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(md|html)$/.test(f)) files.push(p); } };
+const walk = d => { for (const f of fs.readdirSync(d)) { if (['.git', 'build', 'node_modules', 'app-site', 'dist'].includes(f)) continue; /* desktop/app-site and dist are build output */ const p = path.join(d, f); const st = fs.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(md|html)$/.test(f)) files.push(p); } };
 walk(root);
 const slug = h => h.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/[`*_]/g, '').replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s/g, '-');
 const anchors = f => { const s = fs.readFileSync(f, 'utf8'); const set = new Set(); const seen = {}; for (const m of s.matchAll(/^#{1,6}\s+(.+)$/gm)) { let a = slug(m[1]); if (seen[a] !== undefined) { seen[a]++; a = `${a}-${seen[a]}`; } else seen[a] = 0; set.add(a); } for (const m of s.matchAll(/id="([^"]+)"/g)) set.add(m[1]); return set; };

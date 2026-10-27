@@ -32,6 +32,9 @@ drawn at the Register Transfer Level, with HDL).
 
 Used for the MIPS and x86-64 models ([ISA_COMPARISON.md](ISA_COMPARISON.md)).
 
+* *The RISC-V Instruction Set Manual, Volume I: Unprivileged ISA* (RISC-V International), the chapter
+  "Extending RISC-V" and the opcode map: the four custom opcodes and how non-standard extensions may use
+  them ([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md)). The Zicond chapter describes `czero.eqz`.
 * *MIPS32 Architecture for Programmers, Volume II: The MIPS32 Instruction Set* (MIPS Technologies /
   Imagination). Every MIPS32 encoding, the delay slot, HI and LO.
 * *Intel 64 and IA-32 Architectures Software Developer's Manual (SDM)*, Volume 2 (instruction set

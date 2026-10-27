@@ -1,0 +1,116 @@
+{
+  "name": "sixfold-desktop",
+  "productName": "Sixfold",
+  "version": "2.1.0",
+  "description": "Sixfold, an educational 6-stage 64-bit RISC-V CPU: the pipeline lab, three instruction sets, the instruction workshop and the documentation, offline",
+  "author": {
+    "name": "Aleksander Norman",
+    "email": "Normansrule@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "homepage": "https://normansrule.github.io/sixfold-cpu/",
+  "repository": "github:Normansrule/sixfold-cpu",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "stage": "node scripts/stage.mjs",
+    "start": "npm run stage && electron .",
+    "dist": "npm run stage && electron-builder --publish never",
+    "dist:linux": "npm run stage && electron-builder --linux --publish never",
+    "dist:win": "npm run stage && electron-builder --win --publish never",
+    "dist:mac": "npm run stage && electron-builder --mac --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.9.3",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "io.github.normansrule.sixfold",
+    "productName": "Sixfold",
+    "copyright": "Copyright (c) Aleksander Norman. MIT license.",
+    "artifactName": "Sixfold-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "build/icon.png",
+      "app-site/**"
+    ],
+    "asar": true,
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Education",
+      "maintainer": "Aleksander Norman <Normansrule@users.noreply.github.com>",
+      "synopsis": "An educational 64-bit RISC-V CPU you can watch",
+      "icon": "build/icon.png",
+      "syncDesktopName": true
+    },
+    "deb": {
+      "packageCategory": "education"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Sixfold-${version}-win-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "Sixfold-${version}-win-${arch}-portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education",
+      "identity": null,
+      "icon": "build/icon.png"
+    }
+  },
+  "desktopName": "sixfold.desktop"
+}

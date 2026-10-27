@@ -16,7 +16,7 @@ introduction read the [learning path](learn/README.md) first.
 | branch prediction | tournament: `TournamentChooser` (128-entry per-branch history table + 128-entry chooser) with `GSharePredictor` (2^`GSHARE_HISTORY_BITS` counters, default 6 bits = 64), speculative global history with checkpoint repair; a 16-entry `BranchTargetBuffer` in FETCH1; an 8-entry `ReturnAddressStack` in FETCH2 |
 | branch penalties | taken branch or JAL found in the BTB: 0 bubbles; otherwise a FETCH2 redirect: 1; predicted return: 1; wrong guess or unpredicted JALR: 3 (flush) |
 | multiply / divide | `IterativeMultiplyDivideUnit`: 64 x 16-bit Wallace-tree steps into a carry-save accumulator ([`Carry_Save_Multiplier.sv`](../src/Carry_Save_Multiplier.sv)), a leading-zero-counter skip for divides, a registered result: multiply 8 cycles, divide 5 + significant bits of the dividend (baseline build: single cycle) |
-| clock (logic only) | sky130 130 nm: 4.09 ns, about 244 MHz; ASAP7 7 nm: 0.513 ns, about 1.95 GHz; see [PERFORMANCE.md](PERFORMANCE.md) |
+| clock (logic only) | sky130 130 nm: 4.09 ns, about 244 MHz; ASAP7 7 nm: 0.513 ns, about 1.95 GHz (0.521 ns, 1.92 GHz with the four example custom instructions); see [PERFORMANCE.md](PERFORMANCE.md) |
 | FPGA | the same core in a small computer (block RAM memory, UART, LEDs, buttons, boot firmware): see [FPGA.md](FPGA.md) |
 | builds | performance (default) and baseline (`-DBASELINE`, the plain pipeline); `make test` checks both |
 | memory | performance build: `InstructionCache` (4 KiB, 2-way set-associative with LRU replacement, 32-byte lines, next-line prefetch) and `DataCache` (4 KiB, 2-way LRU, next-line prefetch, write-through, no store allocation) in front of a 64 KiB main memory with a 10-cycle line refill; baseline: single-cycle 64 KiB `ScratchpadMemory` |
@@ -40,6 +40,7 @@ introduction read the [learning path](learn/README.md) first.
 | [`Immediate_Generator.sv`](../src/Immediate_Generator.sv) | `ImmediateGenerator` | DECODE | builds and sign-extends immediates to 64 bits |
 | [`Register_File.sv`](../src/Register_File.sv) | `RegisterFile` | DECODE (read), WRITEBACK (write) | x1..x31, 2 asynchronous reads, 1 synchronous write |
 | [`ALU.sv`](../src/ALU.sv) | `ALU` | EXECUTE | shared 65-bit adder, logic, shifts and rotates, 32-bit W variants, Zbb counters and byte operations, Zbs single-bit set / clear / invert / extract (a 6-to-64 decoder in front of the logic gates); a fast output (forwarded) and a full one (2-cycle results) |
+| [`Custom_Unit.sv`](../src/Custom_Unit.sv) | `CustomDecode`, `CustomUnit` | DECODE, MEMORY | your own instructions on opcode custom-0, generated from `custom/instructions.json` by `make custom`: decoded to one select bit each in DECODE, computed side by side in MEMORY ([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md)) |
 | [`Multiply_Divide_Unit.sv`](../src/Multiply_Divide_Unit.sv) | `MultiplyDivideUnit` | EXECUTE | M extension, single cycle (baseline build) |
 | [`Iterative_Multiply_Divide_Unit.sv`](../src/Iterative_Multiply_Divide_Unit.sv) | `IterativeMultiplyDivideUnit` | EXECUTE | M extension, one short step per cycle (performance build) |
 | [`Carry_Save_Multiplier.sv`](../src/Carry_Save_Multiplier.sv) | `CarrySaveMultiplyStep` | EXECUTE | one 64 x 16-bit multiply step: a Wallace tree of full adders, no carry propagation |
@@ -150,6 +151,12 @@ memory at the end of this cycle; loads read the aligned doubleword at the end of
 the figure); `LoadControl` selects lanes with address bits [2:0]
 and extends. `WriteControl` selects the result by `WRITEBACK_SELECT`; that value is
 `MEMORY_FORWARD_DATA` (forwarded to DECODE) and becomes `WRITEBACK_DATA` at the edge.
+
+A custom instruction (opcode custom-0) is computed here: `CustomUnit` takes the operands EXECUTE
+registered (`MEMORY_CUSTOM_A`, `MEMORY_CUSTOM_B`, `MEMORY_CUSTOM_SELECT`) and its result goes straight
+into `WRITEBACK_DATA`, never onto `MEMORY_FORWARD_DATA`, so the custom logic has this cycle to itself.
+An instruction in DECODE that needs it waits (`CUSTOM_HAZARD_REGISTER1/2`, counted with `LOAD_STALL`).
+See [CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md).
 
 ### WRITEBACK
 ![performance counters](img/diagrams/performance_counters.svg)

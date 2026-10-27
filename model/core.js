@@ -18,6 +18,7 @@
 //   HALT_NOW                       the instruction that wrote a nonzero TOHOST is in WRITEBACK
 // =============================================================================
 import { decode, disasm, usesRegs } from './isa.js';
+import { execute as customExecute } from './custom.js';
 
 export const STAGES = ['FETCH1', 'FETCH2', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK'];
 export const SHORT = { FETCH1: 'F1', FETCH2: 'F2', DECODE: 'D', EXECUTE: 'E', MEMORY: 'M', WRITEBACK: 'W' };
@@ -45,6 +46,7 @@ export function usesRegisters(word) {
   if (op === 0x33 || op === 0x3b || op === 0x23 || op === 0x63) return { rs1: true, rs2: true };
   if (op === 0x13 || op === 0x1b || op === 0x03 || op === 0x67) return { rs1: true, rs2: false };
   if (op === 0x73) return { rs1: f3 === 1 || f3 === 2 || f3 === 3, rs2: false };
+  if (op === 0x0b) return { rs1: true, rs2: f3 < 4 }; // custom-0: R format (funct3 0-3) or I format (4-7)
   return { rs1: false, rs2: false };
 }
 // Cycles an M instruction spends iterating in IterativeMultiplyDivideUnit (it occupies EXECUTE for steps + 4 cycles:
@@ -68,7 +70,7 @@ const sextN = (v, n) => BigInt.asIntN(n, BigInt(v));
 // ---------------------------------------------------------------- ControlUnit + ALUdec
 // Mirrors src/Control_Unit.sv and src/ALUdec.sv exactly (by opcode/funct bits, not by name).
 export const OPC = { LUI: 0x37, AUIPC: 0x17, JAL: 0x6f, JALR: 0x67, BRANCH: 0x63, STORE: 0x23, LOAD: 0x03,
-  OP: 0x33, OP_IMM: 0x13, OP_32: 0x3b, OP_IMM_32: 0x1b, SYSTEM: 0x73 };
+  OP: 0x33, OP_IMM: 0x13, OP_32: 0x3b, OP_IMM_32: 0x1b, SYSTEM: 0x73, CUSTOM_0: 0x0b };
 export const WB = { ALU: 0, MEMORY: 1, PC_ADD_4: 2, CSR: 3 };
 export const WB_NAMES = ['ALU', 'MEMORY', 'PC_ADD_4', 'CSR'];
 const ARITH = ['ADD', 'SLL', 'SLT', 'SLTU', 'XOR', 'SRL_SRA', 'OR', 'AND'];
@@ -82,6 +84,7 @@ export function aluDecode(word) {
   const r = { aluOp: 'XXX', aZext: 0, aShift: 0, invB: 0, oneB: 0, full: 0 };
   const base = () => { const n = ARITH[f3]; return n === 'SRL_SRA' ? (b30 ? 'SRA' : 'SRL') : n; };
   switch (op) {
+    case OPC.CUSTOM_0: r.aluOp = 'CUSTOM'; break; // computed by Custom_Unit.sv, not the ALU
     case OPC.OP_IMM:
       if (f3 === 0b001) {
         r.aluOp = ({ 0x600: 'CLZ', 0x601: 'CTZ', 0x602: 'CPOP', 0x604: 'SEXT_B', 0x605: 'SEXT_H' })[f12] || 'SLL';
@@ -126,7 +129,9 @@ export function aluDecode(word) {
 }
 
 // Zbb results with a 2-cycle latency: forwarded from MEMORY, and a dependent next instruction waits (LOAD_STALL)
-export const LATE_OPS = new Set(['CPOP', 'MIN', 'MINU', 'MAX', 'MAXU']);
+// Custom instructions (model/custom.js) are late too: their logic runs in MEMORY (src/Custom_Unit.sv) and the
+// result is ready in WRITEBACK (CUSTOM_STALL below)
+export const LATE_OPS = new Set(['CPOP', 'MIN', 'MINU', 'MAX', 'MAXU', 'CUSTOM']);
 
 export function control(word) {
   const op = word & 0x7f, f3 = bits(word, 14, 12), f7 = bits(word, 31, 25), rs1f = bits(word, 19, 15);
@@ -162,6 +167,10 @@ export function control(word) {
         const f12 = bits(word, 31, 20);
         c.isEcall = f12 === 0 ? 1 : 0; c.isEbreak = f12 === 1 ? 1 : 0; c.isMret = f12 === 0x302 ? 1 : 0;
       }
+      break;
+    case OPC.CUSTOM_0: // your own instructions (model/custom.js, src/Custom_Unit.sv): R format reads rs2, I format the immediate
+      Object.assign(c, { regWrite: 1, bIsImm: f3 >= 4 ? 1 : 0, immType: 'I' });
+      dec();
       break;
     default: break; // FENCE and unknown opcodes: no operation
   }
@@ -460,7 +469,7 @@ export class Core {
       ev.stages.EXECUTE = { id: e.id, pc: e.pc };
     } else if (e.valid) {
       const A = e.aIsPC ? BigInt(e.pc) : prepareA(e.rs1v, e), B = prepareB(e.bIsImm ? e.imm : e.rs2v, e);
-      const aluOut = alu(A, B, e.aluOp, e.isWord);
+      const aluOut = e.aluOp === 'CUSTOM' ? customExecute(e.word, A, B) : alu(A, B, e.aluOp, e.isWord);
       const result = e.isMulDiv ? multiplyDivide(e.rs1v, e.rs2v, e.aluOp, e.isWord) : aluOut;
       const pc4 = u64(BigInt(e.pc) + 4n);
       const jalrTarget = aluOut & ~1n;
@@ -496,9 +505,9 @@ export class Core {
       }
       if (e.memWrite) { const s = storeControl(e.funct3, result, e.rs2v); storeOp = { addr: result, ...s }; if (this.opts.caches) dStoreSlot = this.cacheSlot(this.dcache, result); ev.memAccess = { kind: 'store', addr: result, value: e.rs2v, mask: s.mask, funct3: e.funct3 }; }
       exNext = { valid: true, id: e.id, pc: e.pc, rd: e.rd, regWrite: e.regWrite, memRead: e.memRead, funct3: e.funct3, result, pc4, csrData,
-        wbSel: e.wbSel, dcData: this.readDouble(result), writesTohost: !!(e.csrWrite && e.csrAddr === CSR.TOHOST) };
+        wbSel: e.wbSel, dcData: this.readDouble(result), writesTohost: !!(e.csrWrite && e.csrAddr === CSR.TOHOST), custom: e.aluOp === 'CUSTOM' };
       ev.stages.EXECUTE = { id: e.id, pc: e.pc };
-      ev.alu = { a: A, b: B, result, op: e.aluOp, unit: e.isMulDiv ? 'MDU' : 'ALU', word: !!e.isWord };
+      ev.alu = { a: A, b: B, result, op: e.aluOp, unit: e.isMulDiv ? 'MDU' : e.aluOp === 'CUSTOM' ? 'CUSTOM' : 'ALU', word: !!e.isWord };
     }
 
     // ================= DECODE =================
@@ -515,7 +524,9 @@ export class Core {
     // Zbs bset / bclr / binv whose bit number comes from EXECUTE wait one cycle (src/Riscv64.sv SINGLE_BIT_HAZARD)
     const ctlD = d.valid ? control(dw) : null;
     const SINGLE_BIT_STALL = !!(d.valid && e.valid && ctlD.oneB && !ctlD.bIsImm && e.regWrite && !e.memRead && !e.late && e.rd !== 0 && e.rd === rs2f);
-    const LOAD_STALL = (d.valid && e.valid && (!!e.memRead || !!e.late) && e.rd !== 0 && ((e.rd === rs1f && (!exact || useD.rs1)) || (e.rd === rs2f && (!exact || useD.rs2)))) || SINGLE_BIT_STALL;
+    // a custom result (src/Custom_Unit.sv) is computed in MEMORY and ready only in WRITEBACK: wait while it is in MEMORY too
+    const CUSTOM_STALL = !!(d.valid && m.valid && m.custom && m.regWrite && m.rd !== 0 && ((m.rd === rs1f && (!exact || useD.rs1)) || (m.rd === rs2f && (!exact || useD.rs2))));
+    const LOAD_STALL = (d.valid && e.valid && (!!e.memRead || !!e.late) && e.rd !== 0 && ((e.rd === rs1f && (!exact || useD.rs1)) || (e.rd === rs2f && (!exact || useD.rs2)))) || SINGLE_BIT_STALL || CUSTOM_STALL;
     let deNext = null;
     if (d.valid) {
       ev.stages.DECODE = { id: d.id, pc: d.pc };
@@ -526,7 +537,8 @@ export class Core {
       deNext = { valid: true, id: d.id, pc: d.pc, word: d.word, ...c, rs1v: v1, rs2v: v2, imm: immediate(d.word, c.immType), rd: rdf,
         funct3: bits(d.word, 14, 12), csrAddr: bits(d.word, 31, 20), pred: d.pred, idx: d.idx, ckpt: d.ckpt, target: d.target,
         returnPredicted: d.returnPredicted, isCall: d.isCall, isReturn: d.isReturn, rasCkpt: d.rasCkpt, gTaken: d.gTaken, bTaken: d.bTaken };
-      if (LOAD_STALL) ev.loadStallReal = SINGLE_BIT_STALL || (useD.rs1 && e.rd === rs1f) || (useD.rs2 && e.rd === rs2f);
+      if (LOAD_STALL) ev.loadStallReal = SINGLE_BIT_STALL || (useD.rs1 && e.rd === rs1f) || (useD.rs2 && e.rd === rs2f)
+        || (CUSTOM_STALL && ((useD.rs1 && m.rd === rs1f) || (useD.rs2 && m.rd === rs2f))); // a wait for a custom result is real too
     }
 
     // Interrupt: replace the DECODE instruction (src/Riscv64.sv DECODE_TAKES_INTERRUPT)

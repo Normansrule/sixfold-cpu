@@ -66,6 +66,7 @@ module ALUdec (
     FULL_WIDTH_RESULT = 1'b0;
     unique case (opcode)
       OPC_LUI: ALUop = ALU_COPY_B;
+      OPC_CUSTOM0: ALUop = ALU_CUSTOM; // your own instructions: operands pass through unprepared
       OPC_AUIPC: ALUop = ALU_ADD;
       OPC_JAL: ALUop = ALU_ADD;
       OPC_JALR: ALUop = ALU_JALR;

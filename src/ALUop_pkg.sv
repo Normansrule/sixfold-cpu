@@ -45,6 +45,7 @@ package alu_op_pkg;
     // (Zba needs no new operation: shNadd and .uw are an ADD or SLL with operand A prepared in DECODE,
     //  andn / orn / xnor are AND / OR / XOR with operand B inverted in DECODE)
     // ===============================================
+    ALU_CUSTOM = 6'd47, // custom-0: the result comes from CustomUnit (src/Custom_Unit.sv), not the ALU
     ALU_XXX    = 6'd63
   } alu_op_t;
 endpackage : alu_op_pkg

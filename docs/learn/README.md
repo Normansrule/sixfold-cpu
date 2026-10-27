@@ -1,6 +1,6 @@
 # Learning path: from "what is a CPU?" to your own chip
 
-Ten short chapters. Each one explains one idea, shows a picture, points at the exact
+Eleven short chapters. Each one explains one idea, shows a picture, points at the exact
 lines of SystemVerilog that implement it, and gives you a program to run so you can
 **see** it happen. Read them in order the first time.
 
@@ -16,10 +16,11 @@ lines of SystemVerilog that implement it, and gives you a program to run so you 
 | 8 | [Using the CPU: write and run your own program](08_using_the_cpu.md) | write, assemble, simulate and debug RISC-V assembly | `make run PROG=my_program` |
 | 9 | [Devices, interrupts and booting](09_devices_and_interrupts.md) | drive devices through memory-mapped registers, handle a timer interrupt, explain how a computer boots | `make run PROG=21_timer_interrupts` |
 | 10 | [Three architectures: RISC-V, MIPS and x86-64](10_three_architectures.md) | read the same program in three instruction sets, their encodings and their pipelines | `make isa-compare` |
+| 11 | [Your own instructions](11_custom_instructions.md) | design an instruction, give it an encoding, measure it, and build it into the hardware | `make custom && make test` |
 
 Every chapter uses the same names as the code: stages are `FETCH1`, `FETCH2`, `DECODE`,
 `EXECUTE`, `MEMORY`, `WRITEBACK`, and signals are written exactly as in
 [`src/Riscv64.sv`](../../src/Riscv64.sv), for example `LOAD_STALL` or
 `FLUSH_FETCH1_FETCH2_DECODE`.
 
-Recommended videos and courses (all in English) are listed in [REFERENCES.md](../REFERENCES.md#learning-resources).
+Every abbreviation is spelled out in the [glossary](../GLOSSARY.md). Recommended videos and courses (all in English) are listed in [REFERENCES.md](../REFERENCES.md#learning-resources).

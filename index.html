@@ -24,23 +24,22 @@
     <span>Sixfold</span>
   </a>
   <nav aria-label="Sections">
-    <a href="#decode">Decode</a>
-    <a href="#watch">Watch</a>
-    <a href="#race">Predict</a>
-    <a href="#arena">Arena</a>
-    <a href="#caches">Caches</a>
-    <a href="#bits">Bits</a>
-    <a href="#multiply">Multiply</a>
-    <a href="#isa">ISAs</a>
-    <a href="#fpga">FPGA</a>
-    <a href="#os">OS</a>
-    <a href="#silicon">Silicon</a>
-    <a href="#numbers">Numbers</a>
-    <a href="#faster">Faster</a>
-    <a href="#learn">Learn</a>
-    <a href="#commands">Run it</a>
+    <a href="#watch" class="pri">Watch</a>
+    <a href="#race" class="pri">Predict</a>
+    <a href="#caches" class="pri">Memory</a>
+    <a href="#isa" class="pri">ISAs</a>
+    <a href="#workshop" class="pri">Your instructions</a>
+    <a href="#fpga" class="pri">FPGA</a>
+    <a href="#learn" class="pri">Learn</a>
+    <details class="navmore">
+      <summary><span class="wide">All sections</span><span class="narrow">Menu</span></summary>
+      <div class="navpanel">
+        <div><h3>See it work</h3><a href="#decode">Decode an instruction</a><a href="#watch">Watch it move</a><a href="#race">Branch prediction race</a><a href="#arena">Five predictors</a><a href="#caches">Inside the caches</a><a href="#bits">Bit tricks</a><a href="#multiply">The multiplier</a></div>
+        <div><h3>Compare and extend</h3><a href="#isa">RISC-V, MIPS, x86-64</a><a href="#workshop">Invent an instruction</a><a href="#fpga">The FPGA computer</a><a href="#os">A tiny operating system</a><a href="#silicon">The chip</a><a href="#numbers">The numbers</a><a href="#faster">Making it faster</a></div>
+        <div><h3>Use it</h3><a href="#learn">Eleven chapters</a><a href="#download">Desktop app</a><a href="#commands">Run it yourself</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three-architecture lab</a><a href="web/custom.html">Instruction workshop</a><a data-repo-link href="#">Source on GitHub</a></div>
+      </div>
+    </details>
     <a href="web/index.html" class="lab">Open the lab</a>
-    <a data-repo-link href="#" class="gh">GitHub</a>
   </nav>
 </header>
 
@@ -107,7 +106,7 @@
 </section>
 
 <!-- ============================================================== RACE -->
-<section class="band alt" id="race">
+<section class="band" id="race">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Guess the branches well and the same program finishes sooner.</h2>
@@ -157,7 +156,7 @@
 </section>
 
 <!-- ============================================================== ARENA -->
-<section class="band alt" id="arena">
+<section class="band" id="arena">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Five branch predictors, one race.</h2>
@@ -206,7 +205,7 @@
 </section>
 
 <!-- ============================================================== BIT TRICKS -->
-<section class="band alt" id="bits">
+<section class="band" id="bits">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Bit tricks: one instruction instead of a loop.</h2>
@@ -243,7 +242,7 @@
 </section>
 
 <!-- ============================================================== THREE INSTRUCTION SETS -->
-<section class="band alt" id="isa">
+<section class="band" id="isa">
   <div class="wrap">
     <div class="copy narrow">
       <h2>One program, three instruction sets.</h2>
@@ -254,6 +253,33 @@
     <div class="isa-bars" id="isa-bars" aria-live="polite"></div>
     <p class="isa-note" id="isa-note"></p>
     <p class="isa-links"><a href="web/isa.html">Open the three-architecture lab</a> · <a href="docs/ISA_COMPARISON.md">How they differ, in detail</a></p>
+  </div>
+</section>
+
+<!-- ============================================================== YOUR OWN INSTRUCTIONS -->
+<section class="band" id="workshop">
+  <div class="wrap two">
+    <div class="copy">
+      <h2>Invent an instruction. Sixfold runs it.</h2>
+      <p>RISC-V keeps one opcode, <code>custom-0</code>, free for instructions nobody has thought of yet. Write what yours computes in the box, as an expression of <code>a</code> (the first register) and <code>b</code> (the second). The same compiler that builds Sixfold's own four custom instructions turns it into an encoding, a circuit and SystemVerilog, and the pipeline model runs it.</p>
+      <p>The four already in the hardware came from real workloads: <code>absdiff</code> (video motion search), <code>avgu</code> (an average that cannot overflow), <code>hamming</code> (error-correcting codes) and <code>clampi</code> (saturating a pixel). Measured on the model by <code>programs/23_custom_instructions.s</code>, against the plain RV64I code each one replaces:</p>
+      <div class="ws-bars" id="ws-bars" aria-live="polite"></div>
+      <p class="ws-links"><a href="web/custom.html">Open the instruction workshop</a> · <a data-repo-doc="docs/CUSTOM_INSTRUCTIONS.md" href="docs/CUSTOM_INSTRUCTIONS.md">How it reaches the hardware</a></p>
+    </div>
+    <div class="ws-try" id="ws-try">
+      <label class="ws-expr">rd =
+        <input id="ws-expr" type="text" value="a > b ? a - b : b - a" spellcheck="false" autocomplete="off" aria-describedby="ws-err">
+      </label>
+      <div class="ws-ideas" id="ws-ideas" role="group" aria-label="Ideas to try"></div>
+      <div class="ws-in">
+        <label>a <input id="ws-a" type="text" value="200" spellcheck="false" inputmode="numeric"></label>
+        <label>b <input id="ws-b" type="text" value="56" spellcheck="false" inputmode="numeric"></label>
+      </div>
+      <p class="ws-err" id="ws-err" role="status"></p>
+      <div class="ws-out" id="ws-out" aria-live="polite"></div>
+      <div class="ws-word" id="ws-word"></div>
+      <pre class="ws-sv" id="ws-sv" aria-label="The SystemVerilog for this expression"></pre>
+    </div>
   </div>
 </section>
 
@@ -303,7 +329,7 @@
 </section>
 
 <!-- ============================================================== OPERATING SYSTEM -->
-<section class="band alt" id="os">
+<section class="band" id="os">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Three programs, one CPU.</h2>
@@ -362,7 +388,7 @@
 </section>
 
 <!-- ============================================================== NUMBERS -->
-<section class="band alt" id="numbers">
+<section class="band" id="numbers">
   <div class="wrap">
     <div class="copy narrow">
       <h2>Where every cycle goes, for every program.</h2>
@@ -391,13 +417,29 @@
 </section>
 
 <!-- ============================================================== LEARN -->
-<section class="band alt" id="learn">
+<section class="band" id="learn">
   <div class="wrap">
     <div class="copy narrow">
-      <h2>Learn it in ten short chapters.</h2>
+      <h2>Learn it in eleven short chapters.</h2>
       <p>Each chapter explains one idea, shows the picture that goes with it, points at the lines of SystemVerilog that do it, and gives you a program to run.</p>
     </div>
     <ol class="chapters" id="chapters"></ol>
+  </div>
+</section>
+
+<!-- ============================================================== DOWNLOAD -->
+<section class="band" id="download">
+  <div class="wrap">
+    <div class="copy narrow">
+      <h2>Take it with you: the desktop app.</h2>
+      <p>Everything on this page, the pipeline lab, the three-architecture lab and the instruction workshop, as an app for Windows, macOS and Linux that works without a network. It is built from this repository on GitHub's servers for every release, and it is the same code as this page.</p>
+    </div>
+    <div class="dl-grid" id="dl-grid">
+      <a class="dl-card" data-os="windows" href="#" data-repo-releases><strong>Windows</strong><span>Installer or portable .exe, 64-bit</span><em class="dl-file">from the latest release</em></a>
+      <a class="dl-card" data-os="mac" href="#" data-repo-releases><strong>macOS</strong><span>.dmg for Apple silicon or Intel</span><em class="dl-file">from the latest release</em></a>
+      <a class="dl-card" data-os="linux" href="#" data-repo-releases><strong>Linux</strong><span>AppImage, or .deb for Ubuntu and Debian</span><em class="dl-file">from the latest release</em></a>
+    </div>
+    <p class="small dl-note" id="dl-note">The apps are not code-signed. Windows SmartScreen: <b>More info</b>, then <b>Run anyway</b>. macOS: right-click the app, then <b>Open</b>. Linux: <code>chmod +x Sixfold-*.AppImage</code>, then run it. To build one yourself: <code>cd desktop &amp;&amp; npm ci &amp;&amp; npm run dist</code>.</p>
   </div>
 </section>
 
@@ -416,7 +458,7 @@
 
 <footer class="foot">
   <p>Designed by Aleksander Norman. MIT license. Cell layouts from the SkyWater PDK (Apache 2.0). Rendering with three.js (MIT).</p>
-  <p class="foot-links"><a data-repo-link href="#">Source on GitHub</a><a href="web/index.html">Pipeline lab</a><a href="docs/img/cpu_block_diagram.svg">Block diagram</a></p>
+  <p class="foot-links"><a data-repo-link href="#">Source on GitHub</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three architectures</a><a href="web/custom.html">Instruction workshop</a><a href="#download">Desktop app</a><a href="docs/img/cpu_block_diagram.svg">Block diagram</a></p>
 </footer>
 
 <script type="module" src="site/main.js"></script>
@@ -424,5 +466,6 @@
 <script type="module" src="site/console.js"></script>
 <script type="module" src="site/os.js"></script>
 <script type="module" src="site/isa.js"></script>
+<script type="module" src="site/workshop.js"></script>
 </body>
 </html>

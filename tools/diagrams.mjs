@@ -12,6 +12,8 @@
 //   docs/img/diagrams/fpga_system.svg        the FPGA computer on its board (docs/fpga_results.json)
 //   docs/img/diagrams/interrupt.svg          an interrupt taken in DECODE, cycle by cycle (real model trace)
 //   docs/img/diagrams/multitasking.svg       a preemptive kernel: timeline, task control blocks, one context switch
+//   docs/img/diagrams/isa_encodings.svg, isa_pipelines.svg   RISC-V, MIPS and x86-64 side by side
+//   docs/img/diagrams/custom_instruction.svg a custom instruction in the pipeline, with real traces
 //
 // Every number in these figures comes from the RTL parameters (src/*.sv) or from
 // docs/PERFORMANCE.md; the figures are redrawn by `make diagrams`.
@@ -885,7 +887,7 @@ if (isMain) {
   const figs = { branch_prediction: branchPrediction(), cache: cache(), memory_hierarchy: hierarchy(), clock_roadmap: clockRoadmap(CLOCK_DATA),
     multiply_divide: multiplyDivideUnit(), operands_and_alu: operandsAndAlu(), performance_counters: performanceCounters(await program19Counters()),
     cache_interfaces: cacheInterfaces(), memory_map: memoryMap(), boot_sequence: bootSequence(), fpga_system: fpgaSystem(FPGA_RESULTS), interrupt: await interruptDiagram(), multitasking: await multitaskingDiagram(),
-    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines() };
+    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines(), custom_instruction: await customDiagram() };
   for (const [n, svg] of Object.entries(figs)) { fs.writeFileSync(`docs/img/diagrams/${n}.svg`, svg); console.log(`wrote docs/img/diagrams/${n}.svg`); }
 }
 
@@ -1278,5 +1280,95 @@ export async function isaPipelines() {
     });
   });
   text(40, H - 22, 'x86-64 has the smallest code and the most cycles here: dense instructions, but a simple in-order core spends extra stages finding and splitting them. Real x86 cores add wide decoders, micro-op caches and fusion to win that back.', { size: 11, fill: C.sub });
+  return g.done();
+}
+
+// =============================================================================
+// A custom instruction in the pipeline (docs/CUSTOM_INSTRUCTIONS.md): where its parts run, and what a
+// dependent instruction waits for. The instruction set is custom/instructions.json; the three pipeline
+// charts are real traces of the cycle-exact model (model/core.js), which make test checks against the RTL.
+// =============================================================================
+export async function customDiagram() {
+  const { registerCustom } = await import('../model/isa.js');
+  const spec = JSON.parse(fs.readFileSync(new URL('../custom/instructions.json', import.meta.url), 'utf8')).instructions;
+  registerCustom(spec);
+  const { assemble } = await import('../model/asm.js');
+  const { Core, CONFIGS } = await import('../model/core.js');
+  const W = 1500, H = 880;
+  const g = canvas(W, H, 'A custom instruction in the pipeline: a cycle of its own',
+    'Opcode custom-0. Decoded in DECODE, carried through EXECUTE, computed in MEMORY, written back. Generated from custom/instructions.json by make custom (src/Custom_Unit.sv).');
+  const { text, rect, box, wire, pill } = g;
+  const stages = [['DECODE', C.D], ['EXECUTE', C.E], ['MEMORY', C.M], ['WRITEBACK', C.W]];
+  const X0 = 40, SW = 330, GAP = 30, Y0 = 92;
+  stages.forEach(([n, col], i) => {
+    const x = X0 + i * (SW + GAP);
+    rect(x, Y0, SW, 34, { fill: col, stroke: col, op: 0.14 });
+    text(x + SW / 2, Y0 + 22, n, { size: 14, weight: 700, anchor: 'middle', fill: col });
+    if (i) rect(x - GAP / 2 - 5, Y0 + 44, 10, 360, { fill: '#E9ECE6', stroke: C.faint, sw: 1, rx: 2 }); // pipeline register
+  });
+  // DECODE
+  const xD = X0, xE = X0 + SW + GAP, xM = X0 + 2 * (SW + GAP), xW = X0 + 3 * (SW + GAP);
+  box(xD + 12, Y0 + 52, SW - 24, 92, 'ControlUnit, ALUdec', ['opcode 0001011: write rd, op = ALU_CUSTOM', 'funct3 bit 2: second operand = immediate', 'rs2 read only in R format'], { file: 'src/Control_Unit.sv, src/ALUdec.sv' });
+  box(xD + 12, Y0 + 158, SW - 24, 112, 'CustomDecode', [...spec.slice(0, 4).map((c, i) => `SELECT[${i}] = ${c.format === 'R' ? `funct3 == ${c.funct3} && funct7 == ${c.funct7}` : `funct3 == ${c.funct3}`}  (${c.name})`)], { file: 'src/Custom_Unit.sv', stroke: C.D, lsize: 10 });
+  box(xD + 12, Y0 + 284, SW - 24, 70, 'operands, forwarded', ['A = rs1      B = rs2 or the immediate', 'the same inputs the ALU gets'], { lsize: 10.5 });
+  // EXECUTE
+  box(xE + 12, Y0 + 52, SW - 24, 92, 'ALU', ['not used by a custom instruction:', 'its result is ignored'], { stroke: C.faint });
+  box(xE + 12, Y0 + 210, SW - 24, 92, 'registered, nothing computed', ['MEMORY_CUSTOM_A, MEMORY_CUSTOM_B', 'MEMORY_CUSTOM_SELECT'], { lsize: 10.5 });
+  // MEMORY: the custom unit, one row per instruction
+  const rows = spec.slice(0, 4);
+  rect(xM + 12, Y0 + 52, SW - 24, 300, { stroke: C.M, sw: 2 });
+  text(xM + SW / 2, Y0 + 72, 'CustomUnit', { size: 13, weight: 700, anchor: 'middle' });
+  text(xM + SW / 2, Y0 + 86, 'every result side by side, then AND-OR', { size: 10, anchor: 'middle', fill: C.sub });
+  rows.forEach((c, i) => {
+    const y = Y0 + 102 + i * 54;
+    rect(xM + 24, y, 186, 40, { fill: '#F3F7F2', stroke: C.line });
+    text(xM + 32, y + 16, c.name, { size: 11, weight: 700, mono: true });
+    text(xM + 32, y + 31, c.expr.length > 27 ? c.expr.slice(0, 26) + '…' : c.expr, { size: 9.5, mono: true, fill: C.sub });
+    text(xM + 214, y + 24, `& SELECT[${i}]`, { size: 9.5, mono: true, fill: C.D });
+    wire([[xM + 284, y + 20], [xM + 300, y + 20], [xM + 300, Y0 + 330]], 'M', { width: 1.4, arrow: false });
+  });
+  text(xM + 300, Y0 + 344, 'OR', { size: 10, weight: 700, anchor: 'middle', fill: C.M });
+  // WRITEBACK
+  box(xW + 12, Y0 + 300, SW - 24, 70, 'WRITEBACK_DATA', ['the custom result, written to rd', 'and forwarded to DECODE from here'], { stroke: C.W });
+  wire([[xM + 300, Y0 + 350], [xM + 300, Y0 + 400], [xW + 40, Y0 + 400], [xW + 40, Y0 + 372]], 'M', { width: 2.2 });
+  // the path that sets the cycle
+  rect(xM - 26, Y0 + 412, 2 * SW + GAP + 40, 30, { fill: '#FFF8EC', stroke: C.E, dash: '5 4' });
+  text(xM - 14, Y0 + 432, 'The custom logic’s cycle: MEMORY_CUSTOM_A/B → CustomUnit → WRITEBACK_DATA. Nothing else uses it, so it cannot slow the rest of the core.', { size: 10.5, fill: C.ink });
+  // forwarding back to DECODE
+  wire([[xW + SW - 20, Y0 + 335], [xW + SW - 6, Y0 + 335], [xW + SW - 6, Y0 + 468], [xD + 40, Y0 + 468], [xD + 40, Y0 + 356]], 'pred', { width: 1.6, dash: '6 4' });
+  text(xD + 52, Y0 + 462, 'forwarded from WRITEBACK: a dependent instruction waits in DECODE until then (CUSTOM_HAZARD_REGISTER1/2)', { size: 10.5, fill: C.pred, weight: 600 });
+  // three real traces: the consumer right after, one in between, two in between
+  const ty = 640;
+  text(40, ty - 18, 'What the next instruction waits for (traces of the cycle-exact model, baseline build)', { size: 14, weight: 700 });
+  const cases = [['right after', []], ['one instruction in between', ['xor t0, t1, t2']], ['two in between', ['xor t0, t1, t2', 'or t3, t4, t5']]];
+  const SC = { FETCH1: C.F1, FETCH2: C.F2, DECODE: C.D, EXECUTE: C.E, MEMORY: C.M, WRITEBACK: C.W };
+  const SHORT = { FETCH1: 'F1', FETCH2: 'F2', DECODE: 'D', EXECUTE: 'E', MEMORY: 'M', WRITEBACK: 'W' };
+  cases.forEach(([label, mid], k) => {
+    const src = ['li a1, 9', 'li a2, 4', 'nop', 'nop', 'absdiff a0, a1, a2', ...mid, 'add a3, a0, a0', 'halt'].join('\n');
+    const core = new Core(assemble(src), CONFIGS.baseline);
+    const evs = []; for (let i = 0; i < 30; i++) { const ev = core.step(); if (!ev) break; evs.push(ev); }
+    const idOf = t => core.instrs.findIndex(x => x && x.text === t && !x.squashed);
+    const prod = idOf('absdiff a0, a1, a2'), cons = idOf('add a3, a0, a0');
+    const first = evs.findIndex(ev => ev.stages.EXECUTE && ev.stages.EXECUTE.id === prod) - 1;
+    const x0 = 40 + k * 480, cw = 34, n = 12;
+    text(x0, ty + 14, label, { size: 12, weight: 700 });
+    let stalls = 0;
+    [[prod, 'absdiff a0, a1, a2'], [cons, 'add a3, a0, a0']].forEach(([id, t], r) => {
+      const y = ty + 26 + r * 30;
+      text(x0, y + 15, t, { size: 10, mono: true });
+      for (let c = 0; c < n; c++) {
+        const ev = evs[first + c]; if (!ev) continue;
+        const st = Object.entries(ev.stages).find(([, v]) => v.id === id);
+        if (!st) continue;
+        const held = r === 1 && st[0] === 'DECODE' && ev.stall;
+        if (held) stalls++;
+        rect(x0 + 140 + c * cw, y, cw - 3, 22, { fill: SC[st[0]], stroke: SC[st[0]], op: held ? 0.12 : 0.25, dash: held ? '3 2' : null, rx: 3 });
+        text(x0 + 140 + c * cw + (cw - 3) / 2, y + 15, SHORT[st[0]], { size: 10, weight: 700, anchor: 'middle', fill: SC[st[0]] });
+      }
+    });
+    pill(x0 + 140, ty + 92, stalls ? `waits ${stalls} cycle${stalls === 1 ? '' : 's'}` : 'no wait', stalls ? C.flush : C.hit, { size: 10.5 });
+  });
+  text(40, H - 60, 'Dashed: held in DECODE. The wait is counted with the load stalls in the cycle equation (hpmcounter3). A compiler hides it the way it hides a load: by putting independent work in between.', { size: 11, fill: C.sub });
+  text(40, H - 38, 'Measured with make timing (sky130, logic only): the core alone 3.88 ns; with the four example instructions 4.05 ns, the custom unit’s popcount being the longest path (docs/CUSTOM_INSTRUCTIONS.md).', { size: 11, fill: C.sub });
   return g.done();
 }

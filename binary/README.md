@@ -24,7 +24,7 @@ formats sits in the same instruction bit (e.g. imm[10:5] is always bits 30:25 an
 always bit 31). That makes the immediate generator in `src/Immediate_Generator.sv` a set of simple wires,
 not a big multiplexer. Branch/jump offsets are always even, so bit 0 is not stored at all.
 
-## All 113 instructions
+## All 117 instructions
 
 Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` immediate,
 `h` shift amount, `c` CSR address, `z` CSR immediate.
@@ -246,4 +246,13 @@ Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` im
 | [`bclri`](Zbs/bclri.md) | I-sh64 | `010010h hhhhh sssss 001 ddddd 0010011` | `rd = rs1 & ~(1 << shamt)` |
 | [`binvi`](Zbs/binvi.md) | I-sh64 | `011010h hhhhh sssss 001 ddddd 0010011` | `rd = rs1 ^ (1 << shamt)` |
 | [`bexti`](Zbs/bexti.md) | I-sh64 | `010010h hhhhh sssss 101 ddddd 0010011` | `rd = (rs1 >> shamt) & 1` |
+
+### Custom
+
+| instruction | format | 32-bit pattern (bit 31 … bit 0) | meaning |
+|---|---|---|---|
+| [`absdiff`](Custom/absdiff.md) | R | `0000000 ttttt sssss 000 ddddd 0001011` | `rd = rs1 > rs2 ? rs1 - rs2 : rs2 - rs1` |
+| [`avgu`](Custom/avgu.md) | R | `0000001 ttttt sssss 000 ddddd 0001011` | `rd = (rs1 & rs2) + ((rs1 ^ rs2) >> 1)` |
+| [`hamming`](Custom/hamming.md) | R | `0000000 ttttt sssss 001 ddddd 0001011` | `rd = popcount(rs1 ^ rs2)` |
+| [`clampi`](Custom/clampi.md) | I | `iiiiiii iiiii sssss 100 ddddd 0001011` | `rd = min(max(rs1, 0), sext(imm))` |
 

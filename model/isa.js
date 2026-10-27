@@ -11,6 +11,9 @@
 // Works unmodified in Node.js (ES modules) and in the browser.
 // =============================================================================
 
+import { validate as validateCustom, setActive as setActiveCustom } from './custom.js';
+import CUSTOM_SPEC from './custom_spec.js';
+
 // Major opcodes (bits [6:0] of every 32-bit instruction)
 export const OPCODES = {
   LOAD:     0b0000011,
@@ -26,6 +29,7 @@ export const OPCODES = {
   JALR:     0b1100111,
   JAL:      0b1101111,
   SYSTEM:   0b1110011,
+  CUSTOM_0: 0b0001011, // reserved by RISC-V for your own instructions (model/custom.js)
 };
 
 // Instruction formats and their bit layouts (MSB first). Used for docs + SVG.
@@ -184,6 +188,25 @@ export const INSTRUCTIONS = [
 ];
 
 export const BY_NAME = Object.fromEntries(INSTRUCTIONS.map(i => [i.name, i]));
+export const STANDARD_NAMES = INSTRUCTIONS.map(i => i.name);
+
+// ---------------- custom instructions (opcode custom-0): custom/instructions.json, compiled by model/custom.js
+// registerCustom(list) replaces the custom instructions in INSTRUCTIONS and BY_NAME, so the assembler, the
+// decoder, the disassembler and the core all know them. The defaults are what src/Custom_Unit.sv implements.
+export function registerCustom(list) {
+  const result = validateCustom(list, STANDARD_NAMES);
+  if (!result.ok) return result;
+  for (let k = INSTRUCTIONS.length - 1; k >= 0; k--) if (INSTRUCTIONS[k].ext === 'Custom') { delete BY_NAME[INSTRUCTIONS[k].name]; INSTRUCTIONS.splice(k, 1); }
+  for (const c of result.compiled) {
+    const def = I(c.name, c.format, OPCODES.CUSTOM_0, c.funct3, c.format === 'R' ? c.funct7 : null, c.format === 'R' ? 'rrr' : 'rri', 'Custom', 'Custom',
+      c.desc || `Custom: ${c.expr}`, `rd = ${c.expr.replace(/\bimm\b/g, 'sext(imm)').replace(/\ba\b/g, 'rs1').replace(/\bb\b/g, c.format === 'R' ? 'rs2' : 'sext(imm)')}`);
+    INSTRUCTIONS.push(def); BY_NAME[c.name] = def;
+  }
+  setActiveCustom(result.compiled);
+  return result;
+}
+export const DEFAULT_CUSTOM = CUSTOM_SPEC;
+registerCustom(CUSTOM_SPEC);
 
 // CSR names understood by the assembler (addresses match src/const_pkg.sv)
 export const CSR_NAMES = { tohost: 0x51E, status: 0x50A, hartid: 0x50B, cycle: 0xC00, instret: 0xC02, mhartid: 0xF14,
