@@ -260,6 +260,7 @@ const CHAPTERS = [
   ['09_devices_and_interrupts', 'Devices, interrupts, booting', 'Memory-mapped devices, a timer interrupt taken precisely, and how the FPGA computer boots.'],
   ['10_three_architectures', 'Three architectures', 'The same program on RISC-V, MIPS and x86-64: encodings, delay slots and micro-ops.'],
   ['11_custom_instructions', 'Your own instructions', 'Design an instruction, give it an encoding, and put it in the hardware.'],
+  ['12_adding_instructions', 'Adding SHA-2 by hand', 'A ratified extension, Zknh, through all five layers, and whether it paid off.'],
 ];
 $('chapters').innerHTML = CHAPTERS.map(([f, t, d]) => `<li><a href="${blob(`docs/learn/${f}.md`)}"><strong>${t}</strong><span>${d}</span></a></li>`).join('');
 

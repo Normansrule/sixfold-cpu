@@ -23,7 +23,7 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 ### OP_IMM `0010011`
 
-[`addi`](RV64I/addi.md) · [`slti`](RV64I/slti.md) · [`sltiu`](RV64I/sltiu.md) · [`xori`](RV64I/xori.md) · [`ori`](RV64I/ori.md) · [`andi`](RV64I/andi.md) · [`slli`](RV64I/slli.md) · [`srli`](RV64I/srli.md) · [`srai`](RV64I/srai.md) · [`rori`](Zbb/rori.md) · [`clz`](Zbb/clz.md) · [`ctz`](Zbb/ctz.md) · [`cpop`](Zbb/cpop.md) · [`sext.b`](Zbb/sext.b.md) · [`sext.h`](Zbb/sext.h.md) · [`rev8`](Zbb/rev8.md) · [`orc.b`](Zbb/orc.b.md) · [`bseti`](Zbs/bseti.md) · [`bclri`](Zbs/bclri.md) · [`binvi`](Zbs/binvi.md) · [`bexti`](Zbs/bexti.md)
+[`addi`](RV64I/addi.md) · [`slti`](RV64I/slti.md) · [`sltiu`](RV64I/sltiu.md) · [`xori`](RV64I/xori.md) · [`ori`](RV64I/ori.md) · [`andi`](RV64I/andi.md) · [`slli`](RV64I/slli.md) · [`srli`](RV64I/srli.md) · [`srai`](RV64I/srai.md) · [`rori`](Zbb/rori.md) · [`clz`](Zbb/clz.md) · [`ctz`](Zbb/ctz.md) · [`cpop`](Zbb/cpop.md) · [`sext.b`](Zbb/sext.b.md) · [`sext.h`](Zbb/sext.h.md) · [`rev8`](Zbb/rev8.md) · [`orc.b`](Zbb/orc.b.md) · [`bseti`](Zbs/bseti.md) · [`bclri`](Zbs/bclri.md) · [`binvi`](Zbs/binvi.md) · [`bexti`](Zbs/bexti.md) · [`sha256sum0`](Zknh/sha256sum0.md) · [`sha256sum1`](Zknh/sha256sum1.md) · [`sha256sig0`](Zknh/sha256sig0.md) · [`sha256sig1`](Zknh/sha256sig1.md) · [`sha512sum0`](Zknh/sha512sum0.md) · [`sha512sum1`](Zknh/sha512sum1.md) · [`sha512sig0`](Zknh/sha512sig0.md) · [`sha512sig1`](Zknh/sha512sig1.md)
 
 ### AUIPC `0010111`
 
@@ -67,5 +67,5 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 ### CUSTOM_0 `0001011`
 
-[`absdiff`](Custom/absdiff.md) · [`avgu`](Custom/avgu.md) · [`hamming`](Custom/hamming.md) · [`clampi`](Custom/clampi.md)
+[`absdiff`](Custom/absdiff.md) · [`avgu`](Custom/avgu.md) · [`hamming`](Custom/hamming.md) · [`clampi`](Custom/clampi.md) · [`hsec.cteq`](Custom/hsec.cteq.md)
 

@@ -29,3 +29,4 @@ Every file in [`programs/`](../../programs) assembled by `model/asm.js` (code st
 * [21_timer_interrupts.lst](21_timer_interrupts.lst) · [21_timer_interrupts.hex](21_timer_interrupts.hex)
 * [22_multitasking.lst](22_multitasking.lst) · [22_multitasking.hex](22_multitasking.hex)
 * [23_custom_instructions.lst](23_custom_instructions.lst) · [23_custom_instructions.hex](23_custom_instructions.hex)
+* [24_sha256.lst](24_sha256.lst) · [24_sha256.hex](24_sha256.hex)

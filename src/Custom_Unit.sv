@@ -17,6 +17,7 @@
 //   avgu       R  funct3 0  funct7 1    rd = (a & b) + ((a ^ b) >> 1)
 //   hamming    R  funct3 1  funct7 0    rd = popcount(a ^ b)
 //   clampi     I  funct3 4              rd = min(max(a, 0), imm)
+//   hsec.cteq  R  funct3 2  funct7 0    rd = a == b
 // =============================================================================
 /* verilator lint_off UNUSEDSIGNAL */
 module CustomDecode (
@@ -28,7 +29,8 @@ module CustomDecode (
   assign SELECT[1] = (FUNCT3 == 3'd0) && (FUNCT7 == 7'd1); // avgu
   assign SELECT[2] = (FUNCT3 == 3'd1) && (FUNCT7 == 7'd0); // hamming
   assign SELECT[3] = (FUNCT3 == 3'd4); // clampi
-  assign SELECT[31:4] = '0;
+  assign SELECT[4] = (FUNCT3 == 3'd2) && (FUNCT7 == 7'd0); // hsec.cteq
+  assign SELECT[31:5] = '0;
 endmodule
 
 module CustomUnit (
@@ -67,6 +69,7 @@ module CustomUnit (
       | ({64{SELECT[1]}} & ((A & B) + f_srl((A ^ B), 64'h1))) // avgu: (a & b) + ((a ^ b) >> 1)
       | ({64{SELECT[2]}} & f_popcount((A ^ B))) // hamming: popcount(a ^ b)
       | ({64{SELECT[3]}} & f_min(f_max(A, 64'h0), B)) // clampi: min(max(a, 0), imm)
+      | ({64{SELECT[4]}} & {63'd0, (A == B)}) // hsec.cteq: a == b
       ;
 endmodule
 /* verilator lint_on UNUSEDSIGNAL */

@@ -31,5 +31,13 @@ export default [
     "funct3": 4,
     "expr": "min(max(a, 0), imm)",
     "desc": "Clamp a signed number to 0 ... imm (saturate a pixel to 0 ... 255 in one instruction)"
+  },
+  {
+    "name": "hsec.cteq",
+    "format": "R",
+    "funct3": 2,
+    "funct7": 0,
+    "expr": "a == b",
+    "desc": "Constant-time equality: 1 if rs1 equals rs2, in the same time whatever the operands (no early exit to leak how much matched). From HYDRA-130's Xhydrasec extension; see docs/learn/12_adding_instructions.md"
   }
 ];

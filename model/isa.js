@@ -1,7 +1,9 @@
 // =============================================================================
 // model/isa.js — THE single source of truth for the RV64IM + Zicsr instruction set.
 //
-// RV64IM + Zicsr + Zba + Zbb + Zbs (together Zba Zbb Zbs are the B extension, which every current RISC-V application core has).
+// RV64IM + Zicsr + Zba + Zbb + Zbs (together Zba Zbb Zbs are the B extension, which every current RISC-V application core has)
+// + Zknh (SHA-2 hash helpers): the worked example in docs/learn/12_adding_instructions.md. Custom instructions (custom-0)
+// come from custom/instructions.json through registerCustom() below.
 // Every other part of the repo derives from this table:
 //   * model/asm.js        assembles text into machine code using `encode()`
 //   * model/core.js       decodes machine code using `decode()`
@@ -185,6 +187,15 @@ export const INSTRUCTIONS = [
   I('bclri', 'I-sh64', O.OP_IMM, 0b001, 0b010010, 'rri', 'Zbs', 'Single-bit', 'Bit Clear Immediate', 'rd = rs1 & ~(1 << shamt)'),
   I('binvi', 'I-sh64', O.OP_IMM, 0b001, 0b011010, 'rri', 'Zbs', 'Single-bit', 'Bit Invert Immediate', 'rd = rs1 ^ (1 << shamt)'),
   I('bexti', 'I-sh64', O.OP_IMM, 0b101, 0b010010, 'rri', 'Zbs', 'Single-bit', 'Bit Extract Immediate', 'rd = (rs1 >> shamt) & 1'),
+  // ---------------- Zknh: SHA-2 hash helpers (scalar cryptography) ---------------------------
+  I('sha256sum0', 'I-unary', O.OP_IMM, 0b001, 0x100, 'rr', 'Zknh', 'Cryptography', 'SHA-256 Sum0 (big sigma 0)', 'rd = sext(ror32(rs1,2) ^ ror32(rs1,13) ^ ror32(rs1,22))'),
+  I('sha256sum1', 'I-unary', O.OP_IMM, 0b001, 0x101, 'rr', 'Zknh', 'Cryptography', 'SHA-256 Sum1 (big sigma 1)', 'rd = sext(ror32(rs1,6) ^ ror32(rs1,11) ^ ror32(rs1,25))'),
+  I('sha256sig0', 'I-unary', O.OP_IMM, 0b001, 0x102, 'rr', 'Zknh', 'Cryptography', 'SHA-256 sigma0 (message schedule)', 'rd = sext(ror32(rs1,7) ^ ror32(rs1,18) ^ (rs1[31:0] >>u 3))'),
+  I('sha256sig1', 'I-unary', O.OP_IMM, 0b001, 0x103, 'rr', 'Zknh', 'Cryptography', 'SHA-256 sigma1 (message schedule)', 'rd = sext(ror32(rs1,17) ^ ror32(rs1,19) ^ (rs1[31:0] >>u 10))'),
+  I('sha512sum0', 'I-unary', O.OP_IMM, 0b001, 0x104, 'rr', 'Zknh', 'Cryptography', 'SHA-512 Sum0 (big sigma 0)', 'rd = ror(rs1,28) ^ ror(rs1,34) ^ ror(rs1,39)'),
+  I('sha512sum1', 'I-unary', O.OP_IMM, 0b001, 0x105, 'rr', 'Zknh', 'Cryptography', 'SHA-512 Sum1 (big sigma 1)', 'rd = ror(rs1,14) ^ ror(rs1,18) ^ ror(rs1,41)'),
+  I('sha512sig0', 'I-unary', O.OP_IMM, 0b001, 0x106, 'rr', 'Zknh', 'Cryptography', 'SHA-512 sigma0 (message schedule)', 'rd = ror(rs1,1) ^ ror(rs1,8) ^ (rs1 >>u 7)'),
+  I('sha512sig1', 'I-unary', O.OP_IMM, 0b001, 0x107, 'rr', 'Zknh', 'Cryptography', 'SHA-512 sigma1 (message schedule)', 'rd = ror(rs1,19) ^ ror(rs1,61) ^ (rs1 >>u 6)'),
 ];
 
 export const BY_NAME = Object.fromEntries(INSTRUCTIONS.map(i => [i.name, i]));

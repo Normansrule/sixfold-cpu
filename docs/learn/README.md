@@ -1,6 +1,6 @@
 # Learning path: from "what is a CPU?" to your own chip
 
-Eleven short chapters. Each one explains one idea, shows a picture, points at the exact
+Twelve short chapters. Each one explains one idea, shows a picture, points at the exact
 lines of SystemVerilog that implement it, and gives you a program to run so you can
 **see** it happen. Read them in order the first time.
 
@@ -17,6 +17,7 @@ lines of SystemVerilog that implement it, and gives you a program to run so you 
 | 9 | [Devices, interrupts and booting](09_devices_and_interrupts.md) | drive devices through memory-mapped registers, handle a timer interrupt, explain how a computer boots | `make run PROG=21_timer_interrupts` |
 | 10 | [Three architectures: RISC-V, MIPS and x86-64](10_three_architectures.md) | read the same program in three instruction sets, their encodings and their pipelines | `make isa-compare` |
 | 11 | [Your own instructions](11_custom_instructions.md) | design an instruction, give it an encoding, measure it, and build it into the hardware | `make custom && make test` |
+| 12 | [Adding a standard extension: SHA-2 in hardware](12_adding_instructions.md) | add a ratified extension (Zknh) by hand through all five layers, and measure whether it paid off | `make run PROG=24_sha256` |
 
 Every chapter uses the same names as the code: stages are `FETCH1`, `FETCH2`, `DECODE`,
 `EXECUTE`, `MEMORY`, `WRITEBACK`, and signals are written exactly as in

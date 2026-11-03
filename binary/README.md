@@ -24,7 +24,7 @@ formats sits in the same instruction bit (e.g. imm[10:5] is always bits 30:25 an
 always bit 31). That makes the immediate generator in `src/Immediate_Generator.sv` a set of simple wires,
 not a big multiplexer. Branch/jump offsets are always even, so bit 0 is not stored at all.
 
-## All 117 instructions
+## All 126 instructions
 
 Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` immediate,
 `h` shift amount, `c` CSR address, `z` CSR immediate.
@@ -247,6 +247,19 @@ Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` im
 | [`binvi`](Zbs/binvi.md) | I-sh64 | `011010h hhhhh sssss 001 ddddd 0010011` | `rd = rs1 ^ (1 << shamt)` |
 | [`bexti`](Zbs/bexti.md) | I-sh64 | `010010h hhhhh sssss 101 ddddd 0010011` | `rd = (rs1 >> shamt) & 1` |
 
+### Cryptography
+
+| instruction | format | 32-bit pattern (bit 31 … bit 0) | meaning |
+|---|---|---|---|
+| [`sha256sum0`](Zknh/sha256sum0.md) | I-unary | `0001000 00000 sssss 001 ddddd 0010011` | `rd = sext(ror32(rs1,2) ^ ror32(rs1,13) ^ ror32(rs1,22))` |
+| [`sha256sum1`](Zknh/sha256sum1.md) | I-unary | `0001000 00001 sssss 001 ddddd 0010011` | `rd = sext(ror32(rs1,6) ^ ror32(rs1,11) ^ ror32(rs1,25))` |
+| [`sha256sig0`](Zknh/sha256sig0.md) | I-unary | `0001000 00010 sssss 001 ddddd 0010011` | `rd = sext(ror32(rs1,7) ^ ror32(rs1,18) ^ (rs1[31:0] >>u 3))` |
+| [`sha256sig1`](Zknh/sha256sig1.md) | I-unary | `0001000 00011 sssss 001 ddddd 0010011` | `rd = sext(ror32(rs1,17) ^ ror32(rs1,19) ^ (rs1[31:0] >>u 10))` |
+| [`sha512sum0`](Zknh/sha512sum0.md) | I-unary | `0001000 00100 sssss 001 ddddd 0010011` | `rd = ror(rs1,28) ^ ror(rs1,34) ^ ror(rs1,39)` |
+| [`sha512sum1`](Zknh/sha512sum1.md) | I-unary | `0001000 00101 sssss 001 ddddd 0010011` | `rd = ror(rs1,14) ^ ror(rs1,18) ^ ror(rs1,41)` |
+| [`sha512sig0`](Zknh/sha512sig0.md) | I-unary | `0001000 00110 sssss 001 ddddd 0010011` | `rd = ror(rs1,1) ^ ror(rs1,8) ^ (rs1 >>u 7)` |
+| [`sha512sig1`](Zknh/sha512sig1.md) | I-unary | `0001000 00111 sssss 001 ddddd 0010011` | `rd = ror(rs1,19) ^ ror(rs1,61) ^ (rs1 >>u 6)` |
+
 ### Custom
 
 | instruction | format | 32-bit pattern (bit 31 … bit 0) | meaning |
@@ -255,4 +268,5 @@ Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` im
 | [`avgu`](Custom/avgu.md) | R | `0000001 ttttt sssss 000 ddddd 0001011` | `rd = (rs1 & rs2) + ((rs1 ^ rs2) >> 1)` |
 | [`hamming`](Custom/hamming.md) | R | `0000000 ttttt sssss 001 ddddd 0001011` | `rd = popcount(rs1 ^ rs2)` |
 | [`clampi`](Custom/clampi.md) | I | `iiiiiii iiiii sssss 100 ddddd 0001011` | `rd = min(max(rs1, 0), sext(imm))` |
+| [`hsec.cteq`](Custom/hsec.cteq.md) | R | `0000000 ttttt sssss 010 ddddd 0001011` | `rd = rs1 == rs2` |
 

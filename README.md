@@ -13,7 +13,7 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 
 | | |
 |---|---|
-| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr: **113 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (four built in: `absdiff`, `avgu`, `hamming`, `clampi`) |
+| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr + **Zknh** (SHA-2: `sha256sig0`, `sha512sum1`, ..., added by hand in [chapter 12](docs/learn/12_adding_instructions.md)): **121 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (five built in: `absdiff`, `avgu`, `hamming`, `clampi`, and `hsec.cteq` for constant-time equality) |
 | **Pipeline** | FETCH1 → FETCH2 → DECODE → EXECUTE → MEMORY → WRITEBACK, in order, one instruction per cycle |
 | **Hazards** | forwarding into DECODE from EXECUTE / MEMORY / WRITEBACK (the late EXECUTE value takes its own short path), 1-cycle `LOAD_STALL` for loads and the 2-cycle Zbb results (`cpop`, which finishes its count in MEMORY, and `min`, `max`) |
 | **Branch prediction** | tournament: a per-branch Branch History Table and `GSharePredictor` (PC xor global history, checkpoint repair) with a chooser; a 16-entry Branch Target Buffer (known taken branches cost 0 cycles); an 8-entry Return Address Stack |
@@ -202,7 +202,7 @@ your browser, with no install:
   it to the end; see the branch predictor's tables, the trap registers and the timer, and for programs
   that share the CPU, a timeline of who ran when.
 
-Or start with the [learning path](docs/learn/README.md) (10 short chapters) and the
+Or start with the [learning path](docs/learn/README.md) (12 short chapters) and the
 [architecture reference](docs/ARCHITECTURE.md).
 
 ---
@@ -234,7 +234,7 @@ stage the instruction is in. Rings are forwarded operands, hatched boxes are hel
 grey crossed-out rows were fetched down a wrong path and squashed. Above: a `jal` squashes one
 instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 
-## Learn it: ten chapters
+## Learn it: twelve chapters
 
 | | chapter | picture you will be able to read |
 |---|---|---|
@@ -248,6 +248,8 @@ instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 | 8 | [Using the CPU: write your own program](docs/learn/08_using_the_cpu.md) | your own program's pipeline |
 | 9 | [Devices, interrupts and booting](docs/learn/09_devices_and_interrupts.md) | a memory map, an interrupt in the pipeline chart |
 | 10 | [Three architectures: RISC-V, MIPS and x86-64](docs/learn/10_three_architectures.md) | the same program in three encodings and three pipelines |
+| 11 | [Your own instructions](docs/learn/11_custom_instructions.md) | an instruction you design, from expression to hardware |
+| 12 | [Adding a standard extension: SHA-2 in hardware](docs/learn/12_adding_instructions.md) | an instruction's bit pattern, through all five layers |
 
 ## Instructions in binary
 
@@ -322,6 +324,7 @@ performance edition.
 | [`21_timer_interrupts`](programs/21_timer_interrupts.s) | a timer interrupt, taken precisely in the middle of a loop | 10056 | 1.03 | 19255 | 2.02 |
 | [`22_multitasking`](programs/22_multitasking.s) | a tiny preemptive operating-system kernel, three tasks | 82959 | 2.43 | 90159 | 2.60 |
 | [`23_custom_instructions`](programs/23_custom_instructions.s) | four instructions that are not in RISC-V, designed in custom/instructions.json | 638 | 1.50 | 667 | 1.57 |
+| [`24_sha256`](programs/24_sha256.s) | SHA-256 with and without the Zknh instructions | 7648 | 1.05 | 8324 | 1.15 |
 
 ## Down to silicon
 
