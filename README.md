@@ -360,6 +360,8 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
 * `make custom-check`: 60 random custom instructions that use every operator and function of the
   expression language, compiled into the RTL and run against the model on random and edge-case
   operands, cycle by cycle. A planted one-character bug in the compiler's SystemVerilog fails it.
+* `make a11y`: every page, in light and dark colour schemes, checked with axe-core in Chromium for
+  contrast, labels, roles and keyboard reachability (WCAG 2 A and AA rules): no violations.
 * `make check-links`: every relative link, image and `#anchor` in the documentation resolves.
 * Continuous integration runs all of it on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
@@ -402,10 +404,13 @@ make docs / charts / diagram / diagrams / animations / arena   regenerate genera
 make synth / schematics              sky130 synthesis per module, Yosys schematics
 make isa-check / isa-compare         RISC-V, MIPS, x86-64: verify the models, print the comparison table
 make custom / custom-check           custom/instructions.json -> RTL + model; random instructions, RTL vs model
+make a11y                            accessibility of every page (axe-core, light and dark)
 make lint / serve / clean
 ```
 
 ## Publish the site and the desktop apps
+
+Step by step, with commands to check each part: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 The site deploys itself with GitHub Actions ([`.github/workflows/pages.yml`](.github/workflows/pages.yml))
 on every push to `main`. Turn it on once:
@@ -422,7 +427,7 @@ The desktop apps for Windows, macOS and Linux are built on GitHub's machines by
 attached to a GitHub Release (the site's download section links to the newest one):
 
 ```bash
-git tag v2.1.0 && git push origin v2.1.0      # Actions -> "release" builds all three and publishes the release
+git tag v2.2.0 && git push origin v2.2.0      # Actions -> "release" builds all three and publishes the release
 cd desktop && npm ci && npm start             # or run the app locally
 npm run dist:linux                            # build it yourself: dist:win on Windows, dist:mac on macOS
 ```

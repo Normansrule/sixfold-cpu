@@ -47,5 +47,9 @@ jobs:
         run: |
           pip install unicorn capstone
           make isa-check
+      - name: Accessibility of every page (axe-core in Chromium, light and dark)
+        run: |
+          mkdir -p build/a11y && cd build/a11y && npm init -y > /dev/null && npm install --no-audit --no-fund playwright@1.49.1 axe-core@4.10.2 > /dev/null && npx playwright install --with-deps chromium > /dev/null
+          cd ../.. && make a11y
       - name: Every relative link and image in the docs resolves
         run: make check-links

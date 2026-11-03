@@ -7,8 +7,12 @@
 <meta name="description" content="A 6-stage RV64IM RISC-V CPU in SystemVerilog, running live in your browser in 3D. Decode instructions bit by bit, race branch predictors, and explore the real silicon layout.">
 <meta property="og:title" content="Sixfold: a 64-bit RISC-V CPU you can watch">
 <meta property="og:description" content="Watch a 6-stage RISC-V pipeline run real programs in 3D, then explore its silicon.">
-<meta property="og:image" content="docs/img/site_preview.png">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23101B22'/><rect x='2' y='8' width='3.4' height='16' fill='%235B9BD5'/><rect x='7' y='8' width='3.4' height='16' fill='%236CC4BA'/><rect x='12' y='8' width='3.4' height='16' fill='%23A884D6'/><rect x='17' y='8' width='3.4' height='16' fill='%23E8A33C'/><rect x='22' y='8' width='3.4' height='16' fill='%236DBE6D'/><rect x='27' y='8' width='3.4' height='16' fill='%23E0584F'/></svg>">
+<meta property="og:image" content="https://normansrule.github.io/sixfold-cpu/docs/img/site_preview.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://normansrule.github.io/sixfold-cpu/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#101B22">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -189,13 +193,13 @@
       <div class="cache-panel">
         <h3>Instruction cache</h3>
         <div class="addr" id="c-iaddr" aria-live="off"></div>
-        <div class="cgrid" id="c-igrid" aria-label="Instruction cache: 64 sets by 2 ways"></div>
+        <div class="cgrid" id="c-igrid" role="img" aria-label="Instruction cache: 64 sets by 2 ways"></div>
         <dl class="cstats" id="c-istats"></dl>
       </div>
       <div class="cache-panel">
         <h3>Data cache</h3>
         <div class="addr" id="c-daddr" aria-live="off"></div>
-        <div class="cgrid" id="c-dgrid" aria-label="Data cache: 64 sets by 2 ways"></div>
+        <div class="cgrid" id="c-dgrid" role="img" aria-label="Data cache: 64 sets by 2 ways"></div>
         <dl class="cstats" id="c-dstats"></dl>
       </div>
     </div>
@@ -293,7 +297,7 @@
     <div class="fc">
       <div class="fc-board">
         <div class="fc-top"><span class="fc-title">sixfold &mdash; serial console, 115200 baud</span><span id="fc-status" class="fc-status"></span></div>
-        <pre id="fc-term" class="fc-term" tabindex="0" aria-label="Serial console: click and type a command" aria-live="polite"></pre>
+        <pre id="fc-term" class="fc-term" tabindex="0" role="log" aria-label="Serial console: click and type a command" aria-live="polite"></pre>
         <div class="fc-panel" aria-label="The board: display, LEDs, switches and buttons (laid out like a Basys 3)">
           <div class="fc-panel-top">
             <div class="fc-display-wrap"><span class="fc-label">DISPLAY 0x1000_0070</span><svg id="fc-display" class="fc-display" viewBox="0 0 230 92" role="img" aria-label="Seven-segment display"></svg></div>

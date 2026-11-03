@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sixfold: instruction workshop</title>
 <meta name="description" content="Design your own RISC-V instructions for the Sixfold CPU: write what it computes, see its encoding, its circuit cost and the SystemVerilog, and run a program that uses it on the pipeline.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
 <link rel="stylesheet" href="custom.css">
 </head>
 <body>
@@ -102,7 +104,7 @@
   <section class="card verilog" aria-labelledby="sv-title">
     <div class="edhead"><h2 id="sv-title">The SystemVerilog</h2><button id="sv-copy" class="quiet">Copy</button></div>
     <p class="hint">This is <code>src/Custom_Unit.sv</code> for your set. To build it into Sixfold: save the JSON as <code>custom/instructions.json</code>, run <code>make custom</code>, then <code>make test</code> (the RTL against the model on every cycle).</p>
-    <pre id="sv" class="svcode"></pre>
+    <pre id="sv" class="svcode" tabindex="0" aria-label="Generated SystemVerilog"></pre>
   </section>
 </main>
 <footer>The language and the compiler: <code>model/custom.js</code>. The generator: <code>tools/custom.mjs</code>. The guide: <code>docs/CUSTOM_INSTRUCTIONS.md</code>. Your set is kept in this browser and in the share link; nothing is sent anywhere.</footer>

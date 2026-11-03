@@ -47,7 +47,7 @@ npm run dist:mac       # on macOS: .dmg and .zip for arm64 and x64
 Publish a release with all of them attached: raise `version` in `desktop/package.json`, then
 
 ```bash
-git tag v2.1.0 && git push origin v2.1.0
+git tag v2.2.0 && git push origin v2.2.0
 ```
 
 ## How it works

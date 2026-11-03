@@ -1,7 +1,7 @@
 {
   "name": "sixfold-desktop",
   "productName": "Sixfold",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Sixfold, an educational 6-stage 64-bit RISC-V CPU: the pipeline lab, three instruction sets, the instruction workshop and the documentation, offline",
   "author": {
     "name": "Aleksander Norman",

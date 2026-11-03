@@ -40,7 +40,7 @@ function column(a, { m, rows }) {
   return `<div class="isa-col" style="--ac:var(${COLOR[a]})">
     <h3>${ARCHS[a].name}</h3>
     <p class="isa-pipe">${esc(ARCHS[a].pipeline || '')}</p>
-    <div class="isa-code"><table>${code}</table></div>
+    <div class="isa-code" tabindex="0" role="region" aria-label="${ARCHS[a].name} machine code"><table>${code}</table></div>
     <a class="isa-open" href="web/isa.html?arch=${a}&prog=${current}">Step through it cycle by cycle</a>
   </div>`;
 }

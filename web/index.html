@@ -4,9 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sixfold: pipeline lab</title>
+<meta name="description" content="Step through a 6-stage RISC-V pipeline cycle by cycle: forwarding, stalls, branch prediction, caches and interrupts, on the model the SystemVerilog is tested against.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
 </head>
 <body>
 <header class="top">
@@ -35,6 +38,7 @@
 <main>
   <section class="pipe" aria-label="Pipeline">
     <div class="cyclebar"><span>cycle</span> <strong id="cycle">0</strong><span id="status" class="status"></span></div>
+    <h2 class="sr-only">Pipeline stages</h2>
     <div id="stages" class="stages"></div>
     <ol id="narration" class="narration" aria-live="polite"></ol>
   </section>
@@ -49,7 +53,7 @@
   <section class="card chartcard">
     <h2>Pipeline chart</h2>
     <p class="hint">Rows are instructions in fetch order, columns are clock cycles. Hatched cells are held by LOAD_STALL, grey rows were fetched down a wrong path and squashed, a ring marks an operand forwarded into DECODE.</p>
-    <div class="chartwrap"><table id="chart" class="chart"></table></div>
+    <div class="chartwrap" tabindex="0" role="region" aria-label="Pipeline chart, scrolls sideways"><table id="chart" class="chart"></table></div>
   </section>
 
   <div class="grid">
@@ -59,7 +63,7 @@
         <button role="tab" aria-selected="true" data-tab="listing">Listing</button>
         <button role="tab" aria-selected="false" data-tab="edit">Edit source</button>
       </div>
-      <div id="tab-listing" class="tabpanel"><div class="listwrap"><table id="listing" class="listing"></table></div>
+      <div id="tab-listing" class="tabpanel"><div class="listwrap" tabindex="0" role="region" aria-label="Machine code listing"><table id="listing" class="listing"></table></div>
         <div id="bits" class="bits"></div></div>
       <div id="tab-edit" class="tabpanel" hidden>
         <textarea id="src" spellcheck="false" aria-label="Assembly source"></textarea>

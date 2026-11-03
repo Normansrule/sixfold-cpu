@@ -69,6 +69,7 @@ function runBitOp() {
   const [, needsB, teach] = OPS.find(o => o[0] === name);
   const A = parseValue($('bt-a').value), B = parseValue($('bt-b').value);
   $('bt-b-wrap').classList.toggle('dim', !needsB);
+  $('bt-b').disabled = !needsB;
   if (A === null || (needsB && B === null)) { $('bt-out').innerHTML = '<p class="small">Type a number: decimal, negative, or hex (0x...).</p>'; return; }
   const word = encode(name, { rd: 10, rs1: 11, rs2: 12 });
   const c = control(word);

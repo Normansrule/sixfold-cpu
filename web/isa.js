@@ -64,7 +64,7 @@ function render() {
   $('stages').style.gridTemplateColumns = `repeat(${names.length}, minmax(0, 1fr))`;
   $('stages').innerHTML = names.map((s, i) => {
     const x = ev && ev.stages[s];
-    const body = x && x.id !== -1 ? `<div class="chip" style="background:var(${stageColor(names, i)})"><div class="pc">${hex(x.pc)}</div>${esc(x.text)}</div>${x.note ? `<div class="tags"><span class="tag pred">${esc(x.note)}</span></div>` : ''}`
+    const body = x && x.id !== -1 ? `<div class="chip" style="background:color-mix(in srgb, var(${stageColor(names, i)}) 65%, #000)"><div class="pc">${hex(x.pc)}</div>${esc(x.text)}</div>${x.note ? `<div class="tags"><span class="tag pred">${esc(x.note)}</span></div>` : ''}`
       : `<div class="empty">${x ? esc(x.text) : ev ? 'bubble' : 'empty'}</div>`;
     return `<div class="stage"><h3>${s}</h3><div class="bar" style="background:var(${stageColor(names, i)})"></div>${body}</div>`;
   }).join('');
@@ -82,15 +82,15 @@ function renderChart() {
     rows.get(x.id).cells[ev.cycle] = { i, short: s.slice(0, s === 'PREDECODE' ? 2 : s.length > 3 ? 1 : 2) };
   });
   const ids = [...rows.keys()].sort((a, b) => a - b).slice(-16), end = Math.max(last, first + N - 1);
-  let h = '<tr><th></th>'; for (let c = first; c <= end; c++) h += `<th>${c}</th>`; h += '</tr>';
+  let h = '<tr><th><span class="sr-only">instruction</span></th>'; for (let c = first; c <= end; c++) h += `<th>${c}</th>`; h += '</tr>';
   for (const id of ids) {
     const r = rows.get(id);
     h += `<tr><td class="label">${hex(r.pc)} ${esc(r.text.slice(0, 26))}</td>`;
-    for (let c = first; c <= end; c++) { const x = r.cells[c]; h += x ? `<td class="c${c === last ? ' now' : ''}" style="background:var(${stageColor(names, x.i)})">${x.short}</td>` : '<td></td>'; }
+    for (let c = first; c <= end; c++) { const x = r.cells[c]; h += x ? `<td class="c${c === last ? ' now' : ''}" style="background:color-mix(in srgb, var(${stageColor(names, x.i)}) 65%, #000)">${x.short}</td>` : '<td></td>'; }
     h += '</tr>';
   }
   h += '<tr class="hz"><td class="label" style="color:var(--sub)">events</td>';
-  for (let c = first; c <= end; c++) { const e = byCycle.get(c); h += !e ? '<td></td>' : e.flush ? '<td style="background:var(--redirect)">flush</td>' : e.stall ? `<td style="background:var(--stall)">${e.stall === 'muldiv' || e.stall === 'hilo' ? 'busy' : 'stall'}</td>` : '<td></td>'; }
+  for (let c = first; c <= end; c++) { const e = byCycle.get(c); h += !e ? '<td></td>' : e.flush ? '<td style="background:color-mix(in srgb, var(--redirect) 65%, #000)">flush</td>' : e.stall ? `<td style="background:color-mix(in srgb, var(--stall) 65%, #000)">${e.stall === 'muldiv' || e.stall === 'hilo' ? 'busy' : 'stall'}</td>` : '<td></td>'; }
   $('chart').innerHTML = h + '</tr>';
 }
 
@@ -100,11 +100,11 @@ const partClass = p => PART_CLASS[p.cls] || PART_CLASS[p.name] || PART_CLASS[p.n
 function renderListing(ev) {
   const rows = ARCHS[arch].listing(img), names = core.stageNames, at = {};
   if (ev) names.forEach((s, i) => { const x = ev.stages[s]; if (x && x.id !== -1) (at[x.pc] ??= []).push(i); });
-  $('listing').innerHTML = '<tr><th>address</th><th></th><th>bytes in memory</th><th>instruction</th></tr>' + rows.map(r => {
+  $('listing').innerHTML = '<tr><th>address</th><th><span class="sr-only">stage</span></th><th>bytes in memory</th><th>instruction</th></tr>' + rows.map(r => {
     const stg = at[r.addr] || [];
     const bytes = r.bytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
     return `<tr data-addr="${r.addr}" class="${selAddr === r.addr ? 'sel' : ''}" style="${stg.length ? `border-left-color:var(${stageColor(names, stg[stg.length - 1])})` : ''}">
-      <td class="addr">${hex(r.addr)}</td><td>${stg.map(i => `<span class="stg" style="background:var(${stageColor(names, i)})">${names[i].slice(0, 2)}</span>`).join(' ')}</td>
+      <td class="addr">${hex(r.addr)}</td><td>${stg.map(i => `<span class="stg" style="background:color-mix(in srgb, var(${stageColor(names, i)}) 65%, #000)">${names[i].slice(0, 2)}</span>`).join(' ')}</td>
       <td class="bin">${bytes}</td><td class="src">${esc(r.text)}</td></tr>`;
   }).join('');
   const sel = rows.find(r => r.addr === selAddr);
@@ -142,7 +142,7 @@ function renderCompare() {
   const m = cache[progName + fusion] ??= Object.fromEntries(Object.keys(ARCHS).map(a => [a, measure(a, COMPARE_PROGRAMS[progName][a], 5e6, coreOptions(a))]));
   const rows = [['instructions in the program', 'staticInstructions'], ['bytes of code', 'codeBytes'], ['instructions executed', 'instructions'], ['micro-ops executed (x86)', 'uops'], ['cycles', 'cycles']];
   const archs = Object.keys(ARCHS);
-  let h = `<tr><th></th>${archs.map(a => `<th class="${a === arch ? 'cur' : ''}">${ARCHS[a].name}</th>`).join('')}</tr>`;
+  let h = `<tr><th><span class="sr-only">measure</span></th>${archs.map(a => `<th class="${a === arch ? 'cur' : ''}">${ARCHS[a].name}</th>`).join('')}</tr>`;
   for (const [label, key] of rows) {
     const vals = archs.map(a => m[a][key]), max = Math.max(...vals.filter(v => v !== undefined));
     h += `<tr><td>${label}</td>${archs.map((a, i) => vals[i] === undefined ? '<td>-</td>' : `<td class="${a === arch ? 'cur' : ''}"><span class="bar" style="width:${(100 * vals[i] / max).toFixed(0)}%"></span><span class="v">${vals[i].toLocaleString('en-US')}</span></td>`).join('')}</tr>`;

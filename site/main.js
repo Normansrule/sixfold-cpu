@@ -412,7 +412,7 @@ showCmds('Quick start');
   // or a link jumps further down): reveal everything that is already above the bottom of the screen.
   let pending = false;
   const catchUp = () => { pending = false; document.querySelectorAll('.reveal:not(.in)').forEach(el => { if (el.getBoundingClientRect().top < innerHeight) { el.classList.add('in'); io.unobserve(el); } }); };
-  addEventListener('scroll', () => { if (!pending) { pending = true; requestAnimationFrame(catchUp); } }, { passive: true });
+  addEventListener('scroll', () => { if (!pending) { pending = true; setTimeout(catchUp, 60); } }, { passive: true });
   addEventListener('hashchange', () => setTimeout(catchUp, 50));
   document.querySelectorAll('.facts strong').forEach(el => {
     const m = el.textContent.match(/^([\d.,]+)(.*)$/); if (!m) return;

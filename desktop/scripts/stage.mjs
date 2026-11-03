@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
 const OUT = path.resolve(HERE, '..', 'app-site');
-const COPY = ['index.html', 'LICENSE', 'README.md', 'site', 'web', 'model', 'programs', 'docs', 'binary', 'fpga/examples', 'tests/isa_selfcheck.s', 'custom'];
+const COPY = ['index.html', 'favicon.svg', '404.html', 'LICENSE', 'README.md', 'site', 'web', 'model', 'programs', 'docs', 'binary', 'fpga/examples', 'tests/isa_selfcheck.s', 'custom'];
 const SKIP = new Set([path.join('docs', 'silicon'), 'node_modules', '.git', '.DS_Store']);
 
 let files = 0, bytes = 0;

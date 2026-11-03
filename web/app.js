@@ -136,7 +136,7 @@ function renderStages(ev, prev) {
       if (isIntr) tags.push(`<span class="tag miss">trap to ${hex(ev.trap.to)}</span>`);
       if (s === 'EXECUTE' && ev.trap && !ev.interrupt) tags.push(`<span class="tag miss">${ev.trap.kind}: to ${hex(ev.trap.to)}</span>`);
       const label = isIntr ? `${ev.trap.kind}<br><small>in place of ${esc(textOf(x))}</small>` : esc(textOf(x));
-      body = `<div class="chip${entered ? ' enter' : ''}${stalled ? ' stalled' : ''}${isIntr ? ' intr' : ''}" style="background:var(--${s})${killed ? ';opacity:.5' : ''}">
+      body = `<div class="chip${entered ? ' enter' : ''}${stalled ? ' stalled' : ''}${isIntr ? ' intr' : ''}" style="background:color-mix(in srgb, var(--${s}) 65%, #000)${killed ? ';filter:grayscale(1)' : ''}">
         <div class="pc">${hex(x.pc)}</div>${label}</div><div class="tags">${tags.join('')}</div>`;
     }
     return `<div class="stage"><h3>${s} <small>${STAGE_INFO[s]}</small></h3><div class="bar" style="background:var(--${s})"></div>${body}</div>`;
@@ -183,7 +183,7 @@ function renderChart() {
   }
   const ids = [...rows.keys()].sort((a, b) => a - b).slice(-18);
   const end = Math.max(last, first + N - 1);
-  let h = '<tr><th></th>';
+  let h = '<tr><th><span class="sr-only">instruction</span></th>';
   for (let c = first; c <= end; c++) h += `<th>${c}</th>`;
   h += '</tr>';
   for (const id of ids) {
@@ -191,16 +191,16 @@ function renderChart() {
     h += `<tr><td class="label${sq ? ' sq' : ''}">${hex(r.pc)} ${esc(core.instrs[id].text.slice(0, 24))}</td>`;
     for (let c = first; c <= end; c++) {
       const cell = r.cells[c];
-      h += cell ? `<td class="c${sq ? ' sq' : ''}${cell.st ? ' st' : ''}${cell.fw ? ' fw' : ''}${c === last ? ' now' : ''}" style="background:var(--${cell.s})">${SHORT[cell.s]}</td>` : '<td></td>';
+      h += cell ? `<td class="c${sq ? ' sq' : ''}${cell.st ? ' st' : ''}${cell.fw ? ' fw' : ''}${c === last ? ' now' : ''}" style="background:color-mix(in srgb, var(--${cell.s}) 65%, #000)">${SHORT[cell.s]}</td>` : '<td></td>';
     }
     h += '</tr>';
   }
   h += '<tr class="hz"><td class="label" style="color:var(--sub)">hazard events</td>';
   for (let c = first; c <= end; c++) {
     const ev = byCycle.get(c);
-    h += !ev ? '<td></td>' : ev.interruptTaken || ev.interrupt ? '<td style="background:var(--WRITEBACK)">intr</td>' : ev.stall ? '<td style="background:var(--stall)">stall</td>'
-      : ev.flush ? '<td style="background:var(--redirect)">flush</td>' : ev.redirect ? '<td style="background:var(--FETCH2)">redir</td>' : ev.busy ? '<td style="background:var(--DECODE)">busy</td>'
-      : ev.imiss || ev.dmiss ? '<td style="background:var(--MEMORY)">miss</td>' : '<td></td>';
+    h += !ev ? '<td></td>' : ev.interruptTaken || ev.interrupt ? '<td style="background:color-mix(in srgb, var(--WRITEBACK) 65%, #000)">intr</td>' : ev.stall ? '<td style="background:color-mix(in srgb, var(--stall) 65%, #000)">stall</td>'
+      : ev.flush ? '<td style="background:color-mix(in srgb, var(--redirect) 65%, #000)">flush</td>' : ev.redirect ? '<td style="background:color-mix(in srgb, var(--FETCH2) 65%, #000)">redir</td>' : ev.busy ? '<td style="background:color-mix(in srgb, var(--DECODE) 65%, #000)">busy</td>'
+      : ev.imiss || ev.dmiss ? '<td style="background:color-mix(in srgb, var(--MEMORY) 65%, #000)">miss</td>' : '<td></td>';
   }
   $('chart').innerHTML = h + '</tr>';
 }
@@ -220,7 +220,7 @@ function renderListing(ev) {
     const stg = at[l.addr] || [];
     const border = stg.length ? `border-left-color:var(--${stg[stg.length - 1]})` : '';
     return `<tr data-addr="${l.addr}" class="${selAddr === l.addr ? 'sel' : ''}" style="${border}">
-      <td class="addr">${hex(l.addr)}</td><td>${stg.map(s => `<span class="stg" style="background:var(--${s})">${SHORT[s]}</span>`).join(' ')}</td>
+      <td class="addr">${hex(l.addr)}</td><td>${stg.map(s => `<span class="stg" style="background:color-mix(in srgb, var(--${s}) 65%, #000)">${SHORT[s]}</span>`).join(' ')}</td>
       <td class="bin">${binFields(l.word).html}</td><td class="src">${esc(l.src)}</td></tr>`;
   }).join('');
   const sel = rows.find(l => l.addr === selAddr) || null;
@@ -252,7 +252,7 @@ function renderPredictor(ev) {
   for (let i = 0; i < 128; i++) { b += `<i class="s${core.bht[i]}${i === t ? ' rd' : ''}"></i>`; c += `<i class="s${core.chooser[i] >= 2 ? 3 : 0}${i === t ? ' rd' : ''}" title="chooser ${i}: ${core.chooser[i] >= 2 ? 'trust gshare' : 'trust the BHT'}"></i>`; }
   $('bht').innerHTML = b; $('chooser').innerHTML = c;
   const bi = ev && ev.stages.FETCH1 ? (ev.stages.FETCH1.pc >>> 2) & 15 : -1;
-  $('btb').innerHTML = '<tr><th>#</th><th>branch at</th><th>target</th><th></th></tr>' + core.btb.map((e, i) =>
+  $('btb').innerHTML = '<tr><th>#</th><th>branch at</th><th>target</th><th><span class="sr-only">state</span></th></tr>' + core.btb.map((e, i) =>
     `<tr class="${i === bi ? 'rd' : ''}"><td>${i}</td><td>${e.valid ? hex((e.tag << 6) | (i << 2)) : '-'}</td><td>${e.valid ? hex(e.target) : '-'}</td><td>${e.valid ? (e.isJal ? 'jal' : 'branch') : ''}</td></tr>`).join('');
   $('ras').innerHTML = core.ras.stack.map((v, i) => `<span class="${i === core.ras.top ? 'top' : ''}" title="entry ${i}">${i === core.ras.top ? 'top → ' : ''}${hex(Number(v & 0xffffffffn))}</span>`).join('');
   $('ghrnote').textContent = ev && ev.ghrRestore !== undefined ? `restored from checkpoint after a flush: ${bin(ev.ghrRestore, H)}` : ev && ev.ghrShift !== undefined ? `a branch left FETCH2: shifted in its predicted direction (${ev.ghrShift})` : '';

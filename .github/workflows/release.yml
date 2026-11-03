@@ -1,5 +1,5 @@
 # Desktop apps for Windows, macOS and Linux, attached to a GitHub Release.
-#   git tag v2.1.0 && git push origin v2.1.0      (or run it by hand: Actions -> release -> Run workflow)
+#   git tag v2.2.0 && git push origin v2.2.0      (or run it by hand: Actions -> release -> Run workflow)
 # The apps are not code-signed: see desktop/README.md for how to open them the first time.
 name: release
 
