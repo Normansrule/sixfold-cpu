@@ -11,7 +11,8 @@ module riscv64_top #(
   parameter bit ITERATIVE_MULTIPLY_DIVIDE = 1'b1,
   parameter bit TOURNAMENT_PREDICTOR = 1'b1,
   parameter bit CACHES_ENABLE = 1'b1,
-  parameter int MISS_LATENCY = 10
+  parameter int MISS_LATENCY = 10,
+  parameter int CACHE_SETS = 64 // sets per way in each cache (64: 4 KiB each)
 ) (
   input  logic        clk,
   input  logic        reset,
@@ -84,12 +85,12 @@ module riscv64_top #(
 
   generate
     if (CACHES_ENABLE) begin : caches
-      InstructionCache #(.MISS_LATENCY(MISS_LATENCY)) instruction_cache (
+      InstructionCache #(.MISS_LATENCY(MISS_LATENCY), .SETS(CACHE_SETS)) instruction_cache (
         .clk (clk), .reset (reset), .FREEZE (HALT_FREEZE),
         .FETCH_ADDRESS (icache_addr), .INSTRUCTION (icache_dout), .HIT (icache_hit),
         .REFILL_ADDRESS (INSTRUCTION_REFILL_ADDRESS), .REFILL_LINE (INSTRUCTION_REFILL_LINE)
       );
-      DataCache #(.MISS_LATENCY(MISS_LATENCY)) data_cache (
+      DataCache #(.MISS_LATENCY(MISS_LATENCY), .SETS(CACHE_SETS)) data_cache (
         .clk (clk), .reset (reset), .FREEZE (HALT_FREEZE),
         .LOAD_REQUEST (dcache_re), .ADDRESS (dcache_addr), .WRITE_MASK (dcache_we), .WRITE_DATA (dcache_din),
         .READ_DATA (CACHE_DATA), .HIT (dcache_hit),

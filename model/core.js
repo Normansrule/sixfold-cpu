@@ -34,10 +34,13 @@ export const CSR = { TOHOST: 0x51E, STATUS: 0x50A, HARTID: 0x50B, CYCLE: 0xC00, 
 // mcause values for the two interrupts (bit 63 set: an interrupt, not an exception)
 export const CAUSE_TIMER_INTERRUPT = (1n << 63n) | 7n, CAUSE_EXTERNAL_INTERRUPT = (1n << 63n) | 11n;
 export const DEFAULT_HISTORY_BITS = 6; // GSHARE_HISTORY_BITS in src/Riscv64.sv
-// The two builds `make test` checks (parameters of src/Riscv64.sv):
+// The builds `make test` checks (parameters of src/Riscv64.sv and src/Riscv64_top.sv):
 export const CONFIGS = {
   performance: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10 },
   baseline: { historyBits: 4, btb: false, ras: false, preciseStall: false, iterativeMdu: false, tournament: false, caches: false, missLatency: 10 }, // the plain pipeline
+  // the performance edition with 1 KiB caches (16 sets x 2 ways each): CACHE_SETS = 16, for a chip
+  // where 4 KiB of flip-flop caches cost too much area (HYDRA-130's SkyWater 130 build)
+  compact: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, cacheSets: 16 },
 };
 // ControlUnit USES_REGISTER1 / USES_REGISTER2 (by opcode, exactly as src/Control_Unit.sv)
 export function usesRegisters(word) {
@@ -353,12 +356,14 @@ export class Core {
   // devices (optional): { load(address) -> value, store(address, value, mask) } answers the device page
   // 0x1000_0000 .. 0x1000_00FF the way fpga/rtl/Sixfold_System.sv does (the site's FPGA console uses it).
   // Without it, device loads read 0, like the simulation testbench. resetPc: the RESET_VECTOR input.
-  constructor(image, { bp = true, historyBits = DEFAULT_HISTORY_BITS, btb = true, ras = true, preciseStall = true, iterativeMdu = true, tournament = true, caches = true, missLatency = 10, devices = null, resetPc = RESET_PC } = {}) {
-    this.opts = { bp, historyBits, btb, ras, preciseStall, iterativeMdu, tournament, caches, missLatency, devices, resetPc };
+  constructor(image, { bp = true, historyBits = DEFAULT_HISTORY_BITS, btb = true, ras = true, preciseStall = true, iterativeMdu = true, tournament = true, caches = true, missLatency = 10, cacheSets = 64, devices = null, resetPc = RESET_PC } = {}) {
+    if (!(cacheSets >= 2 && (cacheSets & (cacheSets - 1)) === 0)) throw new Error(`cacheSets must be a power of two >= 2, not ${cacheSets}`);
+    this.opts = { bp, historyBits, btb, ras, preciseStall, iterativeMdu, tournament, caches, missLatency, cacheSets, devices, resetPc };
     this.bht = new Uint8Array(128).fill(2); // TournamentChooser: per-branch history table (weakly taken)
     this.chooser = new Uint8Array(128).fill(1); // ... and chooser (weakly trust the BHT)
-    // 2-way set-associative: slot = way * 64 + set (64 sets x 2 ways), one LRU bit per set
-    const cache = () => ({ valid: new Uint8Array(128), tag: new Uint32Array(128), lru: new Uint8Array(64), busy: false, left: 0, line: 0, demand: false, pf: false, pfLine: 0 });
+    // 2-way set-associative: slot = way * sets + set (sets x 2 ways; 64 sets = 4 KiB by default), one LRU bit per set
+    const sets = cacheSets, setBits = Math.log2(sets);
+    const cache = () => ({ sets, setBits, valid: new Uint8Array(2 * sets), tag: new Uint32Array(2 * sets), lru: new Uint8Array(sets), busy: false, left: 0, line: 0, demand: false, pf: false, pfLine: 0 });
     this.icache = cache(); this.dcache = cache();
     this.btb = Array.from({ length: 16 }, () => ({ valid: false, tag: 0, target: 0, isJal: false }));
     this.ras = { stack: new Array(8).fill(0n), top: 0 };
@@ -381,23 +386,23 @@ export class Core {
       interrupts: 0, bubbles: { fill: 0, loaduse: 0, flush: 0, redirect: 0, muldiv: 0, imiss: 0, dmiss: 0, interrupt: 0 } };
   }
 
-  cacheSlot(c, addr) { // way * 64 + set of the line holding addr, or -1 (InstructionCache / DataCache lookup)
+  cacheSlot(c, addr) { // way * sets + set of the line holding addr, or -1 (InstructionCache / DataCache lookup)
     const a = typeof addr === 'bigint' ? addr : BigInt(addr >>> 0);
     if (a >> 32n) return -1;
-    const set = Number((a >> 5n) & 63n), tag = Number((a >> 11n) & 0x1fffffn);
-    for (const way of [0, 1]) if (c.valid[way * 64 + set] && c.tag[way * 64 + set] === tag) return way * 64 + set;
+    const set = Number((a >> 5n) & BigInt(c.sets - 1)), tag = Number((a >> BigInt(5 + c.setBits)) & ((1n << BigInt(27 - c.setBits)) - 1n));
+    for (const way of [0, 1]) if (c.valid[way * c.sets + set] && c.tag[way * c.sets + set] === tag) return way * c.sets + set;
     return -1;
   }
   cacheHit(c, addr) { return this.cacheSlot(c, addr) >= 0; }
   victimSlot(c, line) { // an empty way first, otherwise the least recently used one
-    const set = (line >>> 5) & 63;
-    const way = !c.valid[set] ? 0 : !c.valid[64 + set] ? 1 : c.lru[set];
-    return way * 64 + set;
+    const set = (line >>> 5) & (c.sets - 1);
+    const way = !c.valid[set] ? 0 : !c.valid[c.sets + set] ? 1 : c.lru[set];
+    return way * c.sets + set;
   }
-  touch(c, slot) { if (slot >= 0) c.lru[slot & 63] = slot < 64 ? 1 : 0; } // the other way becomes least recently used
+  touch(c, slot) { if (slot >= 0) c.lru[slot & (c.sets - 1)] = slot < c.sets ? 1 : 0; } // the other way becomes least recently used
   install(c) { // uses the victim chosen at the START of the cycle (before this cycle's LRU updates), like the RTL
-    const slot = c.victim >= 0 ? c.victim : this.victimSlot(c, c.line), set = slot & 63;
-    c.valid[slot] = 1; c.tag[slot] = (c.line >>> 11) & 0x1fffff; c.lru[set] = slot < 64 ? 1 : 0;
+    const slot = c.victim >= 0 ? c.victim : this.victimSlot(c, c.line), set = slot & (c.sets - 1);
+    c.valid[slot] = 1; c.tag[slot] = (c.line >>> (5 + c.setBits)) & ((1 << (27 - c.setBits)) - 1); c.lru[set] = slot < c.sets ? 1 : 0;
   }
   refill(c, missing, addr) { // one clock edge of the DataCache refill engine
     if (!c.busy) { if (missing) { c.busy = true; c.left = this.opts.missLatency; c.line = Number(BigInt.asUintN(32, (typeof addr === 'bigint' ? addr : BigInt(addr >>> 0))) & ~31n); return true; } }

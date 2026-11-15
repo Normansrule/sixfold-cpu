@@ -10,6 +10,7 @@
 //   Build-time configuration (make test builds both):
 //     default               the performance edition (caches, tournament predictor, BTB, RAS, precise load stalls, iterative M unit)
 //     -DBASELINE            the baseline pipeline (all features off, 4 history bits, single-cycle memory)
+//     -DCOMPACT             the performance edition with 1 KiB caches (CACHE_SETS = 16)
 `timescale 1ns/1ps
 `default_nettype none
 `ifdef BASELINE
@@ -18,6 +19,11 @@
 `else
   `define CONFIG_FEATURES 1'b1
   `define CONFIG_HISTORY 6
+`endif
+`ifdef COMPACT
+  `define CONFIG_CACHE_SETS 16
+`else
+  `define CONFIG_CACHE_SETS 64
 `endif
 
 module riscv64_testbench;
@@ -40,7 +46,8 @@ module riscv64_testbench;
     .PRECISE_LOAD_STALL (`CONFIG_FEATURES),
     .ITERATIVE_MULTIPLY_DIVIDE (`CONFIG_FEATURES),
     .TOURNAMENT_PREDICTOR (`CONFIG_FEATURES),
-    .CACHES_ENABLE (`CONFIG_FEATURES)
+    .CACHES_ENABLE (`CONFIG_FEATURES),
+    .CACHE_SETS (`CONFIG_CACHE_SETS)
   ) dut (.*);
 
   integer TRACE_FILE = 0, MAX_CYCLES, CYCLE = 0, RETIRED = 0, INDEX, BP_ARGUMENT;

@@ -60,6 +60,7 @@ module SixfoldSystem #(
     parameter int BAUD = 115_200,
     parameter string MEMORY_IMAGE = "memory.hex", // firmware + demo program (tools/fpga_image.mjs)
     parameter int MISS_LATENCY = 10,
+    parameter int CACHE_SETS = 64, // sets per way in each cache (64: 4 KiB each)
     parameter logic [63:0] FIRMWARE_ENTRY = 64'h0
 ) (
     input  logic clk,
@@ -107,12 +108,12 @@ module SixfoldSystem #(
     /* verilator lint_on PINCONNECTEMPTY */
     assign CORE_HALTED = HALTED;
 
-    InstructionCache #(.MISS_LATENCY (MISS_LATENCY)) instruction_cache (
+    InstructionCache #(.MISS_LATENCY(MISS_LATENCY), .SETS(CACHE_SETS)) instruction_cache (
         .clk (clk), .reset (CORE_RESET), .FREEZE (HALTED),
         .FETCH_ADDRESS (icache_addr), .INSTRUCTION (icache_dout), .HIT (icache_hit),
         .REFILL_ADDRESS (INSTRUCTION_REFILL_ADDRESS), .REFILL_LINE (INSTRUCTION_REFILL_LINE)
     );
-    DataCache #(.MISS_LATENCY (MISS_LATENCY)) data_cache (
+    DataCache #(.MISS_LATENCY(MISS_LATENCY), .SETS(CACHE_SETS)) data_cache (
         .clk (clk), .reset (CORE_RESET), .FREEZE (HALTED),
         .LOAD_REQUEST (dcache_re), .ADDRESS (dcache_addr), .WRITE_MASK (dcache_we), .WRITE_DATA (dcache_din),
         .READ_DATA (CACHE_DATA), .HIT (dcache_hit),

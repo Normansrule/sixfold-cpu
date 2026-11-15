@@ -30,7 +30,7 @@ const noRtl = args.includes('--no-rtl');
 const filter = args.find(a => !a.startsWith('--'));
 const bpArg = (args.find(a => a.startsWith('--bp=')) || '--bp=both').slice(5);
 const cfgArg = (args.find(a => a.startsWith('--config=')) || '--config=both').slice(9);
-const CONFIG_NAMES = cfgArg === 'both' ? ['performance', 'baseline'] : [cfgArg];
+const CONFIG_NAMES = cfgArg === 'both' ? ['performance', 'baseline', 'compact'] : [cfgArg];
 const MODES = (bpArg === 'on' ? [true] : bpArg === 'off' ? [false] : [true, false]).flatMap(bp => CONFIG_NAMES.map(cfg => ({ bp, cfg })));
 const useIcarus = args.includes('--icarus');
 const tty = process.stdout.isTTY;
@@ -47,7 +47,7 @@ if (!noRtl) {
   const sources = fs.readFileSync('src/sources.f', 'utf8').split('\n').filter(Boolean);
   const hasVerilator = !useIcarus && !spawnSync('verilator', ['--version']).error;
   for (const cfg of CONFIG_NAMES) {
-    const def = cfg === 'baseline' ? ['-DBASELINE'] : [];
+    const def = cfg === 'baseline' ? ['-DBASELINE'] : cfg === 'compact' ? ['-DCOMPACT'] : [];
     let r;
     if (hasVerilator) {
       const dir = `build/vsim_${cfg}`;
@@ -74,7 +74,8 @@ if (!noRtl) {
 // "# EXPECT[perf-bp-off]" of the performance build.
 function parseExpect(src, bp, cfg) {
   const regs = [], out = [];
-  const want = cfg === 'baseline' ? (bp ? 'gshare' : 'bp-off') : (bp ? 'perf' : 'perf-bp-off');
+  // the compact build's timing differs from both (smaller caches): only untimed EXPECT lines apply
+  const want = cfg === 'baseline' ? (bp ? 'gshare' : 'bp-off') : cfg === 'compact' ? 'compact' : (bp ? 'perf' : 'perf-bp-off');
   for (const m of src.matchAll(/^#\s*EXPECT(?:\[([\w-]+)\])?:\s*(\w+)\s*=\s*(-?\w+)\s*$/gm))
     if (!m[1] || m[1] === want) regs.push([m[2], BigInt.asUintN(64, BigInt(m[3]))]);
   for (const m of src.matchAll(/^#\s*EXPECT-OUTPUT:\s?(.*)$/gm)) out.push(m[1].replace(/\\n/g, '\n'));
@@ -92,7 +93,7 @@ for (const f of files) {
 
   for (const { bp, cfg } of MODES) {
   const problems = [];
-  const tag = `${cfg === 'baseline' ? 'base' : 'perf'} ${bp ? 'gshare' : 'no-bp '}`;
+  const tag = `${cfg === 'baseline' ? 'base' : cfg === 'compact' ? 'cmpt' : 'perf'} ${bp ? 'gshare' : 'no-bp '}`;
   const tr = `${cfg}.${bp ? 'bp' : 'nobp'}`;
   // ---------------- model ----------------
   const core = new Core(img, { ...CONFIGS[cfg], bp });
