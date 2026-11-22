@@ -107,7 +107,7 @@ make custom-check  # random instructions through the same compiler, RTL against 
 `make test` runs program 23 (and your own programs) on the SystemVerilog and on the model and compares
 them every cycle. The two were generated from one expression by two different translators, so if they
 agree on random and edge-case operands you have good evidence both are right. `make custom-check` adds
-60 random instructions using every operator and function.
+72 random instructions using every operator and function.
 
 ## Try it
 

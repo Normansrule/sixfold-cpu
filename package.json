@@ -1,7 +1,7 @@
 {
   "name": "sixfold-cpu",
-  "version": "2.0.0",
-  "description": "Educational 6-stage RV64IM + Zicsr RISC-V CPU SystemVerilog RTL, gshare branch prediction, cycle-exact model, interactive pipeline visualizer and real sky130 silicon",
+  "version": "2.2.0",
+  "description": "Educational 6-stage RV64I + M + B + Zknh RISC-V CPU in SystemVerilog: tournament branch prediction, caches, a cycle-exact model, interactive pipeline labs, FPGA builds and a sky130 silicon flow",
   "type": "module",
   "license": "MIT",
   "scripts": {

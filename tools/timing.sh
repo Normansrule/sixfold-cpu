@@ -2,7 +2,7 @@
 # =============================================================================
 # tools/timing.sh: logic-only static timing of the core on SkyWater sky130
 #
-#   tools/timing.sh [performance|baseline] [sky130|asap7]
+#   tools/timing.sh [performance|baseline|turbo|deep|deep-cache|deep-mdu] [sky130|asap7]
 #
 #   sky130 : SkyWater 130 nm open PDK, sky130_fd_sc_hd, typical corner 25 C 1.80 V (a real, manufacturable process)
 #   asap7  : ASAP7 7 nm predictive FinFET PDK (Arizona State University + ARM), RVT cells, typical corner 25 C 0.70 V.
@@ -15,6 +15,12 @@
 # What it does NOT include: wire delay, clock skew, setup time, the slow corner. Real sign-off
 # after place and route is typically 1.5x to 2.5x slower (see docs/PERFORMANCE.md).
 # The baseline's single-cycle M unit is left out (black box): with it that design would be far slower.
+# deep: the deep-pipeline edition (src/deep/sources.f, top Riscv64Deep). Its caches sit inside the core, and
+# their logic (tags, valid and LRU bits, the refill engine, predecode) is timed with it; only the SRAM arrays
+# (DeepCacheArray) are black boxes, as macros whose access time comes from a datasheet (tools/timing.sh
+# deep-cache times one cache's logic alone). Two more black boxes, because their paths are multi-cycle by
+# design and get two or three cycles: DeepMultiplyDivideUnit (the deep edition steps it every second cycle)
+# and DeepCustomChain (three stages, X3 to M2). Time them alone.
 # =============================================================================
 set -euo pipefail
 CFG=${1:-performance}
@@ -37,13 +43,31 @@ else
   DFFMAP="dfflibmap -liberty $LIB"
 fi
 SRCS=$(grep -v -e Scratchpad -e Riscv64_top -e _Cache_ src/sources.f)
-if [ "$CFG" = baseline ]; then
+TOP=Riscv64
+if [ "$CFG" = deep-mdu ]; then
+  # DeepMultiplyDivideUnit alone: the core changes its state every second cycle, so its paths have two cycles
+  # (compare the delay with two clock periods minus one flip-flop overhead)
+  ./build/sv2v $(grep -v -e Scratchpad -e Riscv64_Deep_top src/deep/sources.f) > build/synth/flat_$CFG.v
+  TOP=DeepMultiplyDivideUnit; PARAMS=""; BLACKBOX=""
+elif [ "$CFG" = deep-cache ]; then
+  # DeepCache with everything the instruction cache has (predecode, stream prefetch) and the data cache's store
+  # path; its arrays (DeepCacheArray) are SRAM macros on a chip, so black boxes here
+  ./build/sv2v src/Opcode_pkg.sv src/const_pkg.sv src/Parallel_Prefix_Adder.sv src/deep/Deep_Cache.sv > build/synth/flat_$CFG.v
+  TOP=DeepCache; PARAMS="chparam -set PREDECODE 1 -set STREAM_PREFETCH 1 DeepCache"; BLACKBOX="blackbox DeepCacheArray"
+elif [ "$CFG" = deep ]; then
+  SRCS=$(grep -v -e Scratchpad -e Riscv64_Deep_top src/deep/sources.f)
+  ./build/sv2v $SRCS > build/synth/flat_$CFG.v
+  TOP=Riscv64Deep; PARAMS=""; BLACKBOX="blackbox DeepCacheArray DeepCustomChain DeepMultiplyDivideUnit"
+elif [ "$CFG" = baseline ]; then
   ./build/sv2v -DBASELINE $SRCS > build/synth/flat_$CFG.v
-  PARAMS="chparam -set GSHARE_HISTORY_BITS 4 -set BTB_ENABLE 0 -set RAS_ENABLE 0 -set PRECISE_LOAD_STALL 0 -set ITERATIVE_MULTIPLY_DIVIDE 0 Riscv64"
+  PARAMS="chparam -set GSHARE_HISTORY_BITS 4 -set BTB_ENABLE 0 -set RAS_ENABLE 0 -set PRECISE_LOAD_STALL 0 -set ITERATIVE_MULTIPLY_DIVIDE 0 -set ZIFENCEI 1 -set XCOMPUTE 1 Riscv64"
   BLACKBOX="blackbox MultiplyDivideUnit"
+elif [ "$CFG" = turbo ]; then
+  ./build/sv2v $SRCS > build/synth/flat_$CFG.v
+  PARAMS="chparam -set FAST_MULTIPLY_DIVIDE 1 -set LATE_BRANCH_RESOLVE 1 -set FAST_ALU 1 -set FAST_FETCH_TARGET 1 -set FAST_STALL 1 -set FAST_LOAD_ALIGN 1 -set ZIFENCEI 1 -set XCOMPUTE 1 Riscv64"; BLACKBOX=""
 else
   ./build/sv2v $SRCS > build/synth/flat_$CFG.v
-  PARAMS=""; BLACKBOX=""
+  PARAMS="chparam -set ZIFENCEI 1 -set XCOMPUTE 1 Riscv64"; BLACKBOX=""
 fi
 cat > build/synth/abc_timing.scr <<'ABC'
 strash
@@ -66,9 +90,11 @@ cat > build/synth/timing_$TAG.ys <<YS
 read_verilog build/synth/flat_$CFG.v
 $PARAMS
 $BLACKBOX
-synth -noabc -noshare -top Riscv64 -flatten
+synth -noabc -noshare -top $TOP -flatten
 $DFFMAP
 abc -D 100 $LIBARGS -script build/synth/abc_timing.scr
+opt_clean -purge
+write_json build/synth/mapped_$TAG.json
 YS
 yosys -q -l build/synth/timing_$TAG.log -s build/synth/timing_$TAG.ys > /dev/null
 DELAY=$(grep -E "Delay =" build/synth/timing_$TAG.log | tail -1 | sed -E 's/.*Delay = *([0-9.]+) ps.*/\1/')

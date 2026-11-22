@@ -206,6 +206,33 @@ hardware has to keep for each instruction, and the documentation would have to s
 HYDRA builds on the same instruction. There, `hsec.cteq` belongs to a family that can compare against
 a key held in a vault, so software can check a secret it is never allowed to read.
 
+## An instruction with no result: `fence.i`
+
+Some instructions change no register at all; they change what the pipeline may assume. `fence.i` (the
+Zifencei extension) is one. A program that writes new instructions into memory, a loader or a
+just-in-time compiler, stores them as data. The instruction cache may still hold the old words, the branch
+target buffer (BTB) may still remember where an old jump went, and the instructions right behind the stores
+were fetched before the stores happened. RISC-V does not promise that fetch sees the new code until a
+`fence.i` runs.
+
+Sixfold treats `fence.i` like a trap that goes nowhere special. When it reaches the stage where traps are
+taken (EXECUTE; M1 in the deep-pipeline edition) it flushes everything younger, restarts fetch at `PC + 4`,
+and pulses the reset of the instruction cache and the BTB in the same clock edge. The data cache writes
+through to memory, so by then memory already holds every older store, and the refetch reads the new code.
+It costs one flush (3 bubbles, counted in F) plus a refill of each line it needs again.
+
+![fence.i in the pipeline chart: the stores and the fence.i retire, the three younger instructions are squashed, and the rewritten word at 0x2050 waits in FETCH1 for its line to come back from memory](../img/pipeline/fence_i_zoom.svg)
+
+In the chart, the `fence.i` at `204c` reaches EXECUTE in cycle 123 and the three instructions behind it are
+squashed. The word at `2050` was `addi a0, a0, 2` when it was first fetched; after the flush it is fetched
+again, misses in the now empty instruction cache, and arrives as `addi a0, a0, 300`.
+
+It lives behind a parameter, `ZIFENCEI` in [`src/Riscv64.sv`](../../src/Riscv64.sv), so a design that
+instantiates the core without it is unchanged. [`tests/fence_i.s`](../../tests/fence_i.s) rewrites three
+pieces of cached code, among them the instruction straight after the `fence.i`, and
+[`tests/stale_btb.s`](../../tests/stale_btb.s) rewrites jumps the BTB has learned. Both check their answer
+on all five builds.
+
 ## What Sixfold does not add, and why
 
 HYDRA's full extension, Xhydrasec, also has instructions that unlock and use keys. Those only make
@@ -214,6 +241,9 @@ trap. Sixfold runs everything in machine mode, the most privileged level, so any
 for show. Adding a user mode and an illegal-instruction trap is a chapter of its own.
 
 ## Try it
+
+* In `tests/fence_i.s`, replace the second `fence.i` with a `nop` and run `node tools/test.mjs fence_i`.
+  Every build now runs the old `addi a0, a0, 2`, even the baseline build, which has no instruction cache. Why?
 
 * In `src/Control_Unit.sv`, make custom-0's `USES_REGISTER2` always `1'b0` and run `make test`.
   Which test fails, and on which cycle do the model and the RTL disagree?

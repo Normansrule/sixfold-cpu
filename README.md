@@ -1,6 +1,22 @@
+<p align="center">
+  <a href="https://normansrule.github.io/sixfold-cpu/">
+    <picture>
+      <source media="(prefers-reduced-motion: reduce)" srcset="docs/img/hero_still.png">
+      <img src="docs/img/hero.gif" width="1000" alt="Sixfold's six pipeline stages in 3D, recorded from the live site: instructions move from FETCH1 to WRITEBACK one clock cycle at a time while a caption explains each event (a redirect, a cache miss, forwarding)">
+    </picture>
+  </a>
+</p>
+
 # Sixfold
 
 **Six stages. One instruction per clock. Watch a 64-bit RISC-V processor think.**
+
+[![CI](https://github.com/Normansrule/sixfold-cpu/actions/workflows/ci.yml/badge.svg)](https://github.com/Normansrule/sixfold-cpu/actions/workflows/ci.yml)
+[![Pages](https://github.com/Normansrule/sixfold-cpu/actions/workflows/pages.yml/badge.svg)](https://normansrule.github.io/sixfold-cpu/)
+[![Release](https://img.shields.io/github/v/release/Normansrule/sixfold-cpu?label=release)](https://github.com/Normansrule/sixfold-cpu/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+**[Live site](https://normansrule.github.io/sixfold-cpu/)** · [Pipeline lab](https://normansrule.github.io/sixfold-cpu/web/index.html) · [Learn in sixteen chapters](docs/learn/README.md) · [Quick start](#quick-start-ubuntu-or-wsl) · [Where everything is](#repository-map)
 
 Sixfold is a 64-bit RISC-V processor you can read, run, watch, and see as real silicon: a 6-stage pipelined
 RV64IM core with the complete B bit-manipulation extension (Zba, Zbb, Zbs), instruction and data caches,
@@ -9,11 +25,19 @@ and hardware performance counters, written in SystemVerilog and built to **teach
 works and how to read its diagrams**. It also runs **on an FPGA board** as a small computer with boot
 firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 
+| Read | Run | Watch | Flash | See as silicon |
+|---|---|---|---|---|
+| SystemVerilog with one module per file, and [sixteen chapters](docs/learn/README.md) that point at the lines | `make test`: the RTL against a cycle-exact model, every cycle | the [live site](https://normansrule.github.io/sixfold-cpu/) and three labs in any browser | Basys 3, ULX3S and Arty A7 builds with boot firmware ([FPGA.md](docs/FPGA.md)) | sky130 layout, timing and area ([SILICON.md](docs/SILICON.md)) |
+
+**Contents:** [What is inside](#what-is-inside) · [Watch it move](#watch-it-move) · [How it works, in pictures](#how-it-works-in-pictures) · [Open the live site](#open-the-live-site) · [Quick start](#quick-start-ubuntu-or-wsl) · [Learn it](#learn-it-sixteen-chapters) · [Performance](#faster-shorter-critical-path-fewer-wasted-cycles) · [Silicon](#down-to-silicon) · [How we know it works](#how-we-know-it-works) · [Repository map](#repository-map) · [Every command](#every-command)
+
+## What is inside
+
 ![The Sixfold datapath](docs/img/cpu_block_diagram.svg)
 
 | | |
 |---|---|
-| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr + **Zknh** (SHA-2: `sha256sig0`, `sha512sum1`, ..., added by hand in [chapter 12](docs/learn/12_adding_instructions.md)): **121 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (five built in: `absdiff`, `avgu`, `hamming`, `clampi`, and `hsec.cteq` for constant-time equality) |
+| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr + Zifencei (`fence.i`, so new code can run) + **Zknh** (SHA-2: `sha256sig0`, `sha512sum1`, ..., added by hand in [chapter 12](docs/learn/12_adding_instructions.md)): **122 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (five built in: `absdiff`, `avgu`, `hamming`, `clampi`, and `hsec.cteq` for constant-time equality), and **nine packed instructions** for graphics, video, audio and int8 neural networks that work on 8 bytes or 4 16-bit numbers at once (`paddus.b`, `pavgu.b`, `psad.b`, `pdot.b`, `pmulhrs.h`, ...: **13.0x** faster on the benchmark kernels, [XCOMPUTE.md](docs/XCOMPUTE.md)) |
 | **Pipeline** | FETCH1 → FETCH2 → DECODE → EXECUTE → MEMORY → WRITEBACK, in order, one instruction per cycle |
 | **Hazards** | forwarding into DECODE from EXECUTE / MEMORY / WRITEBACK (the late EXECUTE value takes its own short path), 1-cycle `LOAD_STALL` for loads and the 2-cycle Zbb results (`cpop`, which finishes its count in MEMORY, and `min`, `max`) |
 | **Branch prediction** | tournament: a per-branch Branch History Table and `GSharePredictor` (PC xor global history, checkpoint repair) with a chooser; a 16-entry Branch Target Buffer (known taken branches cost 0 cycles); an 8-entry Return Address Stack |
@@ -26,11 +50,11 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 | **Multiply / divide** | iterative: a 64 x 16-bit Wallace-tree step with a carry-save accumulator (multiply in 8 cycles), 1 quotient bit per cycle after a leading-zero-counter skip (divide in 5 + significant bits) |
 | **Clock (logic only)** | about **244 MHz** on SkyWater 130 nm and **1.95 GHz** on the ASAP7 7 nm research kit (1.92 GHz with the four example custom instructions built in), with the full M and B extensions and interrupts: [PERFORMANCE.md](docs/PERFORMANCE.md) |
 | **FPGA** | a complete computer around the core: 64 KiB block-RAM main memory, UART with queues, 16 LEDs, 16 switches, 5 buttons, a four-digit seven-segment display, memory-mapped device registers, boot firmware that loads programs over USB and reports PASS and cycles. Builds for the **Digilent Basys 3** (Artix-7 XC7A35T, Vivado: every switch, button, LED and digit; about 86% of the chip), the **ULX3S** (Lattice ECP5-85F, open-source tools, placed and routed here) and the **Arty A7-100T** (Vivado): [FPGA.md](docs/FPGA.md). A hands-on example, [`calculator.s`](fpga/examples/calculator.s), does arithmetic on the switches when you press the buttons and shows the answer on the digits and the LEDs |
-| **Your own instructions** | write what an instruction computes as one expression in the [instruction workshop](web/custom.html); it gets an encoding, the assembler and the model learn it, and `make custom` generates the SystemVerilog ([`src/Custom_Unit.sv`](src/Custom_Unit.sv)). The RTL is checked against the model on every cycle, and on 60 random instructions using every operator (`make custom-check`): [CUSTOM_INSTRUCTIONS.md](docs/CUSTOM_INSTRUCTIONS.md) |
+| **Your own instructions** | write what an instruction computes as one expression in the [instruction workshop](web/custom.html); it gets an encoding, the assembler and the model learn it, and `make custom` generates the SystemVerilog ([`src/Custom_Unit.sv`](src/Custom_Unit.sv)). The RTL is checked against the model on every cycle, and on 72 random instructions using every operator (`make custom-check`): [CUSTOM_INSTRUCTIONS.md](docs/CUSTOM_INSTRUCTIONS.md) |
 | **Desktop app** | the site and all three labs as an app for **Windows, macOS and Linux**, built by GitHub Actions for every release ([`desktop/`](desktop/README.md)) |
 | **Three architectures** | the same seven programs written for **RISC-V, MIPS and x86-64**, assembled to real machine code and run cycle by cycle on a pipeline model for each (Sixfold; the classic 5 stages with a delay slot; an in-order core with micro-ops), side by side in the [three-architecture lab](web/isa.html). Encodings match the GNU assembler, runs match the Unicorn emulator (`make isa-check`): [ISA_COMPARISON.md](docs/ISA_COMPARISON.md) |
-| **Two builds** | the performance edition (default) and a simple baseline pipeline (`-DBASELINE`), both in the same RTL behind parameters |
-| **Verified** | 24 programs, a 1,630-case self-checking test (expected values from an independent Python model), a 388-interrupt stress test and a custom-instruction pipeline test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (108 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
+| **Five builds** | the performance edition (default), a simple baseline pipeline (`-DBASELINE`), the compact build (`-DCOMPACT`: the performance edition with 1 KiB caches, `CACHE_SETS = 16`, the size HYDRA-130 puts on SkyWater 130) and the turbo edition (`-DTURBO`: radix-4 divide, 4-cycle multiply, stream instruction prefetch, [PERFORMANCE.md](docs/PERFORMANCE.md#the-turbo-edition-cycles-back-from-the-multiplydivide-unit-and-the-instruction-cache)), all in the same RTL behind parameters; and the deep-pipeline edition in its own files ([`src/deep/`](src/deep): 14 stages, a staggered ALU, 2.15 GHz measured at 7 nm against turbo's 1.87, at a higher CPI, [DEEP_PIPELINE.md](docs/DEEP_PIPELINE.md); `make compare` shows which build suits which work) |
+| **Verified** | 28 programs, a 1,630-case self-checking test, a 504-case packed-instruction self-check (expected values from an independent Python model), a 388-interrupt stress test and a custom-instruction pipeline test, predictor on and off, **all five builds** (baseline, performance, compact, turbo, deep): the RTL matches a software twin on **every clock cycle** (472 runs, including the performance build with the packed set switched off), and the official riscv-tests pass on every build too (106 tests, 1,272 runs, [COMPLIANCE.md](docs/COMPLIANCE.md)). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
 | **Silicon** | the original design's real sky130 layout, timing and area, plus sky130 synthesis of this RTL |
 | **Runs on** | Icarus Verilog, Verilator, Yosys, nextpnr, Vivado, an FPGA board, any web browser |
 
@@ -99,7 +123,7 @@ last, and the two Zbb operations too deep for the loop (`cpop`, `min`/`max`) get
 
 ![Performance counters](docs/img/diagrams/performance_counters.svg)
 
-### 7. The clock: from 7.5 MHz to 1.95 GHz, and what 2.5 GHz and 5 GHz take
+### 7. The clock: from 7.5 MHz to 2.15 GHz, and what 2.5 GHz and 5 GHz take
 
 ![Clock roadmap](docs/img/diagrams/clock_roadmap.svg)
 
@@ -108,6 +132,12 @@ with `tools/timing.sh` and verified cycle by cycle against the model; the "next"
 commercial 2.5 to 5 GHz cores get there (deeper pipelines, pipelined caches, out-of-order execution,
 custom circuits), each with its price in cycles or area: [PERFORMANCE.md](docs/PERFORMANCE.md).
 All these figures are drawn by `make diagrams` from the same parameters as the RTL.
+
+![The deep-pipeline edition: 14 stages](docs/img/diagrams/deep_pipeline.svg)
+
+The last measured step is the deep-pipeline edition: 14 stages, a staggered ALU and a back end that never
+stalls. Its clock is 15% faster than the turbo build's, but its CPI is 53% higher, so each instruction takes
+about a third longer ([DEEP_PIPELINE.md](docs/DEEP_PIPELINE.md)).
 
 ### 8. How the caches connect the pipeline, main memory and the devices
 
@@ -234,7 +264,7 @@ stage the instruction is in. Rings are forwarded operands, hatched boxes are hel
 grey crossed-out rows were fetched down a wrong path and squashed. Above: a `jal` squashes one
 instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 
-## Learn it: twelve chapters
+## Learn it: sixteen chapters
 
 | | chapter | picture you will be able to read |
 |---|---|---|
@@ -250,6 +280,10 @@ instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 | 10 | [Three architectures: RISC-V, MIPS and x86-64](docs/learn/10_three_architectures.md) | the same program in three encodings and three pipelines |
 | 11 | [Your own instructions](docs/learn/11_custom_instructions.md) | an instruction you design, from expression to hardware |
 | 12 | [Adding a standard extension: SHA-2 in hardware](docs/learn/12_adding_instructions.md) | an instruction's bit pattern, through all five layers |
+| 13 | [Trading cycles for clock, and where the caches go](docs/learn/13_clock_and_floorplan.md) | the slowest path, the turbo build's clock changes, and a planned floorplan |
+| 14 | [A deeper pipeline: more stages, a faster clock, and what it costs](docs/learn/14_deep_pipeline.md) | the 14 stages, a staggered adder, and the clock-against-CPI trade |
+| 15 | [Packed instructions: eight numbers per instruction](docs/learn/15_packed_compute.md) | lanes, saturation, and a dot product split across two stages |
+| 16 | [Is it right? Testing a CPU against other people's tests](docs/learn/16_is_it_right.md) | an official test case, read line by line, and the gap it found |
 
 ## Instructions in binary
 
@@ -276,7 +310,7 @@ the same RTL on a 7 nm-class library.
 cycles), and what 2.5 GHz and 5 GHz would take.
 
 ```bash
-make test                                   # both builds, every cycle compared with the RTL
+make test                                   # all five builds, every cycle compared with the RTL
 make run PROG=09_primes_sieve               # performance edition
 make run PROG=09_primes_sieve CONFIG=baseline   # the original design
 make timing                                 # sky130 logic-only clock estimate of both
@@ -294,7 +328,7 @@ shows the price: the predictor's area grows about 4x for every 2 extra bits.
 
 ![CPI stack](docs/img/charts/cpi_stack.svg)
 
-The model tags every bubble with its cause, so `cycles = N + 5 + L + 3F + R + K + I + D + X` holds **exactly** for
+The model tags every bubble with its cause, so `cycles = N + 5 + L + 3F + R + K + I + D + X + B` holds **exactly** for
 every program and both builds ([MATH.md](docs/MATH.md), checked by `make math`). Numbers below are the
 performance edition.
 
@@ -319,12 +353,16 @@ performance edition.
 | [`16_cache_conflicts`](programs/16_cache_conflicts.s) | why caches have "ways" | 440 | 2.57 | 472 | 2.76 |
 | [`17_predictor_challenge`](programs/17_predictor_challenge.s) | branches that need history, and a branch that needs OTHER branches | 6277 | 1.24 | 8790 | 1.73 |
 | [`18_bit_tricks`](programs/18_bit_tricks.s) | the Zba and Zbb extensions, measured against plain RV64I code | 711 | 1.26 | 912 | 1.61 |
-| [`19_performance_counters`](programs/19_performance_counters.s) | the cycle equation, counted by the hardware itself | 231 | 1.96 | 258 | 2.19 |
+| [`19_performance_counters`](programs/19_performance_counters.s) | the cycle equation, counted by the hardware itself | 232 | 1.93 | 260 | 2.17 |
 | [`20_leds_and_buttons`](programs/20_leds_and_buttons.s) | talking to devices (memory-mapped I/O) and Zbs | 1196 | 1.18 | 1449 | 1.43 |
 | [`21_timer_interrupts`](programs/21_timer_interrupts.s) | a timer interrupt, taken precisely in the middle of a loop | 10056 | 1.03 | 19255 | 2.02 |
 | [`22_multitasking`](programs/22_multitasking.s) | a tiny preemptive operating-system kernel, three tasks | 82959 | 2.43 | 90159 | 2.60 |
 | [`23_custom_instructions`](programs/23_custom_instructions.s) | four instructions that are not in RISC-V, designed in custom/instructions.json | 638 | 1.50 | 667 | 1.57 |
 | [`24_sha256`](programs/24_sha256.s) | SHA-256 with and without the Zknh instructions | 7648 | 1.05 | 8324 | 1.15 |
+| [`25_pixel_blend`](programs/25_pixel_blend.s) | brightening and blending 2048 pixels, one byte at a time and eight at a time | 70019 | 1.24 | 86873 | 1.54 |
+| [`26_motion_search`](programs/26_motion_search.s) | the heart of a video encoder, searching where a 16 x 16 block moved | 84423 | 1.22 | 103223 | 1.49 |
+| [`27_int8_dot`](programs/27_int8_dot.s) | a small neural-network layer in 8-bit integers, 8 neurons x 512 inputs | 77684 | 1.96 | 92400 | 2.33 |
+| [`28_fixed_point`](programs/28_fixed_point.s) | game and audio maths in 16-bit fixed point (Q15) | 114363 | 1.96 | 129673 | 2.22 |
 
 ## Down to silicon
 
@@ -350,6 +388,10 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
 * [`tests/isa_selfcheck.s`](tests/isa_selfcheck.s): 1,630 generated test cases whose expected values
   come from an independent Python reference ([`tools/gen_selfcheck.py`](tools/gen_selfcheck.py)).
   It reports through the `tohost` CSR the way riscv-tests do.
+* `make riscv-tests`: the official RISC-V unit tests ([riscv-tests](https://github.com/riscv-software-src/riscv-tests),
+  written by others against the specification): 106 tests of RV64I, M, Zba, Zbb and Zbs pass on every build,
+  predictor on and off, with the RTL matching the model on every cycle (1,272 runs). One test is left out
+  because Sixfold does not implement what it checks (misaligned accesses): [COMPLIANCE.md](docs/COMPLIANCE.md).
 * `make lint` and `make fpga-lint`: Verilator with all warnings (except the naming style this code uses on purpose).
 * `make fpga-sim`: the whole FPGA computer (block RAM memory, device registers, UART, boot firmware)
   boots in simulation, receives every program over its serial port, runs it and reports. The
@@ -360,12 +402,13 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
 * `make isa-check`: the MIPS and x86-64 models: every comparison program's result and cycle equation,
   every x86-64 encoding against the GNU assembler (251 forms, byte for byte), and every run against the
   Unicorn emulator and the Capstone disassembler.
-* `make custom-check`: 60 random custom instructions that use every operator and function of the
+* `make custom-check`: 72 random custom instructions that use every operator and function of the
   expression language, compiled into the RTL and run against the model on random and edge-case
   operands, cycle by cycle. A planted one-character bug in the compiler's SystemVerilog fails it.
 * `make a11y`: every page, in light and dark colour schemes, checked with axe-core in Chromium for
   contrast, labels, roles and keyboard reachability (WCAG 2 A and AA rules): no violations.
 * `make check-links`: every relative link, image and `#anchor` in the documentation resolves.
+* `make all-checks` runs every check above in order and names the first one that fails.
 * Continuous integration runs all of it on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Experiments
@@ -389,7 +432,7 @@ faster FPGA clock, interrupt latency with vectored interrupts, a yield system ca
 | [`custom/`](custom/instructions.json) | your custom instructions, one JSON file (`make custom` turns it into RTL) |
 | [`programs/`](programs), [`tests/`](tests) | example programs and the self-check; [`programs/compare/`](programs/compare) the seven programs in all three ISAs |
 | [`binary/`](binary/README.md) | every instruction and every program in binary |
-| [`docs/`](docs) | [learning path](docs/learn/README.md), [architecture](docs/ARCHITECTURE.md), [performance](docs/PERFORMANCE.md), [modern CPUs](docs/MODERN_CPUS.md), [math](docs/MATH.md), [experiments](docs/EXPERIMENTS.md), [silicon](docs/SILICON.md), [three ISAs](docs/ISA_COMPARISON.md), [custom instructions](docs/CUSTOM_INSTRUCTIONS.md), [glossary](docs/GLOSSARY.md), [references](docs/REFERENCES.md) |
+| [`docs/`](docs) | [learning path](docs/learn/README.md), [architecture](docs/ARCHITECTURE.md), [performance](docs/PERFORMANCE.md), [modern CPUs](docs/MODERN_CPUS.md), [math](docs/MATH.md), [experiments](docs/EXPERIMENTS.md), [silicon](docs/SILICON.md), [three ISAs](docs/ISA_COMPARISON.md), [custom instructions](docs/CUSTOM_INSTRUCTIONS.md), [packed instructions](docs/XCOMPUTE.md), [compliance](docs/COMPLIANCE.md), [glossary](docs/GLOSSARY.md), [references](docs/REFERENCES.md) |
 | [`index.html`](index.html), [`site/`](site) | the GitHub Pages front page: 3D pipeline, bit playground, predictor race, caches, FPGA console, operating system, chip scope, dashboard (vanilla JavaScript modules + vendored three.js, no build step) |
 | [`web/`](web/index.html) | the pipeline lab: step-by-step simulator; [`isa.html`](web/isa.html), the three-architecture lab; [`custom.html`](web/custom.html), the instruction workshop |
 | [`desktop/`](desktop/README.md) | the desktop app (Electron) for Windows, macOS and Linux |
@@ -399,7 +442,7 @@ faster FPGA clock, interrupt latency with vectored interrupts, a yield system ca
 ## Every command
 
 ```text
-make test / test-model / math        verification (both builds)
+make test / test-model / math        verification (all five builds, and the performance build without the packed set)
 make timing                          sky130 logic-only clock estimate (tools/timing.sh performance asap7: 7 nm)
 make run / pipe / cycle / bp         explore a program     (PROG=..., BP=0, HIST=6, CONFIG=baseline)
 make rtl / vsim / wave               run on Icarus, Verilator, or open GTKWave
@@ -407,6 +450,7 @@ make docs / charts / diagram / diagrams / animations / arena   regenerate genera
 make synth / schematics              sky130 synthesis per module, Yosys schematics
 make isa-check / isa-compare         RISC-V, MIPS, x86-64: verify the models, print the comparison table
 make custom / custom-check           custom/instructions.json -> RTL + model; random instructions, RTL vs model
+make compute-bench                   the packed instructions' speedup on every build (docs/XCOMPUTE.md)
 make a11y                            accessibility of every page (axe-core, light and dark)
 make lint / serve / clean
 ```
@@ -440,6 +484,7 @@ Transformer Explainer; the 3D view uses three.js (MIT, vendored in `site/vendor/
 
 ## Credits and license
 
-Designed by Aleksander Norman. SkyWater sky130 cell layouts are Apache-2.0; ASAP7 is used through its
+Designed by Aleksander Norman. Claude (Anthropic's AI assistant) was used as a design and coding reference
+during development; every design decision and commit is the author's. SkyWater sky130 cell layouts are Apache-2.0; ASAP7 is used through its
 published liberty files for timing only.
 Everything else is under the [MIT license](LICENSE).

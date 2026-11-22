@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 820" width="1600" height="820">
+<defs><marker id="m-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2B3A31"/></marker><marker id="m-pred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#00796B"/></marker><marker id="m-flush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C2185B"/></marker><marker id="m-F1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E86C1"/></marker><marker id="m-F2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-E" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E08E0B"/></marker><marker id="m-M" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#27AE60"/></marker><marker id="m-tag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9982E"/></marker><marker id="m-idx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-off" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-hit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1E8449"/></marker><marker id="m-miss" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker><marker id="m-sub" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4A5A50"/></marker></defs>
+<rect width="100%" height="100%" rx="12" fill="#FBFCF8" stroke="#D5DBD0"/>
+<text x="24" y="34" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#17251D" text-anchor="start">The deep-pipeline edition: 14 short stages, one place that stalls, one place that commits</text>
+<text x="24" y="56" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#4A5A50" text-anchor="start">src/deep/Riscv64_Deep.sv. Each stage does less, so the clock is shorter; every wrong guess and every wait now costs more stages (docs/DEEP_PIPELINE.md).</text>
+<rect x="36" y="266" width="430" height="134" rx="8" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.06"/>
+<text x="251" y="286" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#2E86C1" text-anchor="middle">FETCH</text>
+<rect x="468" y="266" width="214" height="134" rx="8" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.06"/>
+<text x="575" y="286" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#6A5ACD" text-anchor="middle">DECODE</text>
+<rect x="684" y="266" width="430" height="134" rx="8" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.06"/>
+<text x="899" y="286" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#E08E0B" text-anchor="middle">EXECUTE (staggered ALU)</text>
+<rect x="1116" y="266" width="322" height="134" rx="8" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.06"/>
+<text x="1277" y="286" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY</text>
+<rect x="1440" y="266" width="106" height="134" rx="8" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.06"/>
+<text x="1493" y="286" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#C0392B" text-anchor="middle">WB</text>
+<rect x="40" y="300" width="98" height="92" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="89" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#2E86C1" text-anchor="middle">F1</text>
+<text x="89" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">PC to I-cache</text>
+<text x="89" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">and predictors</text>
+<path d="M138,346 L148,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="148" y="300" width="98" height="92" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="197" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#2E86C1" text-anchor="middle">F2</text>
+<text x="197" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">arrays read</text>
+<path d="M246,346 L256,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="256" y="300" width="98" height="92" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="305" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#2E86C1" text-anchor="middle">F3</text>
+<text x="305" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">tag compare,</text>
+<text x="305" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">word + predecode</text>
+<path d="M354,346 L364,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="364" y="300" width="98" height="92" rx="6" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="413" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#2E86C1" text-anchor="middle">F4</text>
+<text x="413" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">prediction:</text>
+<text x="413" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">redirect or miss</text>
+<path d="M462,346 L472,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="472" y="300" width="98" height="92" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="521" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#6A5ACD" text-anchor="middle">D1</text>
+<text x="521" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">decode,</text>
+<text x="521" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">register read</text>
+<path d="M570,346 L580,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="580" y="300" width="98" height="92" rx="6" fill="#6A5ACD" stroke="#6A5ACD" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="629" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#6A5ACD" text-anchor="middle">D2</text>
+<text x="629" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">issue check:</text>
+<text x="629" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">the only stall</text>
+<path d="M678,346 L688,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="688" y="300" width="98" height="92" rx="6" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="737" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#E08E0B" text-anchor="middle">X1</text>
+<text x="737" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">ALU slice</text>
+<text x="737" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">bits 0-15</text>
+<path d="M786,346 L796,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="796" y="300" width="98" height="92" rx="6" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="845" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#E08E0B" text-anchor="middle">X2</text>
+<text x="845" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">ALU slice</text>
+<text x="845" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">bits 16-31</text>
+<path d="M894,346 L904,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="904" y="300" width="98" height="92" rx="6" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="953" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#E08E0B" text-anchor="middle">X3</text>
+<text x="953" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">bits 32-47;</text>
+<text x="953" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">whole-value unit</text>
+<path d="M1002,346 L1012,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="1012" y="300" width="98" height="92" rx="6" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1061" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#E08E0B" text-anchor="middle">X4</text>
+<text x="1061" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">bits 48-63;</text>
+<text x="1061" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">address done</text>
+<path d="M1110,346 L1120,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="1120" y="300" width="98" height="92" rx="6" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1169" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#27AE60" text-anchor="middle">M1</text>
+<text x="1169" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">COMMIT: branch,</text>
+<text x="1169" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">trap, fence.i, store</text>
+<path d="M1218,346 L1228,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="1228" y="300" width="98" height="92" rx="6" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1277" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#27AE60" text-anchor="middle">M2</text>
+<text x="1277" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">load align;</text>
+<text x="1277" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">miss replays</text>
+<path d="M1326,346 L1336,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="1336" y="300" width="98" height="92" rx="6" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1385" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#27AE60" text-anchor="middle">M3</text>
+<text x="1385" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">write-back</text>
+<text x="1385" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">drive</text>
+<path d="M1434,346 L1444,346" fill="none" stroke="#4A5A50" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-sub)"/>
+<rect x="1444" y="300" width="98" height="92" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1493" y="326" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#C0392B" text-anchor="middle">W</text>
+<text x="1493" y="352" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">register</text>
+<text x="1493" y="366" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#4A5A50" text-anchor="middle">file write</text>
+<rect x="698" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="718" y="374" width="18" height="10" rx="2" fill="#FFF" stroke="#E08E0B" stroke-width="1"/>
+<rect x="738" y="374" width="18" height="10" rx="2" fill="#FFF" stroke="#E08E0B" stroke-width="1"/>
+<rect x="758" y="374" width="18" height="10" rx="2" fill="#FFF" stroke="#E08E0B" stroke-width="1"/>
+<rect x="806" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="826" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="846" y="374" width="18" height="10" rx="2" fill="#FFF" stroke="#E08E0B" stroke-width="1"/>
+<rect x="866" y="374" width="18" height="10" rx="2" fill="#FFF" stroke="#E08E0B" stroke-width="1"/>
+<rect x="914" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="934" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="954" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="974" y="374" width="18" height="10" rx="2" fill="#FFF" stroke="#E08E0B" stroke-width="1"/>
+<rect x="1022" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="1042" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="1062" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="1082" y="374" width="18" height="10" rx="2" fill="#E08E0B" stroke="#E08E0B" stroke-width="1" fill-opacity="0.8"/>
+<rect x="40" y="110" width="422" height="110" rx="6" fill="#FFFFFF" stroke="#2E86C1" stroke-width="1.5"/>
+<text x="251" y="129" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">Instruction cache (DeepCache)</text>
+<text x="251" y="142" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">src/deep/Deep_Cache.sv</text>
+<text x="251" y="157" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">4 KiB, 2 ways; tags, LRU, refill, prefetch, predecode</text>
+<text x="251" y="170.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">F1 sends the index, F2 reads, F3 compares, F4 acts</text>
+<text x="251" y="184" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">emptied by reset or by fence.i at M1</text>
+<path d="M89,220 L89,300" fill="none" stroke="#2E86C1" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-F1)"/>
+<path d="M197,220 L197,300" fill="none" stroke="#2E86C1" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-F1)"/>
+<path d="M305,220 L305,300" fill="none" stroke="#2E86C1" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-F1)"/>
+<rect x="472" y="130" width="206" height="90" rx="6" fill="#FFFFFF" stroke="#00796B" stroke-width="1.5"/>
+<text x="575" y="149" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">Predictors</text>
+<text x="575" y="162" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">src/deep/Deep_Predictors.sv</text>
+<text x="575" y="177" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">gshare, tournament,</text>
+<text x="575" y="190.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">BTB (own counter), RAS</text>
+<text x="575" y="204" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">read in F1, trained after M1</text>
+<rect x="796" y="470" width="384" height="100" rx="6" fill="#FFFFFF" stroke="#27AE60" stroke-width="1.5"/>
+<text x="988" y="489" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">Data cache (DeepCache)</text>
+<text x="988" y="502" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">src/deep/Deep_Cache.sv</text>
+<text x="988" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">X4 finishes the address, M1 reads the arrays</text>
+<text x="988" y="530.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">write-through: every store reaches memory</text>
+<text x="988" y="544" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">a miss replays the load from M2</text>
+<path d="M1169,392 L1169,470" fill="none" stroke="#27AE60" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-M)"/>
+<rect x="1336" y="470" width="206" height="100" rx="6" fill="#FFFFFF" stroke="#6A5ACD" stroke-width="1.5"/>
+<text x="1439" y="489" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">M unit</text>
+<text x="1439" y="502" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">Deep_Multiply_Divide.sv</text>
+<text x="1439" y="517" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">DeepMultiplyDivideUnit</text>
+<text x="1439" y="530.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">every state 2 cycles</text>
+<text x="1439" y="544" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">718 ps / 868 ps budget</text>
+<path d="M1218,382 L1356,382 L1356,470" fill="none" stroke="#6A5ACD" stroke-width="1.5" stroke-linejoin="round" marker-end="url(#m-D)"/>
+<rect x="574" y="402" width="219.2" height="17.5" rx="8.75" fill="#6A5ACD" fill-opacity="0.13" stroke="#6A5ACD"/>
+<text x="683.6" y="413.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#6A5ACD" text-anchor="middle">holds F1..D2 when an operand is late</text>
+<rect x="1116" y="236" width="89.6" height="18.5" rx="9.25" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="1160.8" y="248.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#27AE60" text-anchor="middle">commit point</text>
+<path d="M413,266 L413,246 L54,246 L54,266" fill="none" stroke="#17A2B8" stroke-width="1.6" stroke-linejoin="round" marker-end="url(#m-F2)"/>
+<text x="158" y="240" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="600" fill="#17A2B8" text-anchor="start">F4 redirect: 3 bubbles</text>
+<path d="M1206,392 L1206,616 L90,616 L90,392" fill="none" stroke="#C2185B" stroke-width="2" stroke-linejoin="round" marker-end="url(#m-flush)"/>
+<text x="148" y="608" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="600" fill="#C2185B" text-anchor="start">M1 flush (wrong guess, JALR, trap, fence.i): F1..D2 refilled, X1..X4 dropped. The six-stage pipeline pays 3 of those bubbles; the rest are B</text>
+<path d="M1277,392 L1277,640 L70,640 L70,392" fill="none" stroke="#C0392B" stroke-width="1.6" stroke-dasharray="6 3" stroke-linejoin="round" marker-end="url(#m-miss)"/>
+<text x="148" y="660" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#C0392B" text-anchor="start">load miss: the load and everything younger are fetched again when the line is nearly in</text>
+<rect x="40" y="690" width="1520" height="108" rx="8" fill="#FFF" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="56" y="714" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">Measured (ASAP7 7 nm-class, logic only, tools/timing.sh) and projected; wires and clock skew not included</text>
+<text x="56" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start"></text>
+<text x="260" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start">logic</text>
+<text x="380" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start">cycle (+ 64 ps flip-flops)</text>
+<text x="600" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start">clock 7 nm</text>
+<text x="740" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start">5 nm (projected, / 1.15)</text>
+<text x="960" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start">CPI, example programs</text>
+<text x="1160" y="738" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#4A5A50" text-anchor="start">time per instruction</text>
+<text x="56" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">turbo, 6 stages</text>
+<text x="260" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">471 ps</text>
+<text x="380" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">535 ps</text>
+<text x="600" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">1.87 GHz</text>
+<text x="740" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">2.15 GHz</text>
+<text x="960" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">1.472</text>
+<text x="1160" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">787 ps</text>
+<text x="56" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">deep, 14 stages</text>
+<text x="260" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">402 ps</text>
+<text x="380" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">466 ps</text>
+<text x="600" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">2.15 GHz</text>
+<text x="740" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">2.47 GHz</text>
+<text x="960" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">2.249</text>
+<text x="1160" y="778" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">1048 ps</text>
+<text x="1330" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">faster clock,</text>
+<text x="1330" y="776" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">slower per instruction</text>
+</svg>

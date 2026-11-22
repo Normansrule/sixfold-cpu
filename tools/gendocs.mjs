@@ -4,7 +4,7 @@
 //
 //   binary/README.md                       index of all instructions with bit patterns
 //   binary/opcode_map.md                   the RISC-V major-opcode map
-//   binary/<RV64I|RV64M|Zicsr|Zba|Zbb|Zbs>/<name>.md   one page per instruction
+//   binary/<RV64I|RV64M|Zicsr|Zifencei|Zba|Zbb|Zbs>/<name>.md   one page per instruction
 //   binary/programs/*.lst, *.hex           every example program, assembled
 //   docs/img/formats/*.svg                 R/I/S/B/U/J/CSR bit-field diagrams
 //   docs/img/instructions/*.svg            one bit-field picture per instruction
@@ -83,7 +83,7 @@ function templateBits(def) {
     case 'B': sym(31, 25, 'i'); sym(24, 20, 't'); sym(19, 15, 's'); sym(11, 7, 'i'); break;
     case 'U': case 'J': sym(31, 12, 'i'); sym(11, 7, 'd'); break;
     case 'SYS': put(31, 20, def.name === 'ebreak' ? 1 : 0); put(19, 15, 0); put(11, 7, 0); break;
-    case 'FENCE': sym(31, 28, 'm'); sym(27, 24, 'p'); sym(23, 20, 'u'); put(19, 15, 0); put(11, 7, 0); break;
+    case 'FENCE': if (def.name === 'fence.i') { put(31, 20, 0); put(19, 15, 0); put(11, 7, 0); break; } sym(31, 28, 'm'); sym(27, 24, 'p'); sym(23, 20, 'u'); put(19, 15, 0); put(11, 7, 0); break;
     case 'CSR': sym(31, 20, 'c'); sym(19, 15, 's'); sym(11, 7, 'd'); break;
     case 'CSR-I': sym(31, 20, 'c'); sym(19, 15, 'z'); sym(11, 7, 'd'); break;
   }
@@ -130,7 +130,7 @@ function stageStory(def, word) {
   else if (n === 'lui') st.EXECUTE = 'The ALU performs `ALU_COPY_B`: the result is just the U-immediate (sign-extended to 64 bits).';
   else if (n === 'auipc') st.EXECUTE = 'The ALU adds `PC + imm` (ALU input A is the PC).';
   else if (s === 'csr' || s === 'csri') st.EXECUTE = `The **CSRFile** is read at address \`csr\` (the old value goes to \`rd\`) and ${n.startsWith('csrrw') ? 'replaced by' : n.startsWith('csrrs') ? 'OR-ed with' : 'AND-ed with the inverse of'} ${s === 'csri' ? 'the 5-bit zero-extended immediate' : '`rs1`'} at the end of the cycle.${n === 'csrrs' || n === 'csrrc' || n === 'csrrsi' || n === 'csrrci' ? ' With `rs1 = x0` / `zimm = 0` nothing is written, so `csrr` is a pure read.' : ''}`;
-  else if (s === 'none') st.EXECUTE = n === 'fence' ? 'Nothing: with a single in-order memory FENCE has nothing to order.' : 'Nothing: on this core ECALL/EBREAK are no-ops; programs finish by writing the `tohost` CSR (`halt`).';
+  else if (s === 'none') st.EXECUTE = n === 'fence' ? 'Nothing: with a single in-order memory FENCE has nothing to order.' : n === 'fence.i' ? 'FENCE.I acts here, like a trap: it flushes FETCH1, FETCH2 and DECODE (3 bubbles), empties the instruction cache and the BTB, and FETCH1 restarts at `PC + 4`, so every later instruction is fetched again from memory, after every earlier store (the data cache writes through). The deep-pipeline edition does the same at M1.' : 'Nothing: on this core ECALL/EBREAK are no-ops; programs finish by writing the `tohost` CSR (`halt`).';
   else st.EXECUTE = `${c.isMulDiv ? 'The **MultiplyDivideUnit**' : 'The **ALU**'} performs \`${c.aluOp}\`${c.isWord ? ' on the low 32 bits and sign-extends the result to 64 bits' : ''}: \`${def.sem}\`.` +
     (c.aShift || c.aZext ? ` DECODE already prepared operand A (${c.aZext ? 'zero-extended the low 32 bits of rs1' : ''}${c.aZext && c.aShift ? ' and ' : ''}${c.aShift ? `shifted it left by ${c.aShift}` : ''}), so the ALU only adds${c.aluOp === 'SLL' ? ' or shifts' : ''}.` : '') +
     (c.oneB ? ` DECODE already turned operand B into a single 1 bit at position ${def.syntax === 'rri' ? 'shamt' : 'rs2[5:0]'} (a 6-to-64 decoder)${c.invB ? ' and inverted it' : ''}, so the ALU does a plain ${c.aluOp}.` : c.invB ? ' DECODE already inverted operand B, so the ALU does a plain ' + c.aluOp + '.' : '') +
@@ -160,8 +160,8 @@ function exampleWord(def) {
 // ---------------------------------------------------------------------------
 // pipeline chart SVG from the model
 // ---------------------------------------------------------------------------
-export function pipelineSVG(title, img, maxCycles = 30, maxRows = 22, { from = 1, bp = true, historyBits } = {}) {
-  const core = new Core(img, { bp, ...(historyBits ? { historyBits } : {}) });
+export function pipelineSVG(title, img, maxCycles = 30, maxRows = 22, { from = 1, bp = true, historyBits, zifencei = false } = {}) {
+  const core = new Core(img, { bp, zifencei, xcompute: true, ...(historyBits ? { historyBits } : {}) });
   const events = core.run();
   const first = from, last = Math.min(events.length, from + maxCycles - 1);
   const rows = new Map();
@@ -387,6 +387,8 @@ Rows are \`inst[6:5]\`, columns are \`inst[4:2]\`.
   W('docs/img/pipeline/04_branch_penalty_nobp.svg', pipelineSVG('04_branch_penalty.s with the predictor OFF: every taken branch flushes 3', img04, 34, 22, { bp: false }));
   const img13 = assemble(fs.readFileSync('programs/13_function_call_cost.s', 'utf8'));
   W('docs/img/pipeline/13_call_return_zoom.svg', pipelineSVG('13_function_call_cost.s: jal redirects in FETCH2 (1 bubble), ret flushes in EXECUTE (3 bubbles)', img13, 30, 22, { from: 9 }));
+  const imgFence = assemble(fs.readFileSync('tests/fence_i.s', 'utf8'));
+  W('docs/img/pipeline/fence_i_zoom.svg', pipelineSVG('tests/fence_i.s: fence.i flushes in EXECUTE and empties the I-cache, so the rewritten next word is fetched again from memory (a miss)', imgFence, 30, 16, { from: 112, zifencei: true }));
   // sample programs for the web simulator (works without a server fetch)
   const bundle = Object.fromEntries(progs.map(p => [path.basename(p, '.s'), fs.readFileSync(p, 'utf8')]));
   W('web/programs.js', `// generated by tools/gendocs.mjs: every file in programs/, and the FPGA boot firmware\nexport const PROGRAMS = ${JSON.stringify(bundle, null, 1)};\nexport const FIRMWARE = ${JSON.stringify(fs.readFileSync('fpga/firmware/bios.s', 'utf8'))};\nexport const FPGA_EXAMPLES = ${JSON.stringify(Object.fromEntries(fs.readdirSync('fpga/examples').filter(f => f.endsWith('.s')).sort().map(f => [f.replace('.s', ''), fs.readFileSync('fpga/examples/' + f, 'utf8')])), null, 1)};\n`

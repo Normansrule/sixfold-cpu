@@ -282,3 +282,76 @@ scratch:
     .zero 16
 """)
 print(n,"Zknh / hsec.cteq tests")
+
+# ---------------- tests/xcompute_selfcheck.s: the packed compute instructions (custom-0 group "xcompute") ----------------
+# Expected values from the lane definitions written here, independently of model/custom.js and the RTL.
+def lanes_of(x, w): return [(x >> (w*i)) & ((1<<w)-1) for i in range(64//w)]
+def pack(vals, w): return sum((v % (1<<w)) << (w*i) for i, v in enumerate(vals))
+def sl(v, w): return v - (1<<w) if v >> (w-1) else v
+def q15mul(p, q):
+    a, b = sl(p,16), sl(q,16)
+    if a == -32768 and b == -32768: return 0x7fff
+    return ((a*b + (1<<14)) >> 15) % (1<<16)   # Python >> floors, like an arithmetic shift
+XC = {
+ 'paddus.b': lambda a,b: pack([min(p+q,255) for p,q in zip(lanes_of(a,8),lanes_of(b,8))],8),
+ 'psubus.b': lambda a,b: pack([max(p-q,0) for p,q in zip(lanes_of(a,8),lanes_of(b,8))],8),
+ 'pavgu.b':  lambda a,b: pack([(p+q+1)>>1 for p,q in zip(lanes_of(a,8),lanes_of(b,8))],8),
+ 'pmaxu.b':  lambda a,b: pack([max(p,q) for p,q in zip(lanes_of(a,8),lanes_of(b,8))],8),
+ 'pminu.b':  lambda a,b: pack([min(p,q) for p,q in zip(lanes_of(a,8),lanes_of(b,8))],8),
+ 'psad.b':   lambda a,b: sum(abs(p-q) for p,q in zip(lanes_of(a,8),lanes_of(b,8))),
+ 'pdot.b':   lambda a,b: u(sum(sl(p,8)*sl(q,8) for p,q in zip(lanes_of(a,8),lanes_of(b,8)))),
+ 'pdot.h':   lambda a,b: u(sum(sl(p,16)*sl(q,16) for p,q in zip(lanes_of(a,16),lanes_of(b,16)))),
+ 'pmulhrs.h':lambda a,b: pack([q15mul(p,q) for p,q in zip(lanes_of(a,16),lanes_of(b,16))],16),
+}
+seed = 0x5eed
+def rnd():
+    global seed
+    seed = (seed * 6364136223846793005 + 1442695040888963407) % M
+    return seed
+XV = [0, u(-1), 0x8080808080808080, 0x7f7f7f7f7f7f7f7f, 0x0102030405060708, 0xff01fe02fd03fc04,
+      0x8000800080008000, 0x7fff7fff7fff7fff, 0x80007fff00010000, 0x00ff00ff00ff00ff] + [rnd() for _ in range(6)]
+xpairs = [(a, b) for i, a in enumerate(XV) for j, b in enumerate(XV) if (i * 5 + j * 3) % 7 == 0 or i == j]
+out=[]; n=0
+for op, f in XC.items():
+    for a, b in xpairs:
+        n+=1; out += [f"t{n}: # {op} {h(a)}, {h(b)}", f"    li   a0, {n}", f"    li   a1, {h(a)}", f"    li   a2, {h(b)}", f"    {op} a3, a1, a2"]; check('a3', f(a, b))
+# every lane on its own: one lane set, the others 0, so a result in the wrong lane cannot hide
+for op in ('paddus.b', 'psubus.b', 'pavgu.b', 'psad.b', 'pdot.b'):
+    for lane in range(8):
+        a, b = 0xc8 << (8*lane), 0x64 << (8*lane)
+        n+=1; out += [f"t{n}: # {op}, only lane {lane}", f"    li   a0, {n}", f"    li   a1, {h(a)}", f"    li   a2, {h(b)}", f"    {op} a3, a1, a2"]; check('a3', XC[op](a, b))
+for op in ('pdot.h', 'pmulhrs.h'):
+    for lane in range(4):
+        a, b = 0x8000 << (16*lane), 0x8000 << (16*lane)
+        n+=1; out += [f"t{n}: # {op}, -1 x -1 in lane {lane} only", f"    li   a0, {n}", f"    li   a1, {h(a)}", f"    li   a2, {h(b)}", f"    {op} a3, a1, a2"]; check('a3', XC[op](a, b))
+# the pipeline: results forwarded, chained, loaded operands, rd = rs
+n+=1; out += [f"t{n}: # pdot.b result used by the very next instruction", f"    li   a0, {n}", "    li   t0, 0x0102030405060708", "    li   t1, 0x0101010101010101", "    pdot.b t2, t0, t1", "    addi a3, t2, 1"]; check('a3', 37)
+n+=1; out += [f"t{n}: # packed results chained back to back (each waits for the one before)", f"    li   a0, {n}", "    li   t0, 0xf0f0f0f0f0f0f0f0", "    li   t1, 0x2020202020202020", "    paddus.b t2, t0, t1", "    psubus.b t3, t2, t1", "    psad.b a3, t3, t0"]; check('a3', XC['psad.b'](XC['psubus.b'](XC['paddus.b'](0xf0f0f0f0f0f0f0f0, 0x2020202020202020), 0x2020202020202020), 0xf0f0f0f0f0f0f0f0))
+n+=1; out += [f"t{n}: # rs1 and rs2 of pdot.h LOADED by the two instructions just before", f"    li   a0, {n}", "    la   s0, scratch", "    li   t0, 0x0003fffe00027fff", "    sd   t0, 0(s0)", "    li   t0, 0x0004000580007fff", "    sd   t0, 8(s0)", "    ld   t1, 0(s0)", "    ld   t2, 8(s0)", "    pdot.h a3, t1, t2"]; check('a3', XC['pdot.h'](0x0003fffe00027fff, 0x0004000580007fff))
+n+=1; out += [f"t{n}: # rd = rs1 = rs2", f"    li   a0, {n}", "    li   a3, 0x7f80017f80017f80", "    pmulhrs.h a3, a3, a3"]; check('a3', XC['pmulhrs.h'](0x7f80017f80017f80, 0x7f80017f80017f80))
+n+=1; out += [f"t{n}: # two packed instructions in a row that do not depend on each other", f"    li   a0, {n}", "    li   t0, 0x1111111111111111", "    li   t1, 0x0f0f0f0f0f0f0f0f", "    pmaxu.b t2, t0, t1", "    pminu.b t3, t0, t1", "    xor  a3, t2, t3"]; check('a3', XC['pmaxu.b'](0x1111111111111111, 0x0f0f0f0f0f0f0f0f) ^ XC['pminu.b'](0x1111111111111111, 0x0f0f0f0f0f0f0f0f))
+n+=1; out += [f"t{n}: # psad.b used as a branch condition", f"    li   a0, {n}", "    li   t0, 0x0505", "    li   t1, 0x0505", "    psad.b t2, t0, t1", "    li   a3, 1", f"    beqz t2, t{n}_skip", "    li   a3, 2", f"t{n}_skip:"]; check('a3', 1)
+open('tests/xcompute_selfcheck.s','w').write(f"""# =============================================================================
+# tests/xcompute_selfcheck.s: AUTO-GENERATED by tools/gen_selfcheck.py. The packed compute instructions
+# (custom-0 group "xcompute": paddus.b psubus.b pavgu.b pmaxu.b pminu.b psad.b pdot.b pdot.h pmulhrs.h,
+# {n} test cases). Expected values come from lane definitions in tools/gen_selfcheck.py, written
+# independently of model/custom.js and the RTL. Same convention as isa_selfcheck.s:
+#   PASS: tohost = 1           FAIL: tohost = (test number << 1) | 1
+#
+# EXPECT: a0 = 0
+# =============================================================================
+""" + "\n".join(out) + """
+pass:
+    li   a0, 0
+    halt               # tohost = 1: PASS
+fail:
+    slli t0, a0, 1     # a0 holds the failing test number
+    ori  t0, t0, 1
+    csrw tohost, t0    # tohost = (n << 1) | 1: FAIL in test n
+    j    .
+
+    .align 3
+scratch:
+    .zero 16
+""")
+print(n,"xcompute tests")

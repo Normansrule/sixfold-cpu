@@ -61,8 +61,7 @@ pattern tables: the idea gshare builds on.
 
 **[7]** S. McFarling, "Combining Branch Predictors," Digital Equipment Corporation Western
 Research Laboratory, Technical Note TN-36, June 1993.
-https://inst.eecs.berkeley.edu/~cs252/sp17/papers/McFarling-WRL-TN-36.pdf
-(mirror: https://www.ece.ucdavis.edu/~akella/270W05/mcfarling93combining.pdf).
+https://www.ece.ucdavis.edu/~akella/270W05/mcfarling93combining.pdf
 Introduces **gshare** (global history XOR address) and the combined (tournament) predictor.
 This is the predictor in `src/GShare_Branch_Predictor.sv`.
 
@@ -228,7 +227,7 @@ RVA23 requires the whole B extension).
 
 **[51]** A. Yasin, "A Top-Down Method for Performance Analysis and Counters Architecture," *IEEE
 International Symposium on Performance Analysis of Systems and Software (ISPASS)*, 2014. How Intel
-cores break cycles down into categories from hardware counters (the idea behind hpmcounter3..9 here).
+cores break cycles down into categories from hardware counters (the idea behind hpmcounter3..10 here).
 
 **[52]** RISC-V International, *The RISC-V Instruction Set Manual, Volume II: Privileged Architecture*,
 and the *RISC-V Platform Specification* drafts, https://github.com/riscv/riscv-isa-manual . Reset vectors,

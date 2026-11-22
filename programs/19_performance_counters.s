@@ -1,20 +1,21 @@
 # =============================================================================
 # 19_performance_counters.s: the cycle equation, counted by the hardware itself
 #
-# docs/MATH.md proves that every cycle is either an instruction or one of six
-# kinds of bubble:  cycles = N + 5 + L + 3F + R + K + I + D.
+# docs/MATH.md proves that every cycle is either an instruction or one of seven
+# kinds of bubble:  cycles = N + 5 + L + 3F + R + K + I + D + B.
 # Sixfold counts each term in hardware (src/Control_Status_Register_File.sv):
 #
 #   hpmcounter3 (0xC03)  L  load-stall cycles        hpmcounter6 (0xC06)  K  multiply/divide busy cycles
 #   hpmcounter4 (0xC04)  F  flushes (3 bubbles each)  hpmcounter7 (0xC07)  I  instruction-cache miss cycles
 #   hpmcounter5 (0xC05)  R  FETCH2 redirects          hpmcounter8 (0xC08)  D  data-cache miss cycles
+#   hpmcounter10 (0xC0A) B  turbo build only: instructions a late branch flush removed from EXECUTE
 #
 # The workload below has a bit of everything (loads used right away, branches
 # that are hard to guess, a multiply, a divide, cold caches). Afterwards, all
 # counted since reset:
 #   a0 = cycles          a1 = instructions retired (N)
-#   a2 = L   a3 = F   a4 = R   a5 = K   a6 = I   a7 = D
-#   s2 = N + 5 + L + 3F + R + K + I + D   (the equation, from the counters)
+#   a2 = L   a3 = F   a4 = R   a5 = K   a6 = I   a7 = D   t4 = B
+#   s2 = N + 5 + L + 3F + R + K + I + D + B   (the equation, from the counters)
 # s2 comes out a few cycles away from a0 only because the counters are read in
 # EXECUTE while instructions and bubbles are still in flight (see 12_measure_cpi).
 # Every value is checked cycle-exact against the model by `make test`.
@@ -44,6 +45,7 @@ odd:
     csrr a5, hpmcounter6     # K
     csrr a6, hpmcounter7     # I
     csrr a7, hpmcounter8     # D
+    csrr t4, hpmcounter10    # B (0 outside the turbo build)
     addi s2, a1, 5           # N + 5 (filling the empty pipeline)
     add  s2, s2, a2          # + L
     slli t3, a3, 1
@@ -53,6 +55,7 @@ odd:
     add  s2, s2, a5
     add  s2, s2, a6
     add  s2, s2, a7
+    add  s2, s2, t4
     sub  t3, a0, s2          # how far apart are the two sides?
     bgez t3, positive
     neg  t3, t3

@@ -50,7 +50,7 @@ Geometric-mean speed-up of the performance edition over the baseline, both on 13
 
 ## Part 1: cycles per instruction
 
-`cycles = N + 5 + L + 3F + R + K + I + D + X` ([MATH.md](MATH.md)) says exactly where every cycle above
+`cycles = N + 5 + L + 3F + R + K + I + D + X + B` ([MATH.md](MATH.md)) says exactly where every cycle above
 one per instruction comes from.
 
 | change | term | how | cost |
@@ -205,8 +205,203 @@ MEMORY stage), but both numbers are inside the run-to-run spread above; without 
 figure is 3.90 ns with the core's own path the longest. The published 244 MHz holds; at 7 nm the default
 build is about 1.92 GHz rather than 1.95 GHz.
 
+Re-measured after adding the nine packed instructions ([XCOMPUTE.md](XCOMPUTE.md#timing-and-area)): on the
+performance build, 4,415 ps without them and 3,853 ps with them at 130 nm, 537 ps and 526 ps at 7 nm; the
+turbo build 4,703 ps and 3,789 ps at 130 nm. With them, the slowest path starts in the custom unit (the
+`pdot.h` sum in MEMORY) at both nodes. The differences are inside this flow's spread, so the published
+clocks hold; the logic area grows by about a quarter (327,007 to 414,031 µm² at 130 nm). The packed
+kernels run 9.3x (baseline) to 13.0x (performance, deep) faster, geometric mean over six kernels.
+
 The caches are not in this measurement (they would be SRAM macros on a chip, timed separately). On an
 FPGA they are real logic, and there they set the clock: see [FPGA.md](FPGA.md#7-results).
+
+## The turbo edition: cycles back from the multiply/divide unit and the instruction cache
+
+A third build, `CONFIG=turbo` (`-DTURBO` in the testbench), is the performance edition with the
+`FAST_*` parameters of [`src/Riscv64.sv`](../src/Riscv64.sv) and [`src/Riscv64_top.sv`](../src/Riscv64_top.sv)
+switched on. The performance edition is left exactly as it was: the parameters default to 0, so the cached
+FPGA system and anything else that instantiates `Riscv64` or `InstructionCache` with its defaults sees no
+change. `make test` builds and compares all three; `make turbo-report` writes the table below.
+
+**Where the cycles were.** Summed over every program, the cycle equation of [MATH.md](MATH.md) says the
+performance edition spent 211,022 of its 434,210 cycles in K, the multiply/divide unit holding EXECUTE.
+Even before the new multiply/divide stress test was added, K was 57% of all cycles above one per
+instruction. The next largest removable term was I, cold instruction-cache misses in long straight-line code.
+
+### `FAST_MULTIPLY_DIVIDE`: a separate unit, `FastMultiplyDivideUnit`
+
+It lives in [`Iterative_Multiply_Divide_Unit.sv`](../src/Iterative_Multiply_Divide_Unit.sv), next to the
+performance edition's unit (a first version that put both behind one `FAST` parameter of a shared module made
+the synthesized performance build slower, 4729 ps at 130 nm, even with the parameter off).
+
+| change | cycles saved | why the clock does not pay for it |
+|---|---|---|
+| **no PREPARE cycle** when no operand is negative: IDLE loads the step registers from the operands directly | 1 per multiply and per divide (a negative operand of `mulh`, `mulhsu`, `div` or `rem` still takes it) | the 64-bit negation feeds only the registers that PREPARE copies from, never the step registers |
+| **64 x 32-bit multiply steps**: 2 steps instead of 4 | 2 per multiply | a deeper Wallace tree (34 numbers to 2 in 8 full-adder levels instead of 18 in 6); measured alone, 413 ps instead of 311 ps at 7 nm |
+| **radix-4 division**: two quotient bits per step, trying D, 2D and 3D side by side (3D computed once in ALIGN), the remainder picked by a one-hot select | half the divide steps | one subtraction plus a 4-way select per step, not two subtractions in a row |
+| **leading zeros counted in IDLE**, of A or of ~A for a negative A (one fewer is subtracted in ALIGN) | with the above, ALIGN follows IDLE | the count runs beside the negation, not after it; at worst one extra bit for a negative dividend |
+| **only as many divide steps as the quotient has bits**: leading zeros of B (or ~B) are counted in IDLE too; ALIGN runs ceil((a - d + 1) / 2) steps for an a-bit dividend and a d-bit divisor, and starts the remainder at the dividend's top bits that no step needs | 64-bit / 64-bit: all but one step; `x % 7` with x below 500: 3 steps instead of 5 | the shift amount is the inverted bits of a 7-bit difference, no adder in front of the shifter; zeros and ones are counted side by side so the sign does not wait in front of 64 XOR gates (a first version that did not was 4460 ps at 130 nm) |
+| **the result leaves in SIGN** as a late result (like `cpop`): no DONE cycle, no result register | 1 per M instruction; an instruction that needs the result right away waits 1 (counted in L) | the result goes only into the MEMORY pipeline register, never in front of forwarding |
+| **no negation in SIGN**: the quotient is built "on the fly" as Q and Q - 1, so -Q = ~(Q - 1); a negative remainder takes one extra NEGATE cycle into a register of its own | (makes the above possible) | a 64-bit carry chain never sits between SIGN and the MEMORY register |
+
+A multiply now takes 4 cycles in EXECUTE (was 8), a divide 3 + T with T = ceil((a - d + 1) / 2), at least 1 (was 5 + a), for an a-bit dividend and a d-bit divisor,
+plus 1 for PREPARE or NEGATE where they apply. `model/core.js` (`multiplyDivideSteps` with `fast`) uses
+exactly these counts, and `make math` checks the equation on every build.
+
+### `FAST_INSTRUCTION_PREFETCH`: the instruction cache keeps the stream one line ahead
+
+The performance edition's instruction cache prefetches line X + 1 only after a demand miss on line X, so
+straight-line code misses every other line. With `STREAM_PREFETCH` the refill engine, whenever it is idle,
+also fetches the line after the one FETCH1 is in, if it is missing. The next-line address is registered from
+the fetch address, so the extra tag check reads only registers. One refill engine and an 11-cycle line
+fill still cannot keep up with 8 instructions per line at one per cycle, so long straight-line code still
+waits about 3 cycles per line instead of about 11 every two lines. The self-checks, which are 12,000 and
+2,000 instructions of straight-line code, show it best (`isa_selfcheck` 2.51 to 1.75, `zknh_selfcheck` 2.09
+to 1.54); loops are unaffected.
+
+### A bug found on the way
+
+A DECODE hazard right behind an M instruction that was still iterating (a custom instruction's result in
+MEMORY, or a `bset` whose bit number the `mul` computes) let the load stall win over the multiply/divide
+stall: EXECUTE got a bubble and the unfinished M instruction went on to MEMORY with the previous M result.
+The model computed the right value, the RTL wrote the stale one (`mul` then `bset` gave 3 instead of 4, for
+example). No existing program hit it. The multiply/divide stall now wins in every build, and
+[`tests/m_hazard_priority.s`](../tests/m_hazard_priority.s) fails without the fix and passes with it.
+[`tests/m_unit_fuzz.s`](../tests/m_unit_fuzz.s) runs 400 random operand pairs (every size, both signs, 0, -1
+and the most negative number) through all 13 M instructions and compares every register of the RTL with the
+model's BigInt arithmetic, on all builds.
+
+### The clock: four changes that move work off the longest paths
+
+The first two features bought cycles. These four buy clock: each moves logic off a path that limited the
+whole core, measured with `tools/path_report.py` (the slowest path into every group of registers, from the
+netlist `tools/timing.sh` maps). None changes what a program computes, and the model counts their cost
+cycle for cycle (`make test` compares every cycle of the RTL with it).
+
+| parameter | what moves | what it costs |
+|---|---|---|
+| `LATE_BRANCH_RESOLVE` | a branch or JALR stores its outcome (taken, target, the history and return-stack positions to restore) in the MEMORY pipeline register and flushes one cycle later. The comparator now feeds only flip-flops: no compare, then select, then next PC, then every front-end enable, in one cycle. Predictor and BTB training move to MEMORY too | a wrong guess costs 4 bubbles instead of 3: the instruction behind the branch, already in EXECUTE, is removed too. The new term B of the cycle equation counts them, and `hpmcounter10` counts them in hardware ([MATH.md](MATH.md#2-exact-cycle-count)) |
+| `FAST_ALU` | DECODE hands EXECUTE one select line per ALU result (`alu_select` in `src/Riscv64.sv`), so the result multiplexer is an AND-OR tree that never waits for an operation-code comparison. `clz` and `ctz` join `cpop` as late results, `min` and `max` finish in MEMORY (EXECUTE sends only the comparison), and a Zba `shNadd` / `.uw` whose operand EXECUTE is computing waits a cycle instead of shifting the forwarded value inside the loop | 1 cycle when the very next instruction uses one of those results (counted in L) |
+| `FAST_FETCH_TARGET` | FETCH2 adds the branch immediate and the JAL immediate in two adders at once and picks a sum, instead of picking an immediate in front of one adder | a second 64-bit adder; no cycles |
+| `FAST_STALL` | the hazard checks of DECODE come from flip-flops: the FETCH2 instruction is decoded one cycle ahead, and its register numbers are compared with the destination of the instruction that will be in EXECUTE then (four compares side by side, one picked by the stall signals). `LOAD_STALL`, which holds hundreds of front-end flip-flops, is now a few gates after flip-flops | a second copy of the control decoder; no cycles |
+
+Measured with the same flow before and after (logic only; this flow's run-to-run spread is about 5 to 10%):
+
+| | ASAP7 7 nm-class | SkyWater 130 nm |
+|---|---:|---:|
+| turbo build before these four | 533 ps | 3882 ps |
+| turbo build with them | 485 ps (2.06 GHz) | 3629 ps (276 MHz) |
+| performance build, measured again on the same day | 533 ps | 3986 ps |
+
+The cycles they cost: summed over all 32 programs, turbo CPI went from 1.914 to 1.930 (+0.8%), 1,796 B bubbles
+and about 60 more load stalls. Run time is instructions x CPI x clock period, so at 7 nm that is
+0.91 x 1.008 = 0.92 of the time before: 8% faster. Its clock period is now 9% shorter than the performance
+build's in both libraries.
+After them the slowest paths were a wall of about 480 to 520 ps at 7 nm: the custom unit into the register
+file's write data, a load's byte selection forwarded into the next ALU operand, and the steps of the
+multiply/divide unit.
+
+#### Two more, and two experiments that did not pay
+
+| change | what moves | what it costs |
+|---|---|---|
+| popcount in two halves (the custom-instruction generator, every build) | `CustomPrepare` counts the ones of each `popcount` argument in four 16-bit quarters in EXECUTE, on the registered operands; MEMORY only adds the four counts (the first 3 popcounts of an instruction set; more stay whole) | 20 flip-flops per popcount; no cycles |
+| `FAST_LOAD_ALIGN` (turbo) | `LoadLanes` decides in EXECUTE, from funct3 and the 3-bit address offset, which source byte lands in each result byte and which bytes are sign or zero fill; MEMORY does one 8-way AND-OR per byte (`FastLoadControl` in `src/Load_Control_Unit.sv`) | 80 flip-flops; no cycles |
+
+The custom unit alone (inputs to output, ASAP7) went from 484 ps to 357 ps; `hamming` was 444 ps of it. In
+the whole turbo core (`python3 tools/path_report.py turbo asap7`), the register file's write data went from
+521 to 447 ps and a load's byte selection no longer leads any group. The whole core measured 471 ps at 7 nm
+(2.12 GHz, logic only) and 3968 ps at 130 nm, where a divide step now leads: both moves are inside this flow's
+run-to-run spread, because the rest of the wall is still there:
+
+| experiment (ASAP7, turbo with both changes above) | whole core | CPI over all programs |
+|---|---:|---:|
+| as built | 471 ps | 1.930 |
+| no forwarding from EXECUTE: every result reaches the next instruction from MEMORY, so the ALU loop is cut | 473 ps | 2.211 (+14.6%) |
+| the multiplier in 4 steps of 64 x 16 bits instead of 2 of 64 x 32 (`MULTIPLY_STEP_BITS` 16) | 469 ps | (2 more cycles per multiply) |
+| both together | 425 ps | above 2.211 |
+
+So the wall is two walls of the same height: the ALU loop (operand, adder, forwarding, operand) and the
+multiply/divide steps. Cutting either alone buys nothing; cutting both buys 10% of clock for at least 15% more
+cycles, a net loss. Neither experiment is in the build. The next real step is a different pipeline, not
+another single path (see "What to try next").
+
+### The result
+
+| program | performance: cycles | CPI | turbo: cycles | CPI | change |
+|---|---:|---:|---:|---:|---:|
+| `00_pipeline_fill` | 21 | 4.20 | 21 | **4.20** | 0.0% |
+| `01_hello` | 147 | 1.52 | 149 | **1.54** | 1.4% |
+| `02_forwarding` | 23 | 3.29 | 23 | **3.29** | 0.0% |
+| `03_load_use` | 40 | 3.64 | 40 | **3.64** | 0.0% |
+| `04_branch_penalty` | 53 | 1.61 | 55 | **1.67** | 3.8% |
+| `05_fibonacci` | 328 | 1.08 | 330 | **1.08** | 0.6% |
+| `06_bubble_sort` | 1,002 | 1.39 | 1,004 | **1.39** | 0.2% |
+| `07_factorial_recursive` | 482 | 2.04 | 399 | **1.69** | -17.2% |
+| `08_gcd_euclid` | 82 | 4.32 | 55 | **2.89** | -32.9% |
+| `09_primes_sieve` | 16,899 | 1.14 | 17,012 | **1.15** | 0.7% |
+| `10_print_numbers` | 1,138 | 2.12 | 888 | **1.65** | -22.0% |
+| `11_gshare_patterns` | 1,139 | 1.03 | 1,143 | **1.04** | 0.4% |
+| `12_measure_cpi` | 154 | 1.62 | 129 | **1.36** | -16.2% |
+| `13_function_call_cost` | 294 | 2.60 | 225 | **1.99** | -23.5% |
+| `14_false_load_stall` | 82 | 2.16 | 72 | **1.89** | -12.2% |
+| `15_system_calls` | 116 | 2.19 | 117 | **2.21** | 0.9% |
+| `16_cache_conflicts` | 440 | 2.57 | 443 | **2.59** | 0.7% |
+| `17_predictor_challenge` | 6,277 | 1.24 | 6,510 | **1.28** | 3.7% |
+| `18_bit_tricks` | 711 | 1.26 | 679 | **1.20** | -4.5% |
+| `19_performance_counters` | 232 | 1.93 | 219 | **1.82** | -5.6% |
+| `20_leds_and_buttons` | 1,196 | 1.18 | 1,197 | **1.18** | 0.1% |
+| `21_timer_interrupts` | 10,056 | 1.03 | 10,058 | **1.02** | 0.0% |
+| `22_multitasking` | 82,959 | 2.43 | 57,144 | **1.94** | -31.1% |
+| `23_custom_instructions` | 638 | 1.50 | 604 | **1.42** | -5.3% |
+| `24_sha256` | 7,648 | 1.05 | 7,562 | **1.04** | -1.1% |
+| `tests/custom_pipeline` | 93,863 | 3.06 | 54,301 | **2.14** | -42.1% |
+| `tests/interrupt_stress` | 21,540 | 1.90 | 18,235 | **1.64** | -15.3% |
+| `tests/isa_selfcheck` | 31,292 | 2.51 | 20,903 | **1.68** | -33.2% |
+| `tests/m_divide_lengths` | 79,312 | 12.86 | 28,614 | **4.64** | -63.9% |
+| `tests/m_hazard_priority` | 152 | 2.62 | 113 | **1.95** | -25.7% |
+| `tests/m_unit_fuzz` | 150,699 | 6.24 | 64,852 | **2.68** | -57.0% |
+| `tests/zknh_selfcheck` | 4,508 | 2.09 | 3,316 | **1.54** | -26.4% |
+
+Geometric-mean cycle reduction, turbo over performance: **15.6%** over 32 programs.
+
+Every cycle above one per instruction, summed over all 32 programs (`cycles = N + 5 + L + 3F + R + K + I + D + X + B` per program):
+
+| build | N | cycles | CPI | L | 3F | R | K | I | D | X | B |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| performance | 163,734 | 513,523 | 3.136 | 14,098 | 24,672 | 3,725 | 284,110 | 14,367 | 5,570 | 3,087 | 0 |
+| turbo | 153,545 | 296,412 | 1.930 | 22,732 | 17,844 | 3,926 | 83,014 | 5,866 | 5,572 | 1,957 | 1,796 |
+
+(N differs between the builds because the interrupt programs wait for a timer: a faster core runs its idle loop more often. B is the extra bubble of a branch resolved one stage later, LATE_BRANCH_RESOLVE.)
+
+**Clock.** The same flow as above (`tools/timing.sh turbo` and `tools/timing.sh performance`). Before the four
+clock changes above:
+
+| build | SkyWater 130 nm | ASAP7 7 nm-class |
+|---|---:|---:|
+| performance | 3832 ps (261 MHz) | 483 ps (2.07 GHz) |
+| turbo | 3882 ps (258 MHz) | 533 ps (1.88 GHz) |
+
+With them, turbo is 3629 ps and 485 ps (the table in the section above). These first numbers are after the custom-instruction generator moved to prefix adders
+([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md#what-fits-in-a-cycle); before it, 4055 ps and 511 ps for
+performance, 4193 ps and 522 ps for turbo). The two builds differ by 1% at 130 nm and 10% at 7 nm, and
+neither longest path is in the turbo build's own logic, which points to this flow's run-to-run spread: the netlists differ, so ABC maps them
+differently. The longest paths start in EXECUTE's operands and the ALU (7 nm) and in the custom unit's
+operands (130 nm, both builds). Removing the turbo divide unit's remainder negation, or its operand negation,
+from the 130 nm netlist moved the result by under 2% and moved the longest path to the custom unit, so the
+divide unit does not set the clock.
+Two lessons from getting there, each measured: Yosys and ABC map the same logic differently once the rest of
+the netlist changes (a 66-bit negation came out as a 17-gate chain of OR gates at 130 nm, 4400 ps, until it was
+written as a prefix adder), so a path measured alone with the same flow is the better guide for one block:
+the 64 x 32 multiply step alone is 413 ps at 7 nm and 3145 ps at 130 nm, a 66-bit prefix adder 257 ps and 1397 ps.
+
+**What is left between these programs and CPI 1.0.** The cycle-equation table is the honest scoreboard. A
+single-issue pipeline can never go below CPI 1.0. What remains in the turbo build is, in order: K (mostly the
+multiply/divide stress test), L (load-use waits, which a 6-stage pipeline with forwarding into DECODE cannot
+avoid, plus late results), 3F (flushes: two thirds are traps and interrupts in the interrupt stress tests),
+I (first misses) and D. The long-running real programs are already close: `11_gshare_patterns` 1.03,
+`21_timer_interrupts` 1.02, `24_sha256` 1.05, `05_fibonacci` 1.08, `09_primes_sieve` 1.14. Going below 1.0
+needs more than one instruction per cycle (dual issue).
 
 ## 2.5 GHz and 5 GHz
 
@@ -225,6 +420,56 @@ techniques that get there are known; each one costs cycles (CPI) or area:
 * **Custom circuits and the process**: hand-placed datapaths, dynamic logic and a leading-edge node.
   Commercial 2 to 3 nm-class libraries are under non-disclosure agreements, so this repository
   measures on ASAP7, an open 7 nm-class predictive kit.
+
+### The floor, measured: the ALU-bypass loop
+
+However many stages a single-issue pipeline has, one loop has to close in one cycle if a dependent
+instruction is to start the very next cycle: operand register, adder, bypass multiplexer, operand register.
+`make clock-floor` synthesizes exactly that loop alone ([`tools/clock_floor/alu_bypass_loop.sv`](../tools/clock_floor/alu_bypass_loop.sv),
+the same flow as the core) and reads the flip-flop's own share of the cycle from the ASAP7 flip-flop library:
+
+| loop (ASAP7 7 nm-class, logic only) | logic | + flip-flop (53.5 ps clock-to-output + 10.2 ps setup) | clock at 7 nm | projected at 5 nm (÷ 1.15) |
+|---|---:|---:|---:|---:|
+| Sixfold today, the whole core (performance build) | 483 ps | 547 ps | 1.83 GHz | 2.10 GHz |
+| Sixfold today, the whole core (turbo build, with the clock changes above) | 471 ps | 535 ps | 1.87 GHz | 2.15 GHz |
+| the deep-pipeline edition, the whole core with its cache logic ([below](#the-deep-pipeline-edition-14-stages-measured)) | 402 ps | 466 ps | 2.15 GHz | 2.47 GHz |
+| 64-bit add + bypass | 293.7 ps | 357 ps | 2.80 GHz | 3.22 GHz |
+| 32-bit staggered add + bypass | 236.9 ps | 301 ps | 3.33 GHz | 3.83 GHz |
+| 16-bit staggered add + bypass | 183.5 ps | 247 ps | 4.05 GHz | 4.65 GHz |
+
+The 7 nm columns are measured; the 5 nm column is a projection, not a measurement: it divides by 1.15,
+TSMC's published speed gain of its N5 process over N7 at the same power, because no open 5 nm library
+exists. Wire delay and clock skew are not included in any row, and on a real chip they take 10 to 20% of
+the cycle. What the table says:
+
+* With a full 64-bit adder in one stage, no amount of pipelining elsewhere takes this flow past about
+  3.2 GHz at 5 nm. Getting the rest of the core down to that loop is the first goal: 1.5x from today.
+* A **staggered adder** (the low 16 or 32 bits in one cycle, the rest in the next, with the carry passed
+  along; Intel's Pentium 4 ran its integer adders this way) lets a dependent add start every cycle anyway,
+  and moves the floor to about 4.65 GHz at 5 nm.
+* **5 GHz at 5 nm** is a 200 ps cycle, 230 ps at 7 nm, so at most about 166 ps of logic per stage. Even
+  the 16-bit loop (183.5 ps) does not fit. From synthesized standard cells it needs a dependent ALU
+  instruction to wait a cycle (CPI goes up on every chain of dependent instructions), or hand-built circuits.
+
+## The deep-pipeline edition: 14 stages, measured
+
+The step this section's list starts with, taken to its end: a separate build with 14 stages
+(`F1 F2 F3 F4 D1 D2 X1 X2 X3 X4 M1 M2 M3 W`), a staggered ALU (16 bits per stage), only one stage that
+stalls, a multiply/divide unit whose every state takes two cycles, and the cache logic retimed so it fits
+the shorter cycle. It lives in its own files ([`src/deep/`](../src/deep), [`model/deep.js`](../model/deep.js)),
+matches its model on every cycle, and is described in full in [DEEP_PIPELINE.md](DEEP_PIPELINE.md).
+
+| | turbo | deep |
+|---|---:|---:|
+| logic, ASAP7 7 nm-class (measured; the deep edition's spread between equivalent runs is 369 to 402 ps) | 471 ps | 402 ps |
+| clock at 7 nm / projected at 5 nm | 1.87 / 2.15 GHz | 2.15 / 2.47 GHz |
+| CPI, example programs / tests (measured, `make deep-check`) | 1.472 / 2.337 | 2.249 / 4.396 |
+| time per instruction, example programs, 7 nm | 787 ps | 1048 ps |
+
+The clock is 15% faster, each instruction about 33% slower: on in-order, single-issue hardware the extra
+stages cost more cycles than they win. 5 GHz stays out of reach for the reasons measured above (the 16-bit
+loop alone is 183.5 ps against a budget of about 166 ps), and the deep edition's own wall is flat between
+about 375 and 400 ps.
 
 ## Why not 2 nm, or 0.42 nm?
 
@@ -246,10 +491,13 @@ caching.
 
 ## What to try next
 
+* **The next wall (turbo, about 470 to 500 ps at 7 nm):** the ALU loop and the multiply/divide steps, which
+  have to be cut together (measured above). A deeper pipeline does both: a staggered ALU (16 bits per stage,
+  the floor table below), a multiply/divide unit with more, shorter steps, and the other paths of that height
+  (the branch outcome into the redirect, the BTB lookup into the instruction-cache address) each in a stage
+  of its own.
 * **Split EXECUTE** into two stages and measure the clock gain against the extra bubbles.
-* **A carry-save population count** (the 130 nm limit): compress the 64 bits column by column with full
-  adders, like the multiplier, instead of a tree of small ripple adders.
 * **Time the cache hit path**: address → tag compare → `DATA_CACHE_STALL` → every pipeline enable.
   With the tag SRAM included this is likely the next critical path.
-* **Booth recoding** for the multiply step (8 partial products instead of 16), and radix-4 division.
+* **Booth recoding** for the multiply step (8 partial products instead of 16). Radix-4 division is done (the turbo edition).
 * **Real sign-off**: run OpenROAD on the sv2v output for placed-and-routed numbers.

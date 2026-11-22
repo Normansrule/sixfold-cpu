@@ -19,15 +19,27 @@
 | `16_cache_conflicts` |  | 208 | 1.22 | 440 | **2.57** | 27.7 µs | 1.80 µs | 0.23 µs |
 | `17_predictor_challenge` |  | 7,492 | 1.48 | 6,277 | **1.24** | 998.9 µs | 25.73 µs | 3.22 µs |
 | `18_bit_tricks` |  | 732 | 1.30 | 711 | **1.26** | 97.6 µs | 2.91 µs | 0.36 µs |
-| `19_performance_counters` | yes | 173 | 1.47 | 231 | **1.96** | 23.1 µs | 0.95 µs | 0.12 µs |
+| `19_performance_counters` | yes | 178 | 1.48 | 232 | **1.93** | 23.7 µs | 0.95 µs | 0.12 µs |
 | `20_leds_and_buttons` |  | 1,266 | 1.25 | 1,196 | **1.18** | 168.8 µs | 4.90 µs | 0.61 µs |
 | `21_timer_interrupts` |  | 13,236 | 1.36 | 10,056 | **1.03** | 1764.8 µs | 41.21 µs | 5.16 µs |
 | `22_multitasking` | yes | 35,510 | 1.35 | 82,959 | **2.43** | 4734.7 µs | 340.00 µs | 42.56 µs |
 | `23_custom_instructions` |  | 580 | 1.36 | 638 | **1.50** | 77.3 µs | 2.61 µs | 0.33 µs |
 | `24_sha256` |  | 7,574 | 1.04 | 7,648 | **1.05** | 1009.9 µs | 31.34 µs | 3.92 µs |
+| `25_pixel_blend` | yes | 68,718 | 1.22 | 70,019 | **1.24** | 9162.4 µs | 286.96 µs | 35.93 µs |
+| `26_motion_search` | yes | 89,750 | 1.29 | 84,423 | **1.22** | 11966.7 µs | 346.00 µs | 43.32 µs |
+| `27_int8_dot` | yes | 48,687 | 1.23 | 77,684 | **1.96** | 6491.6 µs | 318.38 µs | 39.86 µs |
+| `28_fixed_point` | yes | 66,721 | 1.14 | 114,363 | **1.96** | 8896.1 µs | 468.70 µs | 58.68 µs |
 | `custom_pipeline` | yes | 42,600 | 1.79 | 93,863 | **3.06** | 5680.0 µs | 384.68 µs | 48.16 µs |
+| `fence_i` |  | 127 | 1.95 | 229 | **3.52** | 16.9 µs | 0.94 µs | 0.12 µs |
 | `interrupt_stress` | yes | 16,062 | 1.48 | 21,540 | **1.90** | 2141.6 µs | 88.28 µs | 11.05 µs |
 | `isa_selfcheck` | yes | 14,346 | 1.15 | 31,292 | **2.51** | 1912.8 µs | 128.25 µs | 16.06 µs |
+| `m_divide_lengths` | yes | 6,444 | 1.04 | 79,312 | **12.86** | 859.2 µs | 325.05 µs | 40.69 µs |
+| `m_hazard_priority` | yes | 81 | 1.40 | 152 | **2.62** | 10.8 µs | 0.62 µs | 0.08 µs |
+| `m_unit_fuzz` | yes | 27,022 | 1.12 | 150,699 | **6.24** | 3602.9 µs | 617.62 µs | 77.32 µs |
+| `sram_pending` |  | 14,028 | 1.18 | 14,009 | **1.18** | 1870.4 µs | 57.41 µs | 7.19 µs |
+| `stale_btb` |  | 92 | 1.80 | 192 | **3.76** | 12.3 µs | 0.79 µs | 0.10 µs |
+| `xcompute_off` |  | 28 | 1.40 | 71 | **3.55** | 3.7 µs | 0.29 µs | 0.04 µs |
+| `xcompute_selfcheck` |  | 10,272 | 1.07 | 18,897 | **1.98** | 1369.6 µs | 77.45 µs | 9.70 µs |
 | `zknh_selfcheck` |  | 2,449 | 1.14 | 4,508 | **2.09** | 326.5 µs | 18.48 µs | 2.31 µs |
 
-Geometric-mean speed-up of the performance edition over the baseline, both on 130 nm: **24.0x** (clock and cycles together). Cache misses are included: these programs are tiny, so their few cold misses weigh heavily.
+Geometric-mean speed-up of the performance edition over the baseline, both on 130 nm: **21.2x** (clock and cycles together). Cache misses are included: these programs are tiny, so their few cold misses weigh heavily.

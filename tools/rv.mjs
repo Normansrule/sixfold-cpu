@@ -32,7 +32,7 @@ function usage() {
                                    print a pipeline chart (instruction x cycle)
   cycle  <file.s> <C>              explain everything that happens in cycle C
   bp     <file.s>                  predictor off vs gshare with 1..12 history bits
-  run/pipe/cycle accept --bp=off, --history=N (default ${DEFAULT_HISTORY_BITS}) and --config=baseline (the original design)
+  run/pipe/cycle accept --bp=off, --history=N (default ${DEFAULT_HISTORY_BITS}) and --config=baseline (the original design) or --config=turbo (the turbo edition)
   encode "<instruction>"           show the binary encoding field by field
   decode <hexword> [...]           decode 32-bit machine words
   isa                              table of every supported instruction`);

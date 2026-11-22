@@ -119,6 +119,7 @@ export const INSTRUCTIONS = [
   I('sraw',  'R', O.OP_32, 0b101, 0b0100000, 'rrr', 'RV64I', 'Word (32-bit)', 'Shift Right Arithmetic Word', 'rd = sext(rs1[31:0] >>s rs2[4:0])'),
   // ---------------- memory ordering & system --------------------------------
   I('fence',  'FENCE', O.MISC_MEM, 0b000, null, 'none', 'RV64I', 'System', 'Memory Fence', 'order memory accesses (a no-op on this in-order core)'),
+  I('fence.i', 'FENCE', O.MISC_MEM, 0b001, null, 'none', 'Zifencei', 'System', 'Instruction Fence', 'later instruction fetches see every earlier store: flushes the younger instructions and empties the instruction cache and the BTB'),
   I('ecall',  'SYS', O.SYSTEM, 0b000, null, 'none', 'RV64I', 'System', 'Environment Call', 'trap: mepc = pc, mcause = 11, jump to mtvec (a system call)'),
   I('ebreak', 'SYS', O.SYSTEM, 0b000, null, 'none', 'RV64I', 'System', 'Environment Breakpoint', 'trap: mepc = pc, mcause = 3, jump to mtvec (a breakpoint)'),
   I('mret',   'SYS', O.SYSTEM, 0b000, null, 'none', 'Priv', 'System', 'Machine-mode Return', 'return from a trap: pc = mepc, mstatus.MIE = mstatus.MPIE'),
@@ -223,7 +224,7 @@ registerCustom(CUSTOM_SPEC);
 export const CSR_NAMES = { tohost: 0x51E, status: 0x50A, hartid: 0x50B, cycle: 0xC00, instret: 0xC02, mhartid: 0xF14,
   mstatus: 0x300, mtvec: 0x305, mscratch: 0x340, mepc: 0x341, mcause: 0x342,
   mie: 0x304, mip: 0x344,
-  hpmcounter3: 0xC03, hpmcounter4: 0xC04, hpmcounter5: 0xC05, hpmcounter6: 0xC06, hpmcounter7: 0xC07, hpmcounter8: 0xC08, hpmcounter9: 0xC09 };
+  hpmcounter3: 0xC03, hpmcounter4: 0xC04, hpmcounter5: 0xC05, hpmcounter6: 0xC06, hpmcounter7: 0xC07, hpmcounter8: 0xC08, hpmcounter9: 0xC09, hpmcounter10: 0xC0A };
 export const CSR_BY_ADDRESS = Object.fromEntries(Object.entries(CSR_NAMES).map(([k, v]) => [v, k]));
 
 // ABI register names
@@ -290,6 +291,7 @@ export function encode(name, f) {
       checkRange(rs1, 0, 31, `${name} ${d.fmt === 'CSR' ? 'rs1' : 'immediate'}`);
       return u32((imm << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | op);
     case 'FENCE':
+      if (name === 'fence.i') return u32((0b001 << 12) | op); // fence.i: imm, rs1 and rd are 0
       return u32((0b0000 << 28) | (0b1111 << 24) | (0b1111 << 20) | op); // fence iorw, iorw
   }
   throw new Error(`cannot encode format ${d.fmt}`);

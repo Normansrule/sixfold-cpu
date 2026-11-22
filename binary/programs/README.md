@@ -30,3 +30,7 @@ Every file in [`programs/`](../../programs) assembled by `model/asm.js` (code st
 * [22_multitasking.lst](22_multitasking.lst) · [22_multitasking.hex](22_multitasking.hex)
 * [23_custom_instructions.lst](23_custom_instructions.lst) · [23_custom_instructions.hex](23_custom_instructions.hex)
 * [24_sha256.lst](24_sha256.lst) · [24_sha256.hex](24_sha256.hex)
+* [25_pixel_blend.lst](25_pixel_blend.lst) · [25_pixel_blend.hex](25_pixel_blend.hex)
+* [26_motion_search.lst](26_motion_search.lst) · [26_motion_search.hex](26_motion_search.hex)
+* [27_int8_dot.lst](27_int8_dot.lst) · [27_int8_dot.hex](27_int8_dot.hex)
+* [28_fixed_point.lst](28_fixed_point.lst) · [28_fixed_point.hex](28_fixed_point.hex)

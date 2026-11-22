@@ -14,6 +14,8 @@
 //   docs/img/diagrams/multitasking.svg       a preemptive kernel: timeline, task control blocks, one context switch
 //   docs/img/diagrams/isa_encodings.svg, isa_pipelines.svg   RISC-V, MIPS and x86-64 side by side
 //   docs/img/diagrams/custom_instruction.svg a custom instruction in the pipeline, with real traces
+//   docs/img/diagrams/deep_pipeline.svg      the 14-stage deep-pipeline edition (src/deep/), its caches and its numbers
+//   docs/img/diagrams/packed_lanes.svg       the packed (xcompute) instructions: lanes, and pdot.b in two halves
 //
 // Every number in these figures comes from the RTL parameters (src/*.sv) or from
 // docs/PERFORMANCE.md; the figures are redrawn by `make diagrams`.
@@ -788,7 +790,7 @@ export async function interruptDiagram() {
   const notes = [
     [C.flush, `cycle ${evs[i0].cycle}: the timer interrupt is pending and enabled, so the instruction in DECODE does not go on: an interrupt pseudo-instruction takes its place.`],
     [C.flush, `cycle ${evs[i0 + 1].cycle}: in EXECUTE it traps like ecall: mepc = the replaced instruction, mcause = 2^63 + 7, MIE off, jump to mtvec; FETCH1..DECODE are flushed.`],
-    [C.E, 'It never retires (MEMORY gets a bubble): an interrupt costs 4 cycles, the X term of cycles = N + 5 + L + 3F + R + K + I + D + X.'],
+    [C.E, 'It never retires (MEMORY gets a bubble): an interrupt costs 4 cycles, the X term of cycles = N + 5 + L + 3F + R + K + I + D + X + B.'],
     [C.M, 'The handler moves MTIMECMP forward and runs mret, a flush back to mepc: the replaced instruction runs now, and the loop never notices.'],
     [C.faint, 'Faded rows were fetched and then squashed; their slots are the bubbles the equation counts.'],
   ];
@@ -867,6 +869,68 @@ export async function multitaskingDiagram() {
 }
 
 export const FPGA_RESULTS = JSON.parse(fs.readFileSync(new URL('../docs/fpga_results.json', import.meta.url), 'utf8'));
+// =============================================================================
+// The deep-pipeline edition (src/deep/, docs/DEEP_PIPELINE.md): 14 stages, the caches beside the stages
+// that use them, one stall point (D2), one commit point (M1)
+// =============================================================================
+export function deepPipeline() {
+  const W = 1600, H = 820;
+  const g = canvas(W, H, 'The deep-pipeline edition: 14 short stages, one place that stalls, one place that commits',
+    'src/deep/Riscv64_Deep.sv. Each stage does less, so the clock is shorter; every wrong guess and every wait now costs more stages (docs/DEEP_PIPELINE.md).');
+  const { text, rect, box, wire, pill, add } = g;
+  const stages = [
+    ['F1', C.F1, 'PC to I-cache', 'and predictors'], ['F2', C.F1, 'arrays read', ''], ['F3', C.F1, 'tag compare,', 'word + predecode'], ['F4', C.F1, 'prediction:', 'redirect or miss'],
+    ['D1', C.D, 'decode,', 'register read'], ['D2', C.D, 'issue check:', 'the only stall'],
+    ['X1', C.E, 'ALU slice', 'bits 0-15'], ['X2', C.E, 'ALU slice', 'bits 16-31'], ['X3', C.E, 'bits 32-47;', 'whole-value unit'], ['X4', C.E, 'bits 48-63;', 'address done'],
+    ['M1', C.M, 'COMMIT: branch,', 'trap, fence.i, store'], ['M2', C.M, 'load align;', 'miss replays'], ['M3', C.M, 'write-back', 'drive'], ['W', C.W, 'register', 'file write']];
+  const x0 = 40, sw = 98, gap = 10, sy = 300, sh = 92;
+  const X = i => x0 + i * (sw + gap);
+  // groups
+  [['FETCH', 0, 3, C.F1], ['DECODE', 4, 5, C.D], ['EXECUTE (staggered ALU)', 6, 9, C.E], ['MEMORY', 10, 12, C.M], ['WB', 13, 13, C.W]].forEach(([n, a, b, col]) => {
+    rect(X(a) - 4, sy - 34, X(b) + sw - X(a) + 8, sh + 42, { fill: col, stroke: col, op: 0.06, rx: 8 });
+    text((X(a) + X(b) + sw) / 2, sy - 14, n, { size: 12, weight: 700, fill: col, anchor: 'middle' });
+  });
+  stages.forEach(([n, col, a, b], i) => {
+    rect(X(i), sy, sw, sh, { fill: col, stroke: col, op: 0.14 });
+    text(X(i) + sw / 2, sy + 26, n, { size: 17, weight: 700, fill: col, anchor: 'middle' });
+    text(X(i) + sw / 2, sy + 52, a, { size: 10, fill: C.sub, anchor: 'middle' });
+    if (b) text(X(i) + sw / 2, sy + 66, b, { size: 10, fill: C.sub, anchor: 'middle' });
+    if (i < 13) wire([[X(i) + sw, sy + sh / 2], [X(i + 1), sy + sh / 2]], 'sub', { width: 1.5 });
+  });
+  // staggered ALU slices
+  for (let k = 0; k < 4; k++) {
+    const i = 6 + k;
+    for (let j = 0; j < 4; j++) rect(X(i) + 10 + j * 20, sy + 74, 18, 10, { fill: j <= k ? C.E : '#FFF', stroke: C.E, sw: 1, rx: 2, op: j <= k ? 0.8 : 1 });
+  }
+  // caches and units
+  box(X(0), 110, X(3) + sw - X(0), 110, 'Instruction cache (DeepCache)', ['4 KiB, 2 ways; tags, LRU, refill, prefetch, predecode', 'F1 sends the index, F2 reads, F3 compares, F4 acts', 'emptied by reset or by fence.i at M1'], { stroke: C.F1, file: 'src/deep/Deep_Cache.sv' });
+  for (const i of [0, 1, 2]) wire([[X(i) + sw / 2, 220], [X(i) + sw / 2, sy]], 'F1', { width: 1.5 });
+  box(X(4), 130, X(5) + sw - X(4), 90, 'Predictors', ['gshare, tournament,', 'BTB (own counter), RAS', 'read in F1, trained after M1'], { stroke: C.pred, file: 'src/deep/Deep_Predictors.sv' });
+  box(X(7), 470, X(10) + 60 - X(7), 100, 'Data cache (DeepCache)', ['X4 finishes the address, M1 reads the arrays', 'write-through: every store reaches memory', 'a miss replays the load from M2'], { stroke: C.M, file: 'src/deep/Deep_Cache.sv' });
+  wire([[X(10) + sw / 2, sy + sh], [X(10) + sw / 2, 470]], 'M', { width: 1.5 });
+  box(X(12), 470, X(13) + sw - X(12), 100, 'M unit', ['DeepMultiplyDivideUnit', 'every state 2 cycles', '718 ps / 868 ps budget'], { stroke: C.D, file: 'Deep_Multiply_Divide.sv' });
+  wire([[X(10) + sw, sy + sh - 10], [X(12) + 20, sy + sh - 10], [X(12) + 20, 470]], 'D', { width: 1.5 });
+  // control paths
+  pill(X(5) - 6, sy + sh + 10, 'holds F1..D2 when an operand is late', C.D, { size: 9.5 });
+  pill(X(10) - 4, sy - 64, 'commit point', C.M, { size: 10.5 });
+  wire([[X(3) + sw / 2, sy - 34], [X(3) + sw / 2, 246], [X(0) + 14, 246], [X(0) + 14, sy - 34]], 'F2', { width: 1.6 });
+  text(X(1) + 10, 240, 'F4 redirect: 3 bubbles', { size: 10, fill: C.F2, weight: 600 });
+  wire([[X(10) + sw - 12, sy + sh], [X(10) + sw - 12, 616], [X(0) + 50, 616], [X(0) + 50, sy + sh]], 'flush', { width: 2 });
+  text(X(1), 608, 'M1 flush (wrong guess, JALR, trap, fence.i): F1..D2 refilled, X1..X4 dropped. The six-stage pipeline pays 3 of those bubbles; the rest are B', { size: 10.5, fill: C.flush, weight: 600 });
+  wire([[X(11) + sw / 2, sy + sh], [X(11) + sw / 2, 640], [X(0) + 30, 640], [X(0) + 30, sy + sh]], 'miss', { width: 1.6, dash: '6 3' });
+  text(X(1), 660, 'load miss: the load and everything younger are fetched again when the line is nearly in', { size: 10, fill: C.miss });
+  // numbers
+  rect(40, 690, W - 80, 108, { fill: '#FFF', stroke: C.line, rx: 8 });
+  text(56, 714, 'Measured (ASAP7 7 nm-class, logic only, tools/timing.sh) and projected; wires and clock skew not included', { size: 12, weight: 700 });
+  const rows = [['', 'logic', 'cycle (+ 64 ps flip-flops)', 'clock 7 nm', '5 nm (projected, / 1.15)', 'CPI, example programs', 'time per instruction'],
+    ['turbo, 6 stages', '471 ps', '535 ps', '1.87 GHz', '2.15 GHz', '1.472', '787 ps'],
+    ['deep, 14 stages', '402 ps', '466 ps', '2.15 GHz', '2.47 GHz', '2.249', '1048 ps']];
+  const cx = [56, 260, 380, 600, 740, 960, 1160];
+  rows.forEach((r, j) => r.forEach((v, k) => text(cx[k], 738 + j * 20, v, { size: 11.5, weight: j === 0 || k === 0 ? 700 : 400, fill: j === 0 ? C.sub : C.ink })));
+  text(1330, 758, 'faster clock,', { size: 11, fill: C.sub }); text(1330, 776, 'slower per instruction', { size: 11, fill: C.sub });
+  return g.done();
+}
+
 export const CLOCK_DATA = JSON.parse(fs.readFileSync(new URL('../docs/clock_roadmap.json', import.meta.url), 'utf8'));
 
 // The counter values program 19 reads, from the cycle-exact model (performance build)
@@ -887,7 +951,7 @@ if (isMain) {
   const figs = { branch_prediction: branchPrediction(), cache: cache(), memory_hierarchy: hierarchy(), clock_roadmap: clockRoadmap(CLOCK_DATA),
     multiply_divide: multiplyDivideUnit(), operands_and_alu: operandsAndAlu(), performance_counters: performanceCounters(await program19Counters()),
     cache_interfaces: cacheInterfaces(), memory_map: memoryMap(), boot_sequence: bootSequence(), fpga_system: fpgaSystem(FPGA_RESULTS), interrupt: await interruptDiagram(), multitasking: await multitaskingDiagram(),
-    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines(), custom_instruction: await customDiagram() };
+    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines(), custom_instruction: await customDiagram(), deep_pipeline: deepPipeline(), packed_lanes: await packedDiagram() };
   for (const [n, svg] of Object.entries(figs)) { fs.writeFileSync(`docs/img/diagrams/${n}.svg`, svg); console.log(`wrote docs/img/diagrams/${n}.svg`); }
 }
 
@@ -916,7 +980,7 @@ export function cacheInterfaces() {
   for (let i = 0; i < 5; i++) wire([[px + pw / 2, sy(i) + 70], [px + pw / 2, sy(i + 1)]], 'sub', { width: 1.5 });
 
   const cx = 540, cw = 300, mx = 1140, mw = 280, dx = 930;
-  box(cx, 110, cw, 210, 'Instruction cache', ['4 KiB, 2 ways x 64 sets x 32-byte lines', 'hit: the instruction in the same cycle', 'miss: refill engine, 11 cycles', 'then prefetch the next line', 'reset clears every valid bit'], { file: 'src/Instruction_Cache.sv', stroke: C.F1 });
+  box(cx, 110, cw, 210, 'Instruction cache', ['4 KiB, 2 ways x 64 sets x 32-byte lines', 'hit: the instruction in the same cycle', 'miss: refill engine, 11 cycles', 'then prefetch the next line', 'reset or FENCE.I clears every valid bit'], { file: 'src/Instruction_Cache.sv', stroke: C.F1 });
   box(cx, 430, cw, 250, 'Data cache', ['4 KiB, 2 ways x 64 sets x 32-byte lines', 'load hit: the doubleword in the same cycle', 'load miss: DATA_CACHE_STALL, 11 cycles', 'store: write-through to main memory,', 'and into the line if it is cached', 'a prefetch waits one cycle for a store', '(one write per cycle into the arrays)'], { file: 'src/Data_Cache.sv', stroke: C.M });
   box(mx, 110, mw, 260, 'Main memory', ['64 KiB, 2048 lines x 256 bits', 'simulation: src/Scratchpad_Memory.sv', 'FPGA: fpga/rtl/Main_Memory.sv', 'two block-RAM copies: a store writes', 'both, each refill port reads its own', 'the line address is steady for the', 'whole refill, so 1-cycle block RAM', 'keeps up; the last store is merged in'], { stroke: C.edge });
   box(mx, 470, mw, 210, 'Device registers', ['0x1000_0000 .. 0x1000_00FF', 'PUTCHAR LEDS BUTTONS UART BOOT', 'CLOCK LAST_TOHOST LAST_CYCLES', 'BOOT_REASON TIMER BOOT_ADDRESS', 'never cached, never written to RAM', 'fpga/rtl/Sixfold_System.sv'], { stroke: C.flush });
@@ -928,6 +992,9 @@ export function cacheInterfaces() {
   wire([[cx, sy(1) + 30], [px + pw, sy(1) + 30]], 'F1'); lbl(mid, sy(1) + 24, 'INSTRUCTION [31:0]', C.F1);
   wire([[cx, 300], [505, 300], [505, sy(0) + 56], [px + pw, sy(0) + 56]], 'miss', { dash: '5 3' });
   lbl(512, 338, 'HIT = 0: FETCH1 holds (an I-cache miss bubble)', C.miss, 'start');
+  // FENCE.I (ZIFENCEI): EXECUTE pulses the instruction cache's reset (and the BTB's, inside the core)
+  wire([[px + pw - 30, sy(3)], [px + pw - 30, sy(3) - 9], [488, sy(3) - 9], [488, 250], [cx, 250]], 'E', { width: 1.6, dash: '2 3' });
+  lbl(cx - 6, 244, 'icache_invalidate (FENCE.I)', C.E, 'end');
 
   // Data side
   wire([[px + pw, sy(3) + 18], [cx, sy(3) + 18]], 'E'); lbl(mid, sy(3) + 12, 'ADDRESS, LOAD_REQUEST', C.E);
@@ -952,7 +1019,7 @@ export function cacheInterfaces() {
 
   rect(540, 790, 880, 54, { fill: '#FFF', stroke: C.line, rx: 8 });
   text(556, 812, 'Timing: a hit costs nothing; a miss costs 11 cycles (10-cycle main memory + 1). The model counts them as the I and D terms', { size: 11, fill: C.sub });
-  text(556, 830, 'of cycles = N + 5 + L + 3F + R + K + I + D, and the FPGA system reports the same count: its memory answers in the same 10 cycles.', { size: 11, fill: C.sub });
+  text(556, 830, 'of cycles = N + 5 + L + 3F + R + K + I + D + X + B, and the FPGA system reports the same count: its memory answers in the same 10 cycles.', { size: 11, fill: C.sub });
   text(px, 812, 'solid: every cycle', { size: 10.5, fill: C.sub });
   text(px, 830, 'dashed: stall / store paths', { size: 10.5, fill: C.sub });
   return g.done();
@@ -1309,22 +1376,23 @@ export async function customDiagram() {
   // DECODE
   const xD = X0, xE = X0 + SW + GAP, xM = X0 + 2 * (SW + GAP), xW = X0 + 3 * (SW + GAP);
   box(xD + 12, Y0 + 52, SW - 24, 92, 'ControlUnit, ALUdec', ['opcode 0001011: write rd, op = ALU_CUSTOM', 'funct3 bit 2: second operand = immediate', 'rs2 read only in R format'], { file: 'src/Control_Unit.sv, src/ALUdec.sv' });
-  box(xD + 12, Y0 + 158, SW - 24, 112, 'CustomDecode', [...spec.slice(0, 4).map((c, i) => `SELECT[${i}] = ${c.format === 'R' ? `funct3 == ${c.funct3} && funct7 == ${c.funct7}` : `funct3 == ${c.funct3}`}  (${c.name})`)], { file: 'src/Custom_Unit.sv', stroke: C.D, lsize: 10 });
+  const packedN = spec.filter(c => c.group === 'xcompute').length;
+  box(xD + 12, Y0 + 158, SW - 24, 112, 'CustomDecode', [...spec.slice(0, 3).map((c, i) => `SELECT[${i}] = ${c.format === 'R' ? `funct3 == ${c.funct3} && funct7 == ${c.funct7}` : `funct3 == ${c.funct3}`}  (${c.name})`), `SELECT[5 ... ${4 + packedN}]: the ${packedN} packed ones, only if XCOMPUTE`], { file: 'src/Custom_Unit.sv', stroke: C.D, lsize: 10 });
   box(xD + 12, Y0 + 284, SW - 24, 70, 'operands, forwarded', ['A = rs1      B = rs2 or the immediate', 'the same inputs the ALU gets'], { lsize: 10.5 });
   // EXECUTE
   box(xE + 12, Y0 + 52, SW - 24, 92, 'ALU', ['not used by a custom instruction:', 'its result is ignored'], { stroke: C.faint });
-  box(xE + 12, Y0 + 210, SW - 24, 92, 'registered, nothing computed', ['MEMORY_CUSTOM_A, MEMORY_CUSTOM_B', 'MEMORY_CUSTOM_SELECT'], { lsize: 10.5 });
+  box(xE + 12, Y0 + 170, SW - 24, 132, 'CustomPrepare: the first halves', ['popcount: the ones in each 16-bit quarter', 'psad.b: the 8 byte differences', 'pdot.b, pdot.h, pmulhrs.h: the lane products', 'registered with A, B and SELECT into', 'MEMORY_CUSTOM_PREPARED (272 bits)'], { file: 'src/Custom_Unit.sv', stroke: C.E, lsize: 10 });
   // MEMORY: the custom unit, one row per instruction
-  const rows = spec.slice(0, 4);
+  const rows = [...spec.slice(0, 4), { name: 'paddus.b … pmulhrs.h', expr: `${packedN} packed (xcompute)` }];
   rect(xM + 12, Y0 + 52, SW - 24, 300, { stroke: C.M, sw: 2 });
   text(xM + SW / 2, Y0 + 72, 'CustomUnit', { size: 13, weight: 700, anchor: 'middle' });
   text(xM + SW / 2, Y0 + 86, 'every result side by side, then AND-OR', { size: 10, anchor: 'middle', fill: C.sub });
   rows.forEach((c, i) => {
-    const y = Y0 + 102 + i * 54;
+    const y = Y0 + 100 + i * 46;
     rect(xM + 24, y, 186, 40, { fill: '#F3F7F2', stroke: C.line });
     text(xM + 32, y + 16, c.name, { size: 11, weight: 700, mono: true });
     text(xM + 32, y + 31, c.expr.length > 27 ? c.expr.slice(0, 26) + '…' : c.expr, { size: 9.5, mono: true, fill: C.sub });
-    text(xM + 214, y + 24, `& SELECT[${i}]`, { size: 9.5, mono: true, fill: C.D });
+    text(xM + 214, y + 24, i < 4 ? `& SELECT[${i}]` : `& SEL[5…${4 + packedN}]`, { size: 9.5, mono: true, fill: C.D });
     wire([[xM + 284, y + 20], [xM + 300, y + 20], [xM + 300, Y0 + 330]], 'M', { width: 1.4, arrow: false });
   });
   text(xM + 300, Y0 + 344, 'OR', { size: 10, weight: 700, anchor: 'middle', fill: C.M });
@@ -1332,8 +1400,9 @@ export async function customDiagram() {
   box(xW + 12, Y0 + 300, SW - 24, 70, 'WRITEBACK_DATA', ['the custom result, written to rd', 'and forwarded to DECODE from here'], { stroke: C.W });
   wire([[xM + 300, Y0 + 350], [xM + 300, Y0 + 400], [xW + 40, Y0 + 400], [xW + 40, Y0 + 372]], 'M', { width: 2.2 });
   // the path that sets the cycle
-  rect(xM - 26, Y0 + 412, 2 * SW + GAP + 40, 30, { fill: '#FFF8EC', stroke: C.E, dash: '5 4' });
-  text(xM - 14, Y0 + 432, 'The custom logic’s cycle: MEMORY_CUSTOM_A/B → CustomUnit → WRITEBACK_DATA. Nothing else uses it, so it cannot slow the rest of the core.', { size: 10.5, fill: C.ink });
+  rect(xM - 26, Y0 + 412, 2 * SW + GAP + 40, 42, { fill: '#FFF8EC', stroke: C.E, dash: '5 4' });
+  text(xM - 14, Y0 + 432, 'MEMORY_CUSTOM_A/B and PREPARED → CustomUnit → WRITEBACK_DATA: a cycle nothing else uses. Splitting a multiply or a sum across', { size: 10.5, fill: C.ink });
+  text(xM - 14, Y0 + 446, 'EXECUTE and MEMORY keeps each half within one clock.', { size: 10.5, fill: C.ink });
   // forwarding back to DECODE
   wire([[xW + SW - 20, Y0 + 335], [xW + SW - 6, Y0 + 335], [xW + SW - 6, Y0 + 468], [xD + 40, Y0 + 468], [xD + 40, Y0 + 356]], 'pred', { width: 1.6, dash: '6 4' });
   text(xD + 52, Y0 + 462, 'forwarded from WRITEBACK: a dependent instruction waits in DECODE until then (CUSTOM_HAZARD_REGISTER1/2)', { size: 10.5, fill: C.pred, weight: 600 });
@@ -1369,6 +1438,85 @@ export async function customDiagram() {
     pill(x0 + 140, ty + 92, stalls ? `waits ${stalls} cycle${stalls === 1 ? '' : 's'}` : 'no wait', stalls ? C.flush : C.hit, { size: 10.5 });
   });
   text(40, H - 60, 'Dashed: held in DECODE. The wait is counted with the load stalls in the cycle equation (hpmcounter3). A compiler hides it the way it hides a load: by putting independent work in between.', { size: 11, fill: C.sub });
-  text(40, H - 38, 'Measured with make timing (sky130, logic only): the core alone 3.88 ns; with the four example instructions 4.05 ns, the custom unit’s popcount being the longest path (docs/CUSTOM_INSTRUCTIONS.md).', { size: 11, fill: C.sub });
+  text(40, H - 38, 'Measured with tools/timing.sh performance sky130 (logic only): 4415 ps with XCOMPUTE = 0, 3853 ps with the packed set on (ABC spread is wide: read it as no slower); its slowest path now starts at the pdot.h MEMORY half (docs/XCOMPUTE.md).', { size: 11, fill: C.sub });
+  return g.done();
+}
+
+// =============================================================================
+// The packed instructions (custom-0 group "xcompute", docs/XCOMPUTE.md): eight byte lanes side by side, and
+// how pdot.b splits its work between EXECUTE (the products) and MEMORY (their sum). Every value drawn is
+// computed by model/custom.js, the functions make test checks against the RTL.
+// =============================================================================
+export async function packedDiagram() {
+  const { FUNCTIONS } = await import('../model/custom.js');
+  const spec = JSON.parse(fs.readFileSync(new URL('../custom/instructions.json', import.meta.url), 'utf8')).instructions.filter(c => c.group === 'xcompute');
+  const W = 1500, H = 900;
+  const g = canvas(W, H, 'Packed instructions: eight lanes in one register',
+    'Custom-0 group "xcompute" (Riscv64 parameter XCOMPUTE). A 64-bit register holds 8 bytes or 4 16-bit numbers; one instruction works on all of them at once.');
+  const { text, rect, box, wire, pill } = g;
+  const hex2 = v => v.toString(16).padStart(2, '0');
+  const byteRow = (x, y, v, label, { hi = () => false, col = C.edge } = {}) => {
+    text(x - 12, y + 21, label, { size: 12, weight: 700, anchor: 'end', mono: true });
+    for (let i = 7; i >= 0; i--) {
+      const b = Number((v >> BigInt(8 * i)) & 0xffn), cx = x + (7 - i) * 62;
+      rect(cx, y, 56, 32, { fill: hi(i) ? '#FDECEF' : '#F3F7F2', stroke: hi(i) ? C.flush : col });
+      text(cx + 28, y + 21, hex2(b), { size: 13, mono: true, anchor: 'middle', weight: 600 });
+    }
+  };
+  // ---------------- 1. paddus.b: every lane its own 9-bit add, stopping at 255
+  const a = 0xf0_10_80_7f_ff_01_c8_20n, b = 0x20_10_90_01_01_fe_64_10n, r = FUNCTIONS.paddusb[1](a, b);
+  const X1 = 160, Y1 = 92;
+  text(40, Y1 - 6, '1. paddus.b rd, rs1, rs2: 8 saturating byte adds (brighten, additive blending)', { size: 14, weight: 700 });
+  byteRow(X1, Y1 + 10, a, 'rs1'); byteRow(X1, Y1 + 50, b, 'rs2');
+  const sat = i => Number((a >> BigInt(8 * i)) & 0xffn) + Number((b >> BigInt(8 * i)) & 0xffn) > 255;
+  for (let i = 0; i < 8; i++) text(X1 + i * 62 + 28, Y1 + 104, '+', { size: 14, anchor: 'middle', fill: C.sub, weight: 700 });
+  byteRow(X1, Y1 + 112, r, 'rd', { hi: sat, col: C.M });
+  text(X1 + 8 * 62 + 20, Y1 + 30, 'No carry crosses a lane boundary: eight 9-bit adders', { size: 11.5, fill: C.sub });
+  text(X1 + 8 * 62 + 20, Y1 + 48, 'side by side, each shallower than one 64-bit add.', { size: 11.5, fill: C.sub });
+  text(X1 + 8 * 62 + 20, Y1 + 72, 'Pink: the sum passed 255, so the lane stops at ff', { size: 11.5, fill: C.flush, weight: 600 });
+  text(X1 + 8 * 62 + 20, Y1 + 90, '(plain adds would wrap a bright pixel to black).', { size: 11.5, fill: C.sub });
+  text(X1 + 8 * 62 + 20, Y1 + 114, 'Runs in MEMORY alone, like every custom instruction.', { size: 11.5, fill: C.sub });
+  // ---------------- 2. pdot.b in two halves
+  const Y2 = 300, pa = 0x02_fd_7f_80_05_ff_10_03n, pb = 0x04_04_02_7f_fb_ff_f0_06n;
+  text(40, Y2, '2. pdot.b rd, rs1, rs2: a dot product of 8 signed bytes, split between EXECUTE and MEMORY', { size: 14, weight: 700 });
+  const stX = [40, 520, 1000], stW = [450, 450, 460];
+  [['EXECUTE: CustomPrepare', C.E], ['MEMORY: CustomUnit', C.M], ['WRITEBACK', C.W]].forEach(([n, col], k) => {
+    rect(stX[k], Y2 + 16, stW[k], 30, { fill: col, stroke: col, op: 0.14 });
+    text(stX[k] + stW[k] / 2, Y2 + 36, n, { size: 13, weight: 700, anchor: 'middle', fill: col });
+  });
+  const sb = v => (v > 127 ? v - 256 : v);
+  let sum = 0;
+  for (let i = 0; i < 8; i++) {
+    const p = sb(Number((pa >> BigInt(8 * i)) & 0xffn)), q = sb(Number((pb >> BigInt(8 * i)) & 0xffn)), y = Y2 + 60 + (7 - i) * 40;
+    sum += p * q;
+    rect(stX[0] + 10, y, 210, 32, { fill: '#F3F7F2', stroke: C.line });
+    text(stX[0] + 20, y + 21, `lane ${i}: ${String(p).padStart(4)} × ${String(q).padStart(4)}`, { size: 11.5, mono: true });
+    box(stX[0] + 240, y, 120, 32, '8 × 8 tree', [], { tsize: 10.5 });
+    rect(stX[0] + 372, y, 70, 32, { fill: '#FFF8EC', stroke: C.E });
+    text(stX[0] + 407, y + 21, String(p * q), { size: 11.5, mono: true, anchor: 'middle', weight: 600 });
+    wire([[stX[0] + 442, y + 16], [stX[1] + 20, Y2 + 216]], 'E', { width: 1.1, arrow: false });
+  }
+  text(stX[0] + 230, Y2 + 396, 'Each product: 9 partial-product rows in a carry-save', { size: 10.5, fill: C.sub, anchor: 'middle' });
+  text(stX[0] + 230, Y2 + 410, 'tree (4 levels), then one 16-bit prefix add.', { size: 10.5, fill: C.sub, anchor: 'middle' });
+  rect(stX[0] + 452, Y2 + 56, 14, 330, { fill: '#E9ECE6', stroke: C.faint, sw: 1, rx: 2 });
+  text(stX[0] + 459, Y2 + 404, 'PREPARED', { size: 9.5, anchor: 'middle', fill: C.sub, mono: true });
+  text(stX[0] + 459, Y2 + 416, '8 × 16 bits', { size: 9.5, anchor: 'middle', fill: C.sub, mono: true });
+  box(stX[1] + 20, Y2 + 150, 410, 132, 'sum of the 8 products', ['carry-save tree: 8 → 6 → 4 → 3 → 2 numbers', '(full adders: no carry runs along the word)', 'then one 20-bit prefix add', 'sign-extended to 64 bits'], { stroke: C.M, lsize: 11 });
+  wire([[stX[1] + 430, Y2 + 216], [stX[2] + 20, Y2 + 216]], 'M', { width: 2.2 });
+  box(stX[2] + 20, Y2 + 182, 420, 70, `rd = ${sum}`, ['the dot product, written to rd and', 'forwarded to DECODE from WRITEBACK'], { stroke: C.W, lsize: 11 });
+  text(stX[1] + 225, Y2 + 312, 'A whole 8-lane multiply-and-sum is too deep for one clock next to', { size: 11, fill: C.ink, anchor: 'middle' });
+  text(stX[1] + 225, Y2 + 327, 'everything else; split like this, each half fits (docs/XCOMPUTE.md).', { size: 11, fill: C.ink, anchor: 'middle' });
+  // ---------------- 3. the set
+  const Y3 = 742;
+  text(40, Y3, '3. The set (custom/instructions.json, funct3 = 3)', { size: 14, weight: 700 });
+  const two = new Set(['psad.b', 'pdot.b', 'pdot.h', 'pmulhrs.h']);
+  spec.forEach((c, i) => {
+    const col = i % 3, row = Math.floor(i / 3), x = 40 + col * 480, y = Y3 + 14 + row * 42;
+    rect(x, y, 466, 34, { fill: '#F7F9F5', stroke: C.line });
+    text(x + 10, y + 22, c.name, { size: 12, weight: 700, mono: true });
+    text(x + 100, y + 22, `funct7 ${c.funct7}`, { size: 10.5, mono: true, fill: C.sub });
+    pill(x + 176, y + 8, two.has(c.name) ? 'EXECUTE + MEMORY' : 'MEMORY', two.has(c.name) ? C.E : C.M, { size: 9.5, w: 120 });
+    text(x + 306, y + 22, c.expr, { size: 10.5, mono: true, fill: C.sub });
+  });
   return g.done();
 }

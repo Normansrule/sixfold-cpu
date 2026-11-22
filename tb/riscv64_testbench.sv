@@ -10,6 +10,9 @@
 //   Build-time configuration (make test builds both):
 //     default               the performance edition (caches, tournament predictor, BTB, RAS, precise load stalls, iterative M unit)
 //     -DBASELINE            the baseline pipeline (all features off, 4 history bits, single-cycle memory)
+//     -DCOMPACT             the performance edition with 1 KiB caches (CACHE_SETS = 16), HYDRA-130's chip build
+//     -DTURBO               the turbo edition: the performance edition plus the FAST_* features
+//     -DSRAM                the caches keep their lines in sram22 SRAM macros (add asic/macros/sram22_64x32m4w8/*.v)
 `timescale 1ns/1ps
 `default_nettype none
 `ifdef BASELINE
@@ -18,6 +21,21 @@
 `else
   `define CONFIG_FEATURES 1'b1
   `define CONFIG_HISTORY 6
+`endif
+`ifdef COMPACT
+  `define CONFIG_CACHE_SETS 16
+`else
+  `define CONFIG_CACHE_SETS 64
+`endif
+`ifdef SRAM
+  `define CONFIG_SRAM 1'b1
+`else
+  `define CONFIG_SRAM 1'b0
+`endif
+`ifdef TURBO
+  `define CONFIG_TURBO 1'b1
+`else
+  `define CONFIG_TURBO 1'b0
 `endif
 
 module riscv64_testbench;
@@ -40,7 +58,22 @@ module riscv64_testbench;
     .PRECISE_LOAD_STALL (`CONFIG_FEATURES),
     .ITERATIVE_MULTIPLY_DIVIDE (`CONFIG_FEATURES),
     .TOURNAMENT_PREDICTOR (`CONFIG_FEATURES),
-    .CACHES_ENABLE (`CONFIG_FEATURES)
+    .CACHES_ENABLE (`CONFIG_FEATURES),
+    .CACHE_SETS (`CONFIG_CACHE_SETS),
+    .FAST_MULTIPLY_DIVIDE (`CONFIG_TURBO),
+    .FAST_INSTRUCTION_PREFETCH (`CONFIG_TURBO),
+    .FAST_ALU (`CONFIG_TURBO),
+    .FAST_FETCH_TARGET (`CONFIG_TURBO),
+    .FAST_STALL (`CONFIG_TURBO),
+    .FAST_LOAD_ALIGN (`CONFIG_TURBO),
+    .LATE_BRANCH_RESOLVE (`CONFIG_TURBO),
+    .ZIFENCEI (1'b1),
+`ifdef XCOMPUTE_OFF
+    .XCOMPUTE (1'b0), // tools/test.mjs --config=xoff: the default HYDRA-130 instantiates
+`else
+    .XCOMPUTE (1'b1),
+`endif
+    .SRAM_CACHES (`CONFIG_SRAM)
   ) dut (.*);
 
   integer TRACE_FILE = 0, MAX_CYCLES, CYCLE = 0, RETIRED = 0, INDEX, BP_ARGUMENT;

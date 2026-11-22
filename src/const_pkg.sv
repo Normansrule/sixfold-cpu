@@ -56,6 +56,7 @@ package const_pkg;
   localparam logic [11:0] CSR_HPMCOUNTER7 = 12'hC07; // I: instruction-cache miss cycles
   localparam logic [11:0] CSR_HPMCOUNTER8 = 12'hC08; // D: data-cache miss cycles
   localparam logic [11:0] CSR_HPMCOUNTER9 = 12'hC09; // X: interrupts taken (each costs one bubble more than a flush)
+  localparam logic [11:0] CSR_HPMCOUNTER10 = 12'hC0A; // B: instructions a late branch flush removed from EXECUTE (LATE_BRANCH_RESOLVE, else 0)
   // ===============================================
   // Machine-mode trap CSRs (RISC-V privileged specification):
   localparam logic [11:0] CSR_MSTATUS  = 12'h300; // bit 3 MIE (interrupts enabled), bit 7 MPIE (MIE before the trap)

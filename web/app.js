@@ -26,7 +26,7 @@ const bin = (v, n) => v.toString(2).padStart(n, '0');
 // cycles) would otherwise hold every cycle's record in memory. Back and seeking replay from reset.
 const KEEP = 64, MAX_CYCLES = 5_000_000;
 let img = null, source = '', core = null, events = [], timer = null, selAddr = null, traps = [], regions = null, tracker = null, prof = null;
-const opts = () => ({ bp: $('bp').checked, historyBits: Number($('hist').value) });
+const opts = () => ({ bp: $('bp').checked, historyBits: Number($('hist').value), xcompute: true }); // the packed set is on in every build (docs/XCOMPUTE.md)
 const textOf = x => (x ? core.instrs[x.id].text : '');
 
 // ------------------------------------------------------------------ loading
@@ -265,11 +265,11 @@ function renderStats() {
     ['load stalls (false)', `${s.loadStalls} (${s.falseLoadStalls})`], ['flushes: wrong guess / JALR', `${s.mispredicts} / ${s.jalrFlushes}`],
     ['FETCH2 redirects / BTB hits', `${s.redirects} / ${s.btbRedirects}`], ['multiply/divide busy cycles', s.multiplyDivideBusy], ['cache misses: instruction / data', `${s.icacheMisses} / ${s.dcacheMisses}`], ['branch accuracy', s.branches ? (100 * (1 - s.mispredicts / s.branches)).toFixed(1) + '%' : '-'], ['operands forwarded', s.forwards],
     ['interrupts taken', s.interrupts],
-    ['hardware counters hpm3..9 (L F R K I D X)', core.hpm ? ['stall', 'flush', 'redirect', 'busy', 'imiss', 'dmiss', 'intr'].map(k => String(core.hpm[k])).join(' · ') : '-'],
+    ['hardware counters hpm3..10 (L F R K I D X B)', core.hpm ? ['stall', 'flush', 'redirect', 'busy', 'imiss', 'dmiss', 'intr', 'late'].map(k => String(core.hpm[k])).join(' · ') : '-'],
   ];
   if (core.halted) {
-    const pred = s.retired + 5 + s.loadStalls + 3 * s.flushes + b.redirect + b.muldiv + b.imiss + b.dmiss + b.interrupt;
-    items.push(['equation check', `${s.retired} + 5 + ${s.loadStalls} + 3×${s.flushes} + ${b.redirect} + ${b.muldiv} + ${b.imiss} + ${b.dmiss} + ${b.interrupt} = ${pred} ${pred === s.cycles ? '✓' : '✗'}`]);
+    const pred = s.retired + 5 + s.loadStalls + 3 * s.flushes + b.redirect + b.muldiv + b.imiss + b.dmiss + b.interrupt + (b.late || 0);
+    items.push(['equation check', `${s.retired} + 5 + ${s.loadStalls} + 3×${s.flushes} + ${b.redirect} + ${b.muldiv} + ${b.imiss} + ${b.dmiss} + ${b.interrupt}${b.late ? ' + ' + b.late : ''} = ${pred} ${pred === s.cycles ? '✓' : '✗'}`]);
   }
   $('stats').innerHTML = items.map(([k, v, big]) => `<dt>${k}</dt><dd class="${big ? 'big' : ''}">${v}</dd>`).join('');
 }

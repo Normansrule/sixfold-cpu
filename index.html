@@ -11,12 +11,14 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://normansrule.github.io/sixfold-cpu/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#101B22">
+<meta name="theme-color" content="#101B22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F4F6F2" media="(prefers-color-scheme: light)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site/style.css">
+<script src="site/theme.js"></script>
 <script type="importmap">{ "imports": { "three": "./site/vendor/three.module.min.js" } }</script>
 </head>
 <body>
@@ -40,9 +42,10 @@
       <div class="navpanel">
         <div><h3>See it work</h3><a href="#decode">Decode an instruction</a><a href="#watch">Watch it move</a><a href="#race">Branch prediction race</a><a href="#arena">Five predictors</a><a href="#caches">Inside the caches</a><a href="#bits">Bit tricks</a><a href="#multiply">The multiplier</a></div>
         <div><h3>Compare and extend</h3><a href="#isa">RISC-V, MIPS, x86-64</a><a href="#workshop">Invent an instruction</a><a href="#fpga">The FPGA computer</a><a href="#os">A tiny operating system</a><a href="#silicon">The chip</a><a href="#numbers">The numbers</a><a href="#faster">Making it faster</a></div>
-        <div><h3>Use it</h3><a href="#learn">Twelve chapters</a><a href="#download">Desktop app</a><a href="#commands">Run it yourself</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three-architecture lab</a><a href="web/custom.html">Instruction workshop</a><a data-repo-link href="#">Source on GitHub</a></div>
+        <div><h3>Use it</h3><a href="#learn">Sixteen chapters</a><a href="#download">Desktop app</a><a href="#commands">Run it yourself</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three-architecture lab</a><a href="web/custom.html">Instruction workshop</a><a data-repo-link href="#">Source on GitHub</a></div>
       </div>
     </details>
+    <span id="theme-slot"></span>
     <a href="web/index.html" class="lab">Open the lab</a>
   </nav>
 </header>
@@ -52,8 +55,10 @@
 <section class="hero" aria-label="The CPU running live">
   <canvas id="stage3d" aria-label="Three-dimensional view of the six pipeline stages, with instructions moving through them"></canvas>
   <div class="hero-copy">
+    <p class="eyebrow hero-eyebrow"><span>RV64</span>Open-source teaching CPU</p>
     <h1>Watch a 64&#8209;bit RISC&#8209;V processor think.</h1>
     <p>Six stages, one instruction per clock. This is the real core from the repository, running a real program in your browser, cycle by cycle, exactly as the SystemVerilog does.</p>
+    <p class="hero-cta"><a class="btn-primary" href="web/index.html">Open the pipeline lab</a><a class="btn-ghost" href="#decode">Start with one instruction</a></p>
   </div>
   <div class="hud" role="group" aria-label="Simulation controls">
     <div class="hud-read">
@@ -76,6 +81,7 @@
 <section class="band" id="decode">
   <div class="wrap two">
     <div class="copy">
+      <p class="eyebrow"><span>01</span>Decode</p>
       <h2>Every instruction is 32 bits. Click one.</h2>
       <p>Type an instruction, or flip any bit and watch the CPU's decoder read something new. The colours are the fields the <code>ControlUnit</code> looks at; the lights underneath are the control signals it produces, with the names used in <code>src/Control_Unit.sv</code>.</p>
       <div class="presets" id="bit-presets" aria-label="Example instructions"></div>
@@ -95,6 +101,7 @@
 <section class="band" id="watch">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>02</span>Animate</p>
       <h2>Watch it move.</h2>
       <p>Five animations, each drawn from the real design: the pipeline is a trace of the cycle-exact model (the one the RTL is checked against), the multiplier step uses real numbers and checks its answer, the cache and predictor follow the same rules as the SystemVerilog, and the boot sequence runs the real firmware. They are plain animated SVGs, so they also play in the README.</p>
     </div>
@@ -113,6 +120,7 @@
 <section class="band" id="race">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>03</span>Predict</p>
       <h2>Guess the branches well and the same program finishes sooner.</h2>
       <p>Both CPUs below run the same program on the same clock. One always guesses that branches fall through; the other uses gshare: 2-bit counters indexed by the program counter XOR the last few branch outcomes. Each strip is the WRITEBACK stage over time: a filled tick is an instruction finishing, a coloured gap is a bubble.</p>
     </div>
@@ -163,6 +171,7 @@
 <section class="band" id="arena">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>04</span>Compare predictors</p>
       <h2>Five branch predictors, one race.</h2>
       <p>Every conditional branch a program runs is replayed through five predictors, from a simple per-branch table to the families inside today's CPUs: a <b>perceptron</b> (a tiny neural network per branch, like AMD's Zen) and <b>TAGE</b> (tables looked up with longer and longer histories, used in AMD Zen 2 onward, Intel and ARM cores). Each guesses before it is told the answer. Try <i>predictor challenge</i>: one of its branches depends on the two branches before it.</p>
     </div>
@@ -181,6 +190,7 @@
 <section class="band" id="caches">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>05</span>Remember</p>
       <h2>Inside the caches.</h2>
       <p>Main memory needs 10 cycles to deliver anything, so Sixfold keeps two small, fast copies next to the pipeline: 4 KiB for instructions and 4 KiB for data, each 64 sets of two 32-byte lines. Every address is cut into three fields: the <b class="f-tag">tag</b> says which piece of memory, the <b class="f-idx">set index</b> picks one of the 64 sets, the <b class="f-off">offset</b> picks the byte inside the line. Each set can hold two lines (top half: way 0, bottom half: way 1); when both are full the one used longest ago is replaced. After each miss, both caches also fetch the next line on their own (prefetching, as every modern CPU does).</p>
     </div>
@@ -212,6 +222,7 @@
 <section class="band" id="bits">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>06</span>Bit manipulation</p>
       <h2>Bit tricks: one instruction instead of a loop.</h2>
       <p>Sixfold implements the complete <b>B</b> extension: <b>Zba</b>, <b>Zbb</b> and <b>Zbs</b>, the bit-manipulation instructions every current RISC-V application processor has. Counting the 1 bits of a register takes a 64-trip loop in plain RV64I and one <code>cpop</code> here; finding the end of a string goes 8 bytes at a time with <code>orc.b</code>. Pick an operation and a value: the result comes from the same model code that is checked against the RTL.</p>
     </div>
@@ -230,6 +241,7 @@
 <section class="band" id="multiply">
   <div class="wrap two">
     <div class="copy">
+      <p class="eyebrow"><span>07</span>Multiply</p>
       <h2>Inside the multiplier: carries that never wait.</h2>
       <p>Adding 16 shifted copies of a number one after another would make each one wait for the carries of the last. A Wallace tree adds them in columns instead: every group of three rows goes through a row of full adders and comes out as two (sum bits stay put, carry bits move one column left). Rows shrink 16, 11, 8, 6, 4, 3, 2 and no carry ever travels far until one final add.</p>
       <p>Sixfold's step does 64 x 16 bits plus a running total kept as two numbers, every clock cycle: <code>src/Carry_Save_Multiplier.sv</code>. That change moved the multiplier off the critical path (747 ps to well under the rest of the core at 7 nm).</p>
@@ -249,6 +261,7 @@
 <section class="band" id="isa">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>08</span>Three instruction sets</p>
       <h2>One program, three instruction sets.</h2>
       <p>The same seven programs, written for <b>RISC-V</b>, <b>MIPS</b> and <b>x86-64</b>, assembled to real machine code and run to the end on a pipeline model for each: Sixfold for RISC-V, the classic five stages with a branch delay slot for MIPS, and an in-order core that splits instructions into micro-ops for x86-64. They share the same memory, multiply/divide timing and branch predictor, so the differences below come from the instruction sets. Every encoding is checked against the GNU assembler, and every run against the Unicorn CPU emulator.</p>
     </div>
@@ -264,9 +277,11 @@
 <section class="band" id="workshop">
   <div class="wrap two">
     <div class="copy">
+      <p class="eyebrow"><span>09</span>Extend</p>
       <h2>Invent an instruction. Sixfold runs it.</h2>
       <p>RISC-V keeps one opcode, <code>custom-0</code>, free for instructions nobody has thought of yet. Write what yours computes in the box, as an expression of <code>a</code> (the first register) and <code>b</code> (the second). The same compiler that builds Sixfold's own four custom instructions turns it into an encoding, a circuit and SystemVerilog, and the pipeline model runs it.</p>
       <p>The four already in the hardware came from real workloads: <code>absdiff</code> (video motion search), <code>avgu</code> (an average that cannot overflow), <code>hamming</code> (error-correcting codes) and <code>clampi</code> (saturating a pixel). Measured on the model by <code>programs/23_custom_instructions.s</code>, against the plain RV64I code each one replaces:</p>
+      <p>Nine more work on eight bytes at once, for pixels, video, audio and int8 neural networks (<code>paddus.b</code>, <code>psad.b</code>, <code>pdot.b</code>, ...): 13.0x faster on six benchmark kernels. <a data-repo-doc="docs/XCOMPUTE.md" href="docs/XCOMPUTE.md">The packed instructions</a>.</p>
       <div class="ws-bars" id="ws-bars" aria-live="polite"></div>
       <p class="ws-links"><a href="web/custom.html">Open the instruction workshop</a> · <a data-repo-doc="docs/CUSTOM_INSTRUCTIONS.md" href="docs/CUSTOM_INSTRUCTIONS.md">How it reaches the hardware</a></p>
     </div>
@@ -291,6 +306,7 @@
 <section class="band" id="fpga">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>10</span>Boot</p>
       <h2>A whole computer: boot it right here.</h2>
       <p>On an FPGA board Sixfold becomes a small computer. It has 64 KiB of memory, a serial port, LEDs, switches, buttons and a four-digit display, and boot firmware that starts at address 0, the way a PC starts in its BIOS. The firmware prints a banner, loads a program sent from your PC, runs it, and reports PASS and the cycle count. Below, that same firmware runs on the cycle-exact model at 1 MHz, with this page acting as a Digilent Basys 3: the terminal is the serial port, and the display, LEDs, switches and buttons are the device registers at <code>0x1000_0000</code>. Click the terminal to type, upload a program, or press the centre button to run the one loaded.</p>
     </div>
@@ -336,6 +352,7 @@
 <section class="band" id="os">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>11</span>Multitask</p>
       <h2>Three programs, one CPU.</h2>
       <p>This is how every operating system shares a processor. Three ordinary programs run on Sixfold: one counts primes, one adds up squares, one prints lines. None of them knows about the others. Every <b>quantum</b> of cycles the machine timer interrupts whichever one is running; the kernel saves its 31 registers and its PC into its <b>task control block</b> in memory, loads the next task's, and returns into it with <code>mret</code>. Each row below is one part of the program, time runs left to right, and every cycle belongs to the last instruction that finished. Make the quantum shorter and watch the kernel's share grow.</p>
     </div>
@@ -363,6 +380,7 @@
 <section class="band" id="silicon">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>12</span>Silicon</p>
       <h2>Then it became a chip.</h2>
       <p>This is a 32-bit prototype of this pipeline after place and route on SkyWater's 130 nm process: every coloured speck is one standard cell at its real position. Drag the divider to peel the metal wiring off, drag the picture to pan, and use the buttons or your scroll wheel over it to zoom.</p>
     </div>
@@ -395,6 +413,7 @@
 <section class="band" id="numbers">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>13</span>Measure</p>
       <h2>Where every cycle goes, for every program.</h2>
       <p>Measured right now in your browser by the cycle-exact model. Each bar is one program's run time in clock cycles, split into useful work and each kind of bubble: the performance edition on top, the baseline design below. Select a program to step through it in the lab.</p>
     </div>
@@ -406,6 +425,7 @@
 <section class="band" id="faster">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>14</span>Speed up</p>
       <h2>A shorter critical path, and fewer wasted cycles.</h2>
       <p>The baseline computes a whole 64-bit division in one clock cycle: 64 subtractions in a row, 133 ns. The performance edition divides one bit per cycle, multiplies with a Wallace tree, adds carry-lookahead (Kogge-Stone) adders, and wins cycles back with a tournament branch predictor, a branch target buffer, a return address stack and precise load stalls, behind instruction and data caches with prefetching. Both designs are in the repository and both are checked cycle by cycle.</p>
     </div>
@@ -415,8 +435,9 @@
       <div><strong>1.03</strong><span>cycles per instruction on the branch-pattern program, caches included (baseline 1.38)</span></div>
     </div>
     <figure class="cp"><img src="docs/img/charts/performance.svg" alt="Cycles per instruction per program, original design versus performance edition" loading="lazy"></figure>
-    <figure class="cp fig"><img src="docs/img/diagrams/clock_roadmap.svg" alt="Clock roadmap: measured clock periods from 133 ns to 513 ps against the 400 ps and 200 ps needed for 2.5 and 5 GHz" loading="lazy"><figcaption>From 7.5 MHz to 1.95 GHz, one measured step at a time, and what 2.5 GHz and 5 GHz would take.</figcaption></figure>
-    <p class="small">Why not higher? In 130 nm one carry step of an adder takes about 330 ps; in 7 nm the whole core's longest path is 513 ps; 2.5 GHz needs 400 ps and 5 GHz 200 ps. Smaller processes are faster, but a process node is chosen by the foundry, not written in RTL. <a data-repo-doc="docs/PERFORMANCE.md" href="docs/PERFORMANCE.md">How every number was measured</a>.</p>
+    <figure class="cp fig"><img src="docs/img/diagrams/clock_roadmap.svg" alt="Clock roadmap: measured clock periods from 133 ns to 402 ps against the 400 ps and 200 ps needed for 2.5 and 5 GHz" loading="lazy"><figcaption>From 7.5 MHz to 2.49 GHz of logic delay (the 14-stage deep-pipeline edition), one measured step at a time, and what 2.5 GHz and 5 GHz would take.</figcaption></figure>
+    <figure class="cp fig"><a href="docs/img/diagrams/deep_pipeline.svg" target="_blank" rel="noopener"><img src="docs/img/diagrams/deep_pipeline.svg" alt="The deep-pipeline edition: 14 stages from F1 to W, the instruction cache beside F1 to F4, the data cache beside X4 to M2, and the three paths back to F1" loading="lazy"></a><figcaption>The deep-pipeline edition: 14 stages, 2.15 GHz measured at 7 nm, but 53% more cycles per instruction than the turbo build.</figcaption></figure>
+    <p class="small">Why not higher? In 130 nm one carry step of an adder takes about 330 ps; in 7 nm the whole core's longest path is 513 ps; 2.5 GHz needs 400 ps and 5 GHz 200 ps. The 14-stage deep-pipeline edition brings the longest path down to 402 ps (2.15 GHz with the flip-flops), but needs 53% more cycles per instruction to do it. Smaller processes are faster, but a process node is chosen by the foundry, not written in RTL. <a data-repo-doc="docs/PERFORMANCE.md" href="docs/PERFORMANCE.md">How every number was measured</a>, and <a data-repo-doc="docs/DEEP_PIPELINE.md" href="docs/DEEP_PIPELINE.md">the deep edition</a>.</p>
   </div>
 </section>
 
@@ -424,7 +445,8 @@
 <section class="band" id="learn">
   <div class="wrap">
     <div class="copy narrow">
-      <h2>Learn it in twelve short chapters.</h2>
+      <p class="eyebrow"><span>15</span>Learn</p>
+      <h2>Learn it in sixteen short chapters.</h2>
       <p>Each chapter explains one idea, shows the picture that goes with it, points at the lines of SystemVerilog that do it, and gives you a program to run.</p>
     </div>
     <ol class="chapters" id="chapters"></ol>
@@ -435,6 +457,7 @@
 <section class="band" id="download">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>16</span>Download</p>
       <h2>Take it with you: the desktop app.</h2>
       <p>Everything on this page, the pipeline lab, the three-architecture lab and the instruction workshop, as an app for Windows, macOS and Linux that works without a network. It is built from this repository on GitHub's servers for every release, and it is the same code as this page.</p>
     </div>
@@ -451,6 +474,7 @@
 <section class="band" id="commands">
   <div class="wrap">
     <div class="copy narrow">
+      <p class="eyebrow"><span>17</span>Command line</p>
       <h2>Run it yourself.</h2>
       <p>Everything on this page also runs from a terminal on Ubuntu or Windows Subsystem for Linux (WSL).</p>
     </div>
@@ -461,8 +485,15 @@
 </main>
 
 <footer class="foot">
-  <p>Designed by Aleksander Norman. MIT license. Cell layouts from the SkyWater PDK (Apache 2.0). Rendering with three.js (MIT).</p>
-  <p class="foot-links"><a data-repo-link href="#">Source on GitHub</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three architectures</a><a href="web/custom.html">Instruction workshop</a><a href="#download">Desktop app</a><a href="docs/img/cpu_block_diagram.svg">Block diagram</a></p>
+  <div class="foot-brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="8" width="3.4" height="16" fill="var(--F1)"/><rect x="7" y="8" width="3.4" height="16" fill="var(--F2)"/><rect x="12" y="8" width="3.4" height="16" fill="var(--D)"/><rect x="17" y="8" width="3.4" height="16" fill="var(--E)"/><rect x="22" y="8" width="3.4" height="16" fill="var(--M)"/><rect x="27" y="8" width="3.4" height="16" fill="var(--W)"/></svg>
+    <p><strong>Sixfold</strong><br>A 64-bit RISC-V processor you can read, run, watch, flash and see as silicon.</p>
+  </div>
+  <nav class="foot-cols" aria-label="Footer">
+    <div><h3>Labs</h3><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three architectures</a><a href="web/custom.html">Instruction workshop</a><a href="#download">Desktop app</a></div>
+    <div><h3>Read</h3><a href="#learn">Sixteen chapters</a><a href="docs/img/cpu_block_diagram.svg">Block diagram</a><a data-repo-link href="#">Source on GitHub</a></div>
+  </nav>
+  <p class="foot-legal">Designed by Aleksander Norman. MIT license. Cell layouts from the SkyWater PDK (Apache 2.0). Rendering with three.js (MIT).</p>
 </footer>
 
 <script type="module" src="site/main.js"></script>

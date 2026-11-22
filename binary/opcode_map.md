@@ -19,7 +19,7 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 ### MISC_MEM `0001111`
 
-[`fence`](RV64I/fence.md)
+[`fence`](RV64I/fence.md) · [`fence.i`](Zifencei/fence.i.md)
 
 ### OP_IMM `0010011`
 
@@ -67,5 +67,5 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 ### CUSTOM_0 `0001011`
 
-[`absdiff`](Custom/absdiff.md) · [`avgu`](Custom/avgu.md) · [`hamming`](Custom/hamming.md) · [`clampi`](Custom/clampi.md) · [`hsec.cteq`](Custom/hsec.cteq.md)
+[`absdiff`](Custom/absdiff.md) · [`avgu`](Custom/avgu.md) · [`hamming`](Custom/hamming.md) · [`clampi`](Custom/clampi.md) · [`hsec.cteq`](Custom/hsec.cteq.md) · [`paddus.b`](Custom/paddus.b.md) · [`psubus.b`](Custom/psubus.b.md) · [`pavgu.b`](Custom/pavgu.b.md) · [`pmaxu.b`](Custom/pmaxu.b.md) · [`pminu.b`](Custom/pminu.b.md) · [`psad.b`](Custom/psad.b.md) · [`pdot.b`](Custom/pdot.b.md) · [`pdot.h`](Custom/pdot.h.md) · [`pmulhrs.h`](Custom/pmulhrs.h.md)
 

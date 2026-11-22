@@ -261,6 +261,10 @@ const CHAPTERS = [
   ['10_three_architectures', 'Three architectures', 'The same program on RISC-V, MIPS and x86-64: encodings, delay slots and micro-ops.'],
   ['11_custom_instructions', 'Your own instructions', 'Design an instruction, give it an encoding, and put it in the hardware.'],
   ['12_adding_instructions', 'Adding SHA-2 by hand', 'A ratified extension, Zknh, through all five layers, and whether it paid off.'],
+  ['13_clock_and_floorplan', 'Trading cycles for clock', 'Where the slowest paths are, and where the caches go on the chip.'],
+  ['14_deep_pipeline', 'A deeper pipeline', '14 stages, a staggered adder, and a faster clock weighed against a higher CPI.'],
+  ['15_packed_compute', 'Packed instructions', 'Eight bytes per instruction for pixels, audio and int8 networks, and a dot product split across two stages.'],
+  ['16_is_it_right', 'Is it right?', 'The official RISC-V tests on every build, and the one gap they found.'],
 ];
 $('chapters').innerHTML = CHAPTERS.map(([f, t, d]) => `<li><a href="${blob(`docs/learn/${f}.md`)}"><strong>${t}</strong><span>${d}</span></a></li>`).join('');
 

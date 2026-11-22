@@ -1,0 +1,207 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 900" width="1500" height="900">
+<defs><marker id="m-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2B3A31"/></marker><marker id="m-pred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#00796B"/></marker><marker id="m-flush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C2185B"/></marker><marker id="m-F1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E86C1"/></marker><marker id="m-F2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-E" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E08E0B"/></marker><marker id="m-M" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#27AE60"/></marker><marker id="m-tag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9982E"/></marker><marker id="m-idx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-off" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-hit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1E8449"/></marker><marker id="m-miss" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker><marker id="m-sub" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4A5A50"/></marker></defs>
+<rect width="100%" height="100%" rx="12" fill="#FBFCF8" stroke="#D5DBD0"/>
+<text x="24" y="34" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#17251D" text-anchor="start">Packed instructions: eight lanes in one register</text>
+<text x="24" y="56" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#4A5A50" text-anchor="start">Custom-0 group "xcompute" (Riscv64 parameter XCOMPUTE). A 64-bit register holds 8 bytes or 4 16-bit numbers; one instruction works on all of them at once.</text>
+<text x="40" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#17251D" text-anchor="start">1. paddus.b rd, rs1, rs2: 8 saturating byte adds (brighten, additive blending)</text>
+<text x="148" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="end">rs1</text>
+<rect x="160" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="188" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">f0</text>
+<rect x="222" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="250" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">10</text>
+<rect x="284" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="312" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">80</text>
+<rect x="346" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="374" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">7f</text>
+<rect x="408" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="436" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">ff</text>
+<rect x="470" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="498" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">01</text>
+<rect x="532" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="560" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">c8</text>
+<rect x="594" y="102" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="622" y="123" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">20</text>
+<text x="148" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="end">rs2</text>
+<rect x="160" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="188" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">20</text>
+<rect x="222" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="250" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">10</text>
+<rect x="284" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="312" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">90</text>
+<rect x="346" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="374" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">01</text>
+<rect x="408" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="436" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">01</text>
+<rect x="470" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="498" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">fe</text>
+<rect x="532" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="560" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">64</text>
+<rect x="594" y="142" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="622" y="163" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">10</text>
+<text x="188" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="250" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="312" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="374" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="436" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="498" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="560" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="622" y="196" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#4A5A50" text-anchor="middle">+</text>
+<text x="148" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="end">rd</text>
+<rect x="160" y="204" width="56" height="32" rx="6" fill="#FDECEF" stroke="#C2185B" stroke-width="1.5"/>
+<text x="188" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">ff</text>
+<rect x="222" y="204" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#27AE60" stroke-width="1.5"/>
+<text x="250" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">20</text>
+<rect x="284" y="204" width="56" height="32" rx="6" fill="#FDECEF" stroke="#C2185B" stroke-width="1.5"/>
+<text x="312" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">ff</text>
+<rect x="346" y="204" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#27AE60" stroke-width="1.5"/>
+<text x="374" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">80</text>
+<rect x="408" y="204" width="56" height="32" rx="6" fill="#FDECEF" stroke="#C2185B" stroke-width="1.5"/>
+<text x="436" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">ff</text>
+<rect x="470" y="204" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#27AE60" stroke-width="1.5"/>
+<text x="498" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">ff</text>
+<rect x="532" y="204" width="56" height="32" rx="6" fill="#FDECEF" stroke="#C2185B" stroke-width="1.5"/>
+<text x="560" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">ff</text>
+<rect x="594" y="204" width="56" height="32" rx="6" fill="#F3F7F2" stroke="#27AE60" stroke-width="1.5"/>
+<text x="622" y="225" font-family="'IBM Plex Mono',Consolas,monospace" font-size="13" font-weight="600" fill="#17251D" text-anchor="middle">30</text>
+<text x="676" y="122" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">No carry crosses a lane boundary: eight 9-bit adders</text>
+<text x="676" y="140" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">side by side, each shallower than one 64-bit add.</text>
+<text x="676" y="164" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="600" fill="#C2185B" text-anchor="start">Pink: the sum passed 255, so the lane stops at ff</text>
+<text x="676" y="182" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">(plain adds would wrap a bright pixel to black).</text>
+<text x="676" y="206" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">Runs in MEMORY alone, like every custom instruction.</text>
+<text x="40" y="300" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#17251D" text-anchor="start">2. pdot.b rd, rs1, rs2: a dot product of 8 signed bytes, split between EXECUTE and MEMORY</text>
+<rect x="40" y="316" width="450" height="30" rx="6" fill="#E08E0B" stroke="#E08E0B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="265" y="336" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#E08E0B" text-anchor="middle">EXECUTE: CustomPrepare</text>
+<rect x="520" y="316" width="450" height="30" rx="6" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="745" y="336" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY: CustomUnit</text>
+<rect x="1000" y="316" width="460" height="30" rx="6" fill="#C0392B" stroke="#C0392B" stroke-width="1.5" fill-opacity="0.14"/>
+<text x="1230" y="336" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#C0392B" text-anchor="middle">WRITEBACK</text>
+<rect x="50" y="640" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="661" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 0:    3 ×    6</text>
+<rect x="280" y="640" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="659" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="640" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="661" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">18</text>
+<path d="M482,656 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="600" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="621" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 1:   16 ×  -16</text>
+<rect x="280" y="600" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="619" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="600" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="621" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">-256</text>
+<path d="M482,616 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="560" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="581" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 2:   -1 ×   -1</text>
+<rect x="280" y="560" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="579" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="560" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="581" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">1</text>
+<path d="M482,576 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="520" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="541" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 3:    5 ×   -5</text>
+<rect x="280" y="520" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="539" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="520" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="541" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">-25</text>
+<path d="M482,536 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="480" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="501" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 4: -128 ×  127</text>
+<rect x="280" y="480" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="499" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="480" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="501" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">-16256</text>
+<path d="M482,496 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="440" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="461" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 5:  127 ×    2</text>
+<rect x="280" y="440" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="459" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="440" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="461" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">254</text>
+<path d="M482,456 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="400" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="421" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 6:   -3 ×    4</text>
+<rect x="280" y="400" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="419" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="400" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="421" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">-12</text>
+<path d="M482,416 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<rect x="50" y="360" width="210" height="32" rx="6" fill="#F3F7F2" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="60" y="381" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="400" fill="#17251D" text-anchor="start">lane 7:    2 ×    4</text>
+<rect x="280" y="360" width="120" height="32" rx="6" fill="#FFFFFF" stroke="#2B3A31" stroke-width="1.5"/>
+<text x="340" y="379" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#17251D" text-anchor="middle">8 × 8 tree</text>
+<rect x="412" y="360" width="70" height="32" rx="6" fill="#FFF8EC" stroke="#E08E0B" stroke-width="1.5"/>
+<text x="447" y="381" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11.5" font-weight="600" fill="#17251D" text-anchor="middle">8</text>
+<path d="M482,376 L540,516" fill="none" stroke="#E08E0B" stroke-width="1.1" stroke-linejoin="round"/>
+<text x="270" y="696" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">Each product: 9 partial-product rows in a carry-save</text>
+<text x="270" y="710" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">tree (4 levels), then one 16-bit prefix add.</text>
+<rect x="492" y="356" width="14" height="330" rx="2" fill="#E9ECE6" stroke="#8A968E" stroke-width="1"/>
+<text x="499" y="704" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">PREPARED</text>
+<text x="499" y="716" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9.5" font-weight="400" fill="#4A5A50" text-anchor="middle">8 × 16 bits</text>
+<rect x="540" y="450" width="410" height="132" rx="6" fill="#FFFFFF" stroke="#27AE60" stroke-width="1.5"/>
+<text x="745" y="469" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">sum of the 8 products</text>
+<text x="745" y="484" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="middle">carry-save tree: 8 → 6 → 4 → 3 → 2 numbers</text>
+<text x="745" y="497.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="middle">(full adders: no carry runs along the word)</text>
+<text x="745" y="511" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="middle">then one 20-bit prefix add</text>
+<text x="745" y="524.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="middle">sign-extended to 64 bits</text>
+<path d="M950,516 L1020,516" fill="none" stroke="#27AE60" stroke-width="2.2" stroke-linejoin="round" marker-end="url(#m-M)"/>
+<rect x="1020" y="482" width="420" height="70" rx="6" fill="#FFFFFF" stroke="#C0392B" stroke-width="1.5"/>
+<text x="1230" y="501" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">rd = -16268</text>
+<text x="1230" y="516" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="middle">the dot product, written to rd and</text>
+<text x="1230" y="529.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="middle">forwarded to DECODE from WRITEBACK</text>
+<text x="745" y="612" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#17251D" text-anchor="middle">A whole 8-lane multiply-and-sum is too deep for one clock next to</text>
+<text x="745" y="627" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#17251D" text-anchor="middle">everything else; split like this, each half fits (docs/XCOMPUTE.md).</text>
+<text x="40" y="742" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#17251D" text-anchor="start">3. The set (custom/instructions.json, funct3 = 3)</text>
+<rect x="40" y="756" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="50" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">paddus.b</text>
+<text x="140" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 0</text>
+<rect x="216" y="764" width="120" height="17.5" rx="8.75" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="276" y="775.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY</text>
+<text x="346" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">paddusb(a, b)</text>
+<rect x="520" y="756" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="530" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">psubus.b</text>
+<text x="620" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 1</text>
+<rect x="696" y="764" width="120" height="17.5" rx="8.75" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="756" y="775.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY</text>
+<text x="826" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">psubusb(a, b)</text>
+<rect x="1000" y="756" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="1010" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">pavgu.b</text>
+<text x="1100" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 2</text>
+<rect x="1176" y="764" width="120" height="17.5" rx="8.75" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="1236" y="775.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY</text>
+<text x="1306" y="778" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">pavgub(a, b)</text>
+<rect x="40" y="798" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="50" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">pmaxu.b</text>
+<text x="140" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 3</text>
+<rect x="216" y="806" width="120" height="17.5" rx="8.75" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="276" y="817.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY</text>
+<text x="346" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">pmaxub(a, b)</text>
+<rect x="520" y="798" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="530" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">pminu.b</text>
+<text x="620" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 4</text>
+<rect x="696" y="806" width="120" height="17.5" rx="8.75" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="756" y="817.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#27AE60" text-anchor="middle">MEMORY</text>
+<text x="826" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">pminub(a, b)</text>
+<rect x="1000" y="798" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="1010" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">psad.b</text>
+<text x="1100" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 5</text>
+<rect x="1176" y="806" width="120" height="17.5" rx="8.75" fill="#E08E0B" fill-opacity="0.13" stroke="#E08E0B"/>
+<text x="1236" y="817.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#E08E0B" text-anchor="middle">EXECUTE + MEMORY</text>
+<text x="1306" y="820" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">psadb(a, b)</text>
+<rect x="40" y="840" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="50" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">pdot.b</text>
+<text x="140" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 6</text>
+<rect x="216" y="848" width="120" height="17.5" rx="8.75" fill="#E08E0B" fill-opacity="0.13" stroke="#E08E0B"/>
+<text x="276" y="859.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#E08E0B" text-anchor="middle">EXECUTE + MEMORY</text>
+<text x="346" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">pdotb(a, b)</text>
+<rect x="520" y="840" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="530" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">pdot.h</text>
+<text x="620" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 7</text>
+<rect x="696" y="848" width="120" height="17.5" rx="8.75" fill="#E08E0B" fill-opacity="0.13" stroke="#E08E0B"/>
+<text x="756" y="859.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#E08E0B" text-anchor="middle">EXECUTE + MEMORY</text>
+<text x="826" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">pdoth(a, b)</text>
+<rect x="1000" y="840" width="466" height="34" rx="6" fill="#F7F9F5" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="1010" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="12" font-weight="700" fill="#17251D" text-anchor="start">pmulhrs.h</text>
+<text x="1100" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">funct7 8</text>
+<rect x="1176" y="848" width="120" height="17.5" rx="8.75" fill="#E08E0B" fill-opacity="0.13" stroke="#E08E0B"/>
+<text x="1236" y="859.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="700" fill="#E08E0B" text-anchor="middle">EXECUTE + MEMORY</text>
+<text x="1306" y="862" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">pmulhrsh(a, b)</text>
+</svg>

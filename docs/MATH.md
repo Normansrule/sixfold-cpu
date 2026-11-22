@@ -14,25 +14,39 @@ For the original chip, 1 / 26 ns = **38.5 MHz**. A program with CPI 1.3 then exe
 ## 2. Exact cycle count
 
 ```text
-cycles = N + (S - 1) + L + P * F + R + K + I + D + X
-       = N + 5       + L + 3 * F + R + K + I + D + X
+cycles = N + (S - 1) + L + P * F + R + K + I + D + X + B
+       = N + 5       + L + 3 * F + R + K + I + D + X + B
 ```
 
 | symbol | meaning | source in the RTL | hardware counter |
 |---|---|---|---|
 | N | instructions retired | `WRITEBACK_VALID` | `instret` (0xC02) |
 | S | stages = 6; the first instruction needs 6 cycles, so S - 1 = 5 fill bubbles | | |
-| L | load stalls (loads, the 2-cycle Zbb results, and a Zbs single-bit operation whose bit number was just computed), 1 bubble each | `LOAD_STALL` | `hpmcounter3` |
-| F | flushes: wrong branch guesses + JALR misses + traps, P = 3 bubbles each | `FLUSH_FETCH1_FETCH2_DECODE` | `hpmcounter4` |
+| L | load stalls (loads, the 2-cycle Zbb results, a Zbs single-bit operation whose bit number was just computed, and in the turbo build an M result used right away), 1 bubble each | `LOAD_STALL` | `hpmcounter3` |
+| F | flushes: wrong branch guesses + JALR misses + traps + `fence.i`, P = 3 bubbles each | `FLUSH_FETCH1_FETCH2_DECODE` | `hpmcounter4` |
 | R | FETCH2 redirects whose bubble survives, 1 each (taken branches found in the BTB cost 0 and are not counted) | `FETCH2_BRANCH_OFF_OR_CONTINUE` | `hpmcounter5` (every redirect) |
-| K | cycles the iterative M unit holds EXECUTE (performance build) | `MULTIPLY_DIVIDE_STALL` | `hpmcounter6` |
+| K | cycles the iterative M unit holds EXECUTE (performance build: multiply 7, divide 4 + dividend bits; turbo build: multiply 3, divide 2 + ceil((dividend bits - divisor bits + 1) / 2) (at least 3), + 1 for a negative operand or remainder, see [PERFORMANCE.md](PERFORMANCE.md#fastmultiplydivide-a-separate-unit-fastmultiplydivideunit)) | `MULTIPLY_DIVIDE_STALL` | `hpmcounter6` |
 | I | bubbles sent to FETCH2 while the instruction cache refills | `icache_hit` | `hpmcounter7` |
 | D | cycles a load waits in EXECUTE for its data-cache line | `DATA_CACHE_STALL` | `hpmcounter8` |
 | X | interrupts taken: the pseudo-instruction that replaced a DECODE instruction never retires, 1 bubble each (its flush is already in F) | `EXECUTE_IS_AN_INTERRUPT` | `hpmcounter9` |
+| B | turbo build only (`LATE_BRANCH_RESOLVE`): a wrong branch guess or JALR target is acted on one cycle later, from MEMORY, and the instruction then in EXECUTE is removed too: 1 bubble on top of the flush's 3 (0 when EXECUTE held a bubble) | `LATE_FLUSH && EXECUTE_VALID` | `hpmcounter10` |
+
+**The deep-pipeline edition** ([DEEP_PIPELINE.md](DEEP_PIPELINE.md), 14 stages) uses the same equation: each
+event is charged what it costs in the six-stage pipeline, and B counts every bubble that exists only because the
+pipeline is deeper (the rest of a flush's refill, a dependency wait longer than the six-stage pipeline's, the
+prediction bubbles of its fourth fetch stage). Every bubble is tagged with its cause when it reaches W, so
+`make math` checks the equation exactly for this build too. Its M unit holds for `2 x steps + 4` cycles, where a
+step is one 64 x 64-bit multiply or 4 quotient bits of a divide (`deepMultiplyDivideSteps` in
+[`model/deep.js`](../model/deep.js)).
 
 **Why 3 for a flush:** when EXECUTE flushes, FETCH1, FETCH2 and DECODE all hold wrong-path
 instructions. They are replaced by bubbles, and the correct instruction starts in FETCH1 on the next
 cycle, reaching EXECUTE 3 cycles after the branch left it.
+
+**Why a late branch costs 4:** the turbo build stores the branch's outcome in the MEMORY pipeline register
+instead of flushing straight from the comparator. One cycle later the flush clears FETCH1, FETCH2, DECODE (3,
+counted in F) and EXECUTE (1, counted in B). The comparator then feeds only flip-flops, so the path from the
+branch compare to the next-PC multiplexer and every front-end enable is gone from the clock.
 
 **Why an interrupt costs 4:** the interrupt replaces the instruction in DECODE with a pseudo-instruction
 that traps in EXECUTE. Its flush squashes FETCH1, FETCH2 and DECODE (3 bubbles, counted in F), and its own

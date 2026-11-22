@@ -7,6 +7,11 @@
 // funct3 4 to 7 is I format (rd, rs1, a 12-bit immediate).
 //   CustomDecode (in DECODE): which instruction this is, one bit per instruction (one-hot), carried along
 //     with the instruction, so no funct3 / funct7 comparison is left on the custom unit's path.
+//   CustomPrepare (in EXECUTE): the first half of each split function, registered into MEMORY with the
+//     operands (272 bits, PREPARED). A popcount (at most 3 per instruction) counts the ones of its
+//     argument in four 16-bit quarters, like src/Population_Count.sv; the packed psadb takes the eight byte
+//     differences, pdotb / pdoth / pmulhrsh the lane products. Too deep for one cycle next to everything
+//     else; split in two, each half fits.
 //   CustomUnit (in MEMORY): every instruction's result in parallel, and an AND-OR keeps the selected one.
 //     A is rs1 and B is rs2 or the sign-extended immediate, chosen and forwarded in DECODE like the ALU's
 //     and registered at the end of EXECUTE, so this logic has the whole MEMORY cycle to itself. The result
@@ -18,9 +23,20 @@
 //   hamming    R  funct3 1  funct7 0    rd = popcount(a ^ b)
 //   clampi     I  funct3 4              rd = min(max(a, 0), imm)
 //   hsec.cteq  R  funct3 2  funct7 0    rd = a == b
+//   paddus.b   R  funct3 3  funct7 0    rd = paddusb(a, b)
+//   psubus.b   R  funct3 3  funct7 1    rd = psubusb(a, b)
+//   pavgu.b    R  funct3 3  funct7 2    rd = pavgub(a, b)
+//   pmaxu.b    R  funct3 3  funct7 3    rd = pmaxub(a, b)
+//   pminu.b    R  funct3 3  funct7 4    rd = pminub(a, b)
+//   psad.b     R  funct3 3  funct7 5    rd = psadb(a, b)
+//   pdot.b     R  funct3 3  funct7 6    rd = pdotb(a, b)
+//   pdot.h     R  funct3 3  funct7 7    rd = pdoth(a, b)
+//   pmulhrs.h  R  funct3 3  funct7 8    rd = pmulhrsh(a, b)
 // =============================================================================
 /* verilator lint_off UNUSEDSIGNAL */
-module CustomDecode (
+module CustomDecode #(
+    parameter bit XCOMPUTE = 1'b0 // the "xcompute" instructions (0: their encodings give 0, as if unassigned)
+) (
     input  logic [2:0]  FUNCT3,  // instruction bits 14:12
     input  logic [6:0]  FUNCT7,  // instruction bits 31:25 (part of the immediate in I format)
     output logic [31:0] SELECT   // one bit per custom instruction (at most 32)
@@ -30,46 +46,1107 @@ module CustomDecode (
   assign SELECT[2] = (FUNCT3 == 3'd1) && (FUNCT7 == 7'd0); // hamming
   assign SELECT[3] = (FUNCT3 == 3'd4); // clampi
   assign SELECT[4] = (FUNCT3 == 3'd2) && (FUNCT7 == 7'd0); // hsec.cteq
-  assign SELECT[31:5] = '0;
+  assign SELECT[5] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd0); // paddus.b (xcompute)
+  assign SELECT[6] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd1); // psubus.b (xcompute)
+  assign SELECT[7] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd2); // pavgu.b (xcompute)
+  assign SELECT[8] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd3); // pmaxu.b (xcompute)
+  assign SELECT[9] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd4); // pminu.b (xcompute)
+  assign SELECT[10] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd5); // psad.b (xcompute)
+  assign SELECT[11] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd6); // pdot.b (xcompute)
+  assign SELECT[12] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd7); // pdot.h (xcompute)
+  assign SELECT[13] = XCOMPUTE && (FUNCT3 == 3'd3) && (FUNCT7 == 7'd8); // pmulhrs.h (xcompute)
+  assign SELECT[31:14] = '0;
 endmodule
 
-module CustomUnit (
-    input  logic [63:0] A,       // rs1
-    input  logic [63:0] B,       // rs2 (R format) or the sign-extended immediate (I format)
-    input  logic [31:0] SELECT,  // from CustomDecode, one stage earlier
-    output logic [63:0] RESULT
+module CustomPrepare (
+    input  logic [63:0]  A,        // rs1, at the start of EXECUTE
+    input  logic [63:0]  B,        // rs2 or the immediate
+    input  logic [31:0]  SELECT,   // from CustomDecode, one stage earlier
+    output logic [271:0] PREPARED  // the selected instruction's first halves (20 bits per split popcount)
 );
-  function automatic logic [13:0] f_csa7(input logic [6:0] a, input logic [6:0] b, input logic [6:0] c);
-    return {((a & b) | (a & c) | (b & c)) << 1, a ^ b ^ c}; // {carry (already moved one column left), sum}
+  function automatic logic [64:0] f_addc(input logic [63:0] x, input logic [63:0] y, input logic c);
+    logic [63:0] g, p, h;
+    g = x & y; p = x ^ y; h = p;
+    g[0] = g[0] | (p[0] & c); // the carry in joins bit 0
+    for (int d = 1; d < 64; d = 2 * d)
+    for (int i = 63; i >= d; i--) begin // from the top down, so g[i - d] is still the previous level's
+    g[i] = g[i] | (p[i] & g[i - d]);
+    p[i] = p[i] & p[i - d];
+    end
+    return {g[63], h ^ {g[62:0], c}}; // g[i] is now the carry out of bits i ... 0
   endfunction
-  function automatic logic [63:0] f_max(input logic [63:0] x, input logic [63:0] y); return ($signed(x) > $signed(y)) ? x : y; endfunction
-  function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return ($signed(x) < $signed(y)) ? x : y; endfunction
-  function automatic logic [63:0] f_popcount(input logic [63:0] x);
-    logic [15:0][6:0] v; logic [3:0] q; logic two;
-    logic [13:0] a0, a1, a2, a3, a4, b0, b1, b2, c0, c1, d0, d1, e0, f0;
+  function automatic logic [127:0] f_pdotb_prep(input logic [63:0] x, input logic [63:0] y);
+    logic [127:0] r; logic [64:0] t;
+    logic [15:0] l0a;
+    logic [15:0] l0r0;
+    logic [15:0] l0r1;
+    logic [15:0] l0r2;
+    logic [15:0] l0r3;
+    logic [15:0] l0r4;
+    logic [15:0] l0r5;
+    logic [15:0] l0r6;
+    logic [15:0] l0r7;
+    logic [15:0] l0r8;
+    logic [15:0] l0s0, l0c0;
+    logic [15:0] l0s1, l0c1;
+    logic [15:0] l0s2, l0c2;
+    logic [15:0] l0s3, l0c3;
+    logic [15:0] l0s4, l0c4;
+    logic [15:0] l0s5, l0c5;
+    logic [15:0] l0s6, l0c6;
+    logic [15:0] l1a;
+    logic [15:0] l1r0;
+    logic [15:0] l1r1;
+    logic [15:0] l1r2;
+    logic [15:0] l1r3;
+    logic [15:0] l1r4;
+    logic [15:0] l1r5;
+    logic [15:0] l1r6;
+    logic [15:0] l1r7;
+    logic [15:0] l1r8;
+    logic [15:0] l1s0, l1c0;
+    logic [15:0] l1s1, l1c1;
+    logic [15:0] l1s2, l1c2;
+    logic [15:0] l1s3, l1c3;
+    logic [15:0] l1s4, l1c4;
+    logic [15:0] l1s5, l1c5;
+    logic [15:0] l1s6, l1c6;
+    logic [15:0] l2a;
+    logic [15:0] l2r0;
+    logic [15:0] l2r1;
+    logic [15:0] l2r2;
+    logic [15:0] l2r3;
+    logic [15:0] l2r4;
+    logic [15:0] l2r5;
+    logic [15:0] l2r6;
+    logic [15:0] l2r7;
+    logic [15:0] l2r8;
+    logic [15:0] l2s0, l2c0;
+    logic [15:0] l2s1, l2c1;
+    logic [15:0] l2s2, l2c2;
+    logic [15:0] l2s3, l2c3;
+    logic [15:0] l2s4, l2c4;
+    logic [15:0] l2s5, l2c5;
+    logic [15:0] l2s6, l2c6;
+    logic [15:0] l3a;
+    logic [15:0] l3r0;
+    logic [15:0] l3r1;
+    logic [15:0] l3r2;
+    logic [15:0] l3r3;
+    logic [15:0] l3r4;
+    logic [15:0] l3r5;
+    logic [15:0] l3r6;
+    logic [15:0] l3r7;
+    logic [15:0] l3r8;
+    logic [15:0] l3s0, l3c0;
+    logic [15:0] l3s1, l3c1;
+    logic [15:0] l3s2, l3c2;
+    logic [15:0] l3s3, l3c3;
+    logic [15:0] l3s4, l3c4;
+    logic [15:0] l3s5, l3c5;
+    logic [15:0] l3s6, l3c6;
+    logic [15:0] l4a;
+    logic [15:0] l4r0;
+    logic [15:0] l4r1;
+    logic [15:0] l4r2;
+    logic [15:0] l4r3;
+    logic [15:0] l4r4;
+    logic [15:0] l4r5;
+    logic [15:0] l4r6;
+    logic [15:0] l4r7;
+    logic [15:0] l4r8;
+    logic [15:0] l4s0, l4c0;
+    logic [15:0] l4s1, l4c1;
+    logic [15:0] l4s2, l4c2;
+    logic [15:0] l4s3, l4c3;
+    logic [15:0] l4s4, l4c4;
+    logic [15:0] l4s5, l4c5;
+    logic [15:0] l4s6, l4c6;
+    logic [15:0] l5a;
+    logic [15:0] l5r0;
+    logic [15:0] l5r1;
+    logic [15:0] l5r2;
+    logic [15:0] l5r3;
+    logic [15:0] l5r4;
+    logic [15:0] l5r5;
+    logic [15:0] l5r6;
+    logic [15:0] l5r7;
+    logic [15:0] l5r8;
+    logic [15:0] l5s0, l5c0;
+    logic [15:0] l5s1, l5c1;
+    logic [15:0] l5s2, l5c2;
+    logic [15:0] l5s3, l5c3;
+    logic [15:0] l5s4, l5c4;
+    logic [15:0] l5s5, l5c5;
+    logic [15:0] l5s6, l5c6;
+    logic [15:0] l6a;
+    logic [15:0] l6r0;
+    logic [15:0] l6r1;
+    logic [15:0] l6r2;
+    logic [15:0] l6r3;
+    logic [15:0] l6r4;
+    logic [15:0] l6r5;
+    logic [15:0] l6r6;
+    logic [15:0] l6r7;
+    logic [15:0] l6r8;
+    logic [15:0] l6s0, l6c0;
+    logic [15:0] l6s1, l6c1;
+    logic [15:0] l6s2, l6c2;
+    logic [15:0] l6s3, l6c3;
+    logic [15:0] l6s4, l6c4;
+    logic [15:0] l6s5, l6c5;
+    logic [15:0] l6s6, l6c6;
+    logic [15:0] l7a;
+    logic [15:0] l7r0;
+    logic [15:0] l7r1;
+    logic [15:0] l7r2;
+    logic [15:0] l7r3;
+    logic [15:0] l7r4;
+    logic [15:0] l7r5;
+    logic [15:0] l7r6;
+    logic [15:0] l7r7;
+    logic [15:0] l7r8;
+    logic [15:0] l7s0, l7c0;
+    logic [15:0] l7s1, l7c1;
+    logic [15:0] l7s2, l7c2;
+    logic [15:0] l7s3, l7c3;
+    logic [15:0] l7s4, l7c4;
+    logic [15:0] l7s5, l7c5;
+    logic [15:0] l7s6, l7c6;
+    r = 128'd0;
+    l0a = {{8{x[7]}}, x[7:0]};
+    l0r0 = ({16{y[0]}} & (l0a << 0));
+    l0r1 = ({16{y[1]}} & (l0a << 1));
+    l0r2 = ({16{y[2]}} & (l0a << 2));
+    l0r3 = ({16{y[3]}} & (l0a << 3));
+    l0r4 = ({16{y[4]}} & (l0a << 4));
+    l0r5 = ({16{y[5]}} & (l0a << 5));
+    l0r6 = ({16{y[6]}} & (l0a << 6));
+    l0r7 = ({16{y[7]}} & ~(l0a << 7));
+    l0r8 = {15'd0, y[7]};
+    l0s0 = l0r0 ^ l0r1 ^ l0r2; l0c0 = ((l0r0 & l0r1) | (l0r0 & l0r2) | (l0r1 & l0r2)) << 1;
+    l0s1 = l0r3 ^ l0r4 ^ l0r5; l0c1 = ((l0r3 & l0r4) | (l0r3 & l0r5) | (l0r4 & l0r5)) << 1;
+    l0s2 = l0r6 ^ l0r7 ^ l0r8; l0c2 = ((l0r6 & l0r7) | (l0r6 & l0r8) | (l0r7 & l0r8)) << 1;
+    l0s3 = l0s0 ^ l0c0 ^ l0s1; l0c3 = ((l0s0 & l0c0) | (l0s0 & l0s1) | (l0c0 & l0s1)) << 1;
+    l0s4 = l0c1 ^ l0s2 ^ l0c2; l0c4 = ((l0c1 & l0s2) | (l0c1 & l0c2) | (l0s2 & l0c2)) << 1;
+    l0s5 = l0s3 ^ l0c3 ^ l0s4; l0c5 = ((l0s3 & l0c3) | (l0s3 & l0s4) | (l0c3 & l0s4)) << 1;
+    l0s6 = l0s5 ^ l0c5 ^ l0c4; l0c6 = ((l0s5 & l0c5) | (l0s5 & l0c4) | (l0c5 & l0c4)) << 1;
+    t = f_addc({48'd0, l0s6}, {48'd0, l0c6}, 1'b0);
+    r[0 +: 16] = t[15:0];
+    l1a = {{8{x[15]}}, x[15:8]};
+    l1r0 = ({16{y[8]}} & (l1a << 0));
+    l1r1 = ({16{y[9]}} & (l1a << 1));
+    l1r2 = ({16{y[10]}} & (l1a << 2));
+    l1r3 = ({16{y[11]}} & (l1a << 3));
+    l1r4 = ({16{y[12]}} & (l1a << 4));
+    l1r5 = ({16{y[13]}} & (l1a << 5));
+    l1r6 = ({16{y[14]}} & (l1a << 6));
+    l1r7 = ({16{y[15]}} & ~(l1a << 7));
+    l1r8 = {15'd0, y[15]};
+    l1s0 = l1r0 ^ l1r1 ^ l1r2; l1c0 = ((l1r0 & l1r1) | (l1r0 & l1r2) | (l1r1 & l1r2)) << 1;
+    l1s1 = l1r3 ^ l1r4 ^ l1r5; l1c1 = ((l1r3 & l1r4) | (l1r3 & l1r5) | (l1r4 & l1r5)) << 1;
+    l1s2 = l1r6 ^ l1r7 ^ l1r8; l1c2 = ((l1r6 & l1r7) | (l1r6 & l1r8) | (l1r7 & l1r8)) << 1;
+    l1s3 = l1s0 ^ l1c0 ^ l1s1; l1c3 = ((l1s0 & l1c0) | (l1s0 & l1s1) | (l1c0 & l1s1)) << 1;
+    l1s4 = l1c1 ^ l1s2 ^ l1c2; l1c4 = ((l1c1 & l1s2) | (l1c1 & l1c2) | (l1s2 & l1c2)) << 1;
+    l1s5 = l1s3 ^ l1c3 ^ l1s4; l1c5 = ((l1s3 & l1c3) | (l1s3 & l1s4) | (l1c3 & l1s4)) << 1;
+    l1s6 = l1s5 ^ l1c5 ^ l1c4; l1c6 = ((l1s5 & l1c5) | (l1s5 & l1c4) | (l1c5 & l1c4)) << 1;
+    t = f_addc({48'd0, l1s6}, {48'd0, l1c6}, 1'b0);
+    r[16 +: 16] = t[15:0];
+    l2a = {{8{x[23]}}, x[23:16]};
+    l2r0 = ({16{y[16]}} & (l2a << 0));
+    l2r1 = ({16{y[17]}} & (l2a << 1));
+    l2r2 = ({16{y[18]}} & (l2a << 2));
+    l2r3 = ({16{y[19]}} & (l2a << 3));
+    l2r4 = ({16{y[20]}} & (l2a << 4));
+    l2r5 = ({16{y[21]}} & (l2a << 5));
+    l2r6 = ({16{y[22]}} & (l2a << 6));
+    l2r7 = ({16{y[23]}} & ~(l2a << 7));
+    l2r8 = {15'd0, y[23]};
+    l2s0 = l2r0 ^ l2r1 ^ l2r2; l2c0 = ((l2r0 & l2r1) | (l2r0 & l2r2) | (l2r1 & l2r2)) << 1;
+    l2s1 = l2r3 ^ l2r4 ^ l2r5; l2c1 = ((l2r3 & l2r4) | (l2r3 & l2r5) | (l2r4 & l2r5)) << 1;
+    l2s2 = l2r6 ^ l2r7 ^ l2r8; l2c2 = ((l2r6 & l2r7) | (l2r6 & l2r8) | (l2r7 & l2r8)) << 1;
+    l2s3 = l2s0 ^ l2c0 ^ l2s1; l2c3 = ((l2s0 & l2c0) | (l2s0 & l2s1) | (l2c0 & l2s1)) << 1;
+    l2s4 = l2c1 ^ l2s2 ^ l2c2; l2c4 = ((l2c1 & l2s2) | (l2c1 & l2c2) | (l2s2 & l2c2)) << 1;
+    l2s5 = l2s3 ^ l2c3 ^ l2s4; l2c5 = ((l2s3 & l2c3) | (l2s3 & l2s4) | (l2c3 & l2s4)) << 1;
+    l2s6 = l2s5 ^ l2c5 ^ l2c4; l2c6 = ((l2s5 & l2c5) | (l2s5 & l2c4) | (l2c5 & l2c4)) << 1;
+    t = f_addc({48'd0, l2s6}, {48'd0, l2c6}, 1'b0);
+    r[32 +: 16] = t[15:0];
+    l3a = {{8{x[31]}}, x[31:24]};
+    l3r0 = ({16{y[24]}} & (l3a << 0));
+    l3r1 = ({16{y[25]}} & (l3a << 1));
+    l3r2 = ({16{y[26]}} & (l3a << 2));
+    l3r3 = ({16{y[27]}} & (l3a << 3));
+    l3r4 = ({16{y[28]}} & (l3a << 4));
+    l3r5 = ({16{y[29]}} & (l3a << 5));
+    l3r6 = ({16{y[30]}} & (l3a << 6));
+    l3r7 = ({16{y[31]}} & ~(l3a << 7));
+    l3r8 = {15'd0, y[31]};
+    l3s0 = l3r0 ^ l3r1 ^ l3r2; l3c0 = ((l3r0 & l3r1) | (l3r0 & l3r2) | (l3r1 & l3r2)) << 1;
+    l3s1 = l3r3 ^ l3r4 ^ l3r5; l3c1 = ((l3r3 & l3r4) | (l3r3 & l3r5) | (l3r4 & l3r5)) << 1;
+    l3s2 = l3r6 ^ l3r7 ^ l3r8; l3c2 = ((l3r6 & l3r7) | (l3r6 & l3r8) | (l3r7 & l3r8)) << 1;
+    l3s3 = l3s0 ^ l3c0 ^ l3s1; l3c3 = ((l3s0 & l3c0) | (l3s0 & l3s1) | (l3c0 & l3s1)) << 1;
+    l3s4 = l3c1 ^ l3s2 ^ l3c2; l3c4 = ((l3c1 & l3s2) | (l3c1 & l3c2) | (l3s2 & l3c2)) << 1;
+    l3s5 = l3s3 ^ l3c3 ^ l3s4; l3c5 = ((l3s3 & l3c3) | (l3s3 & l3s4) | (l3c3 & l3s4)) << 1;
+    l3s6 = l3s5 ^ l3c5 ^ l3c4; l3c6 = ((l3s5 & l3c5) | (l3s5 & l3c4) | (l3c5 & l3c4)) << 1;
+    t = f_addc({48'd0, l3s6}, {48'd0, l3c6}, 1'b0);
+    r[48 +: 16] = t[15:0];
+    l4a = {{8{x[39]}}, x[39:32]};
+    l4r0 = ({16{y[32]}} & (l4a << 0));
+    l4r1 = ({16{y[33]}} & (l4a << 1));
+    l4r2 = ({16{y[34]}} & (l4a << 2));
+    l4r3 = ({16{y[35]}} & (l4a << 3));
+    l4r4 = ({16{y[36]}} & (l4a << 4));
+    l4r5 = ({16{y[37]}} & (l4a << 5));
+    l4r6 = ({16{y[38]}} & (l4a << 6));
+    l4r7 = ({16{y[39]}} & ~(l4a << 7));
+    l4r8 = {15'd0, y[39]};
+    l4s0 = l4r0 ^ l4r1 ^ l4r2; l4c0 = ((l4r0 & l4r1) | (l4r0 & l4r2) | (l4r1 & l4r2)) << 1;
+    l4s1 = l4r3 ^ l4r4 ^ l4r5; l4c1 = ((l4r3 & l4r4) | (l4r3 & l4r5) | (l4r4 & l4r5)) << 1;
+    l4s2 = l4r6 ^ l4r7 ^ l4r8; l4c2 = ((l4r6 & l4r7) | (l4r6 & l4r8) | (l4r7 & l4r8)) << 1;
+    l4s3 = l4s0 ^ l4c0 ^ l4s1; l4c3 = ((l4s0 & l4c0) | (l4s0 & l4s1) | (l4c0 & l4s1)) << 1;
+    l4s4 = l4c1 ^ l4s2 ^ l4c2; l4c4 = ((l4c1 & l4s2) | (l4c1 & l4c2) | (l4s2 & l4c2)) << 1;
+    l4s5 = l4s3 ^ l4c3 ^ l4s4; l4c5 = ((l4s3 & l4c3) | (l4s3 & l4s4) | (l4c3 & l4s4)) << 1;
+    l4s6 = l4s5 ^ l4c5 ^ l4c4; l4c6 = ((l4s5 & l4c5) | (l4s5 & l4c4) | (l4c5 & l4c4)) << 1;
+    t = f_addc({48'd0, l4s6}, {48'd0, l4c6}, 1'b0);
+    r[64 +: 16] = t[15:0];
+    l5a = {{8{x[47]}}, x[47:40]};
+    l5r0 = ({16{y[40]}} & (l5a << 0));
+    l5r1 = ({16{y[41]}} & (l5a << 1));
+    l5r2 = ({16{y[42]}} & (l5a << 2));
+    l5r3 = ({16{y[43]}} & (l5a << 3));
+    l5r4 = ({16{y[44]}} & (l5a << 4));
+    l5r5 = ({16{y[45]}} & (l5a << 5));
+    l5r6 = ({16{y[46]}} & (l5a << 6));
+    l5r7 = ({16{y[47]}} & ~(l5a << 7));
+    l5r8 = {15'd0, y[47]};
+    l5s0 = l5r0 ^ l5r1 ^ l5r2; l5c0 = ((l5r0 & l5r1) | (l5r0 & l5r2) | (l5r1 & l5r2)) << 1;
+    l5s1 = l5r3 ^ l5r4 ^ l5r5; l5c1 = ((l5r3 & l5r4) | (l5r3 & l5r5) | (l5r4 & l5r5)) << 1;
+    l5s2 = l5r6 ^ l5r7 ^ l5r8; l5c2 = ((l5r6 & l5r7) | (l5r6 & l5r8) | (l5r7 & l5r8)) << 1;
+    l5s3 = l5s0 ^ l5c0 ^ l5s1; l5c3 = ((l5s0 & l5c0) | (l5s0 & l5s1) | (l5c0 & l5s1)) << 1;
+    l5s4 = l5c1 ^ l5s2 ^ l5c2; l5c4 = ((l5c1 & l5s2) | (l5c1 & l5c2) | (l5s2 & l5c2)) << 1;
+    l5s5 = l5s3 ^ l5c3 ^ l5s4; l5c5 = ((l5s3 & l5c3) | (l5s3 & l5s4) | (l5c3 & l5s4)) << 1;
+    l5s6 = l5s5 ^ l5c5 ^ l5c4; l5c6 = ((l5s5 & l5c5) | (l5s5 & l5c4) | (l5c5 & l5c4)) << 1;
+    t = f_addc({48'd0, l5s6}, {48'd0, l5c6}, 1'b0);
+    r[80 +: 16] = t[15:0];
+    l6a = {{8{x[55]}}, x[55:48]};
+    l6r0 = ({16{y[48]}} & (l6a << 0));
+    l6r1 = ({16{y[49]}} & (l6a << 1));
+    l6r2 = ({16{y[50]}} & (l6a << 2));
+    l6r3 = ({16{y[51]}} & (l6a << 3));
+    l6r4 = ({16{y[52]}} & (l6a << 4));
+    l6r5 = ({16{y[53]}} & (l6a << 5));
+    l6r6 = ({16{y[54]}} & (l6a << 6));
+    l6r7 = ({16{y[55]}} & ~(l6a << 7));
+    l6r8 = {15'd0, y[55]};
+    l6s0 = l6r0 ^ l6r1 ^ l6r2; l6c0 = ((l6r0 & l6r1) | (l6r0 & l6r2) | (l6r1 & l6r2)) << 1;
+    l6s1 = l6r3 ^ l6r4 ^ l6r5; l6c1 = ((l6r3 & l6r4) | (l6r3 & l6r5) | (l6r4 & l6r5)) << 1;
+    l6s2 = l6r6 ^ l6r7 ^ l6r8; l6c2 = ((l6r6 & l6r7) | (l6r6 & l6r8) | (l6r7 & l6r8)) << 1;
+    l6s3 = l6s0 ^ l6c0 ^ l6s1; l6c3 = ((l6s0 & l6c0) | (l6s0 & l6s1) | (l6c0 & l6s1)) << 1;
+    l6s4 = l6c1 ^ l6s2 ^ l6c2; l6c4 = ((l6c1 & l6s2) | (l6c1 & l6c2) | (l6s2 & l6c2)) << 1;
+    l6s5 = l6s3 ^ l6c3 ^ l6s4; l6c5 = ((l6s3 & l6c3) | (l6s3 & l6s4) | (l6c3 & l6s4)) << 1;
+    l6s6 = l6s5 ^ l6c5 ^ l6c4; l6c6 = ((l6s5 & l6c5) | (l6s5 & l6c4) | (l6c5 & l6c4)) << 1;
+    t = f_addc({48'd0, l6s6}, {48'd0, l6c6}, 1'b0);
+    r[96 +: 16] = t[15:0];
+    l7a = {{8{x[63]}}, x[63:56]};
+    l7r0 = ({16{y[56]}} & (l7a << 0));
+    l7r1 = ({16{y[57]}} & (l7a << 1));
+    l7r2 = ({16{y[58]}} & (l7a << 2));
+    l7r3 = ({16{y[59]}} & (l7a << 3));
+    l7r4 = ({16{y[60]}} & (l7a << 4));
+    l7r5 = ({16{y[61]}} & (l7a << 5));
+    l7r6 = ({16{y[62]}} & (l7a << 6));
+    l7r7 = ({16{y[63]}} & ~(l7a << 7));
+    l7r8 = {15'd0, y[63]};
+    l7s0 = l7r0 ^ l7r1 ^ l7r2; l7c0 = ((l7r0 & l7r1) | (l7r0 & l7r2) | (l7r1 & l7r2)) << 1;
+    l7s1 = l7r3 ^ l7r4 ^ l7r5; l7c1 = ((l7r3 & l7r4) | (l7r3 & l7r5) | (l7r4 & l7r5)) << 1;
+    l7s2 = l7r6 ^ l7r7 ^ l7r8; l7c2 = ((l7r6 & l7r7) | (l7r6 & l7r8) | (l7r7 & l7r8)) << 1;
+    l7s3 = l7s0 ^ l7c0 ^ l7s1; l7c3 = ((l7s0 & l7c0) | (l7s0 & l7s1) | (l7c0 & l7s1)) << 1;
+    l7s4 = l7c1 ^ l7s2 ^ l7c2; l7c4 = ((l7c1 & l7s2) | (l7c1 & l7c2) | (l7s2 & l7c2)) << 1;
+    l7s5 = l7s3 ^ l7c3 ^ l7s4; l7c5 = ((l7s3 & l7c3) | (l7s3 & l7s4) | (l7c3 & l7s4)) << 1;
+    l7s6 = l7s5 ^ l7c5 ^ l7c4; l7c6 = ((l7s5 & l7c5) | (l7s5 & l7c4) | (l7c5 & l7c4)) << 1;
+    t = f_addc({48'd0, l7s6}, {48'd0, l7c6}, 1'b0);
+    r[112 +: 16] = t[15:0];
+    return r;
+  endfunction
+  function automatic logic [271:0] f_pdoth_prep(input logic [63:0] x, input logic [63:0] y);
+    logic [271:0] r;
+    logic [33:0] l0a;
+    logic [33:0] l0r0;
+    logic [33:0] l0r1;
+    logic [33:0] l0r2;
+    logic [33:0] l0r3;
+    logic [33:0] l0r4;
+    logic [33:0] l0r5;
+    logic [33:0] l0r6;
+    logic [33:0] l0r7;
+    logic [33:0] l0r8;
+    logic [33:0] l0r9;
+    logic [33:0] l0r10;
+    logic [33:0] l0r11;
+    logic [33:0] l0r12;
+    logic [33:0] l0r13;
+    logic [33:0] l0r14;
+    logic [33:0] l0r15;
+    logic [33:0] l0r16;
+    logic [33:0] l0s0, l0c0;
+    logic [33:0] l0s1, l0c1;
+    logic [33:0] l0s2, l0c2;
+    logic [33:0] l0s3, l0c3;
+    logic [33:0] l0s4, l0c4;
+    logic [33:0] l0s5, l0c5;
+    logic [33:0] l0s6, l0c6;
+    logic [33:0] l0s7, l0c7;
+    logic [33:0] l0s8, l0c8;
+    logic [33:0] l0s9, l0c9;
+    logic [33:0] l0s10, l0c10;
+    logic [33:0] l0s11, l0c11;
+    logic [33:0] l0s12, l0c12;
+    logic [33:0] l0s13, l0c13;
+    logic [33:0] l0s14, l0c14;
+    logic [33:0] l1a;
+    logic [33:0] l1r0;
+    logic [33:0] l1r1;
+    logic [33:0] l1r2;
+    logic [33:0] l1r3;
+    logic [33:0] l1r4;
+    logic [33:0] l1r5;
+    logic [33:0] l1r6;
+    logic [33:0] l1r7;
+    logic [33:0] l1r8;
+    logic [33:0] l1r9;
+    logic [33:0] l1r10;
+    logic [33:0] l1r11;
+    logic [33:0] l1r12;
+    logic [33:0] l1r13;
+    logic [33:0] l1r14;
+    logic [33:0] l1r15;
+    logic [33:0] l1r16;
+    logic [33:0] l1s0, l1c0;
+    logic [33:0] l1s1, l1c1;
+    logic [33:0] l1s2, l1c2;
+    logic [33:0] l1s3, l1c3;
+    logic [33:0] l1s4, l1c4;
+    logic [33:0] l1s5, l1c5;
+    logic [33:0] l1s6, l1c6;
+    logic [33:0] l1s7, l1c7;
+    logic [33:0] l1s8, l1c8;
+    logic [33:0] l1s9, l1c9;
+    logic [33:0] l1s10, l1c10;
+    logic [33:0] l1s11, l1c11;
+    logic [33:0] l1s12, l1c12;
+    logic [33:0] l1s13, l1c13;
+    logic [33:0] l1s14, l1c14;
+    logic [33:0] l2a;
+    logic [33:0] l2r0;
+    logic [33:0] l2r1;
+    logic [33:0] l2r2;
+    logic [33:0] l2r3;
+    logic [33:0] l2r4;
+    logic [33:0] l2r5;
+    logic [33:0] l2r6;
+    logic [33:0] l2r7;
+    logic [33:0] l2r8;
+    logic [33:0] l2r9;
+    logic [33:0] l2r10;
+    logic [33:0] l2r11;
+    logic [33:0] l2r12;
+    logic [33:0] l2r13;
+    logic [33:0] l2r14;
+    logic [33:0] l2r15;
+    logic [33:0] l2r16;
+    logic [33:0] l2s0, l2c0;
+    logic [33:0] l2s1, l2c1;
+    logic [33:0] l2s2, l2c2;
+    logic [33:0] l2s3, l2c3;
+    logic [33:0] l2s4, l2c4;
+    logic [33:0] l2s5, l2c5;
+    logic [33:0] l2s6, l2c6;
+    logic [33:0] l2s7, l2c7;
+    logic [33:0] l2s8, l2c8;
+    logic [33:0] l2s9, l2c9;
+    logic [33:0] l2s10, l2c10;
+    logic [33:0] l2s11, l2c11;
+    logic [33:0] l2s12, l2c12;
+    logic [33:0] l2s13, l2c13;
+    logic [33:0] l2s14, l2c14;
+    logic [33:0] l3a;
+    logic [33:0] l3r0;
+    logic [33:0] l3r1;
+    logic [33:0] l3r2;
+    logic [33:0] l3r3;
+    logic [33:0] l3r4;
+    logic [33:0] l3r5;
+    logic [33:0] l3r6;
+    logic [33:0] l3r7;
+    logic [33:0] l3r8;
+    logic [33:0] l3r9;
+    logic [33:0] l3r10;
+    logic [33:0] l3r11;
+    logic [33:0] l3r12;
+    logic [33:0] l3r13;
+    logic [33:0] l3r14;
+    logic [33:0] l3r15;
+    logic [33:0] l3r16;
+    logic [33:0] l3s0, l3c0;
+    logic [33:0] l3s1, l3c1;
+    logic [33:0] l3s2, l3c2;
+    logic [33:0] l3s3, l3c3;
+    logic [33:0] l3s4, l3c4;
+    logic [33:0] l3s5, l3c5;
+    logic [33:0] l3s6, l3c6;
+    logic [33:0] l3s7, l3c7;
+    logic [33:0] l3s8, l3c8;
+    logic [33:0] l3s9, l3c9;
+    logic [33:0] l3s10, l3c10;
+    logic [33:0] l3s11, l3c11;
+    logic [33:0] l3s12, l3c12;
+    logic [33:0] l3s13, l3c13;
+    logic [33:0] l3s14, l3c14;
+    r = 272'd0;
+    l0a = {{18{x[15]}}, x[15:0]};
+    l0r0 = ({34{y[0]}} & (l0a << 0));
+    l0r1 = ({34{y[1]}} & (l0a << 1));
+    l0r2 = ({34{y[2]}} & (l0a << 2));
+    l0r3 = ({34{y[3]}} & (l0a << 3));
+    l0r4 = ({34{y[4]}} & (l0a << 4));
+    l0r5 = ({34{y[5]}} & (l0a << 5));
+    l0r6 = ({34{y[6]}} & (l0a << 6));
+    l0r7 = ({34{y[7]}} & (l0a << 7));
+    l0r8 = ({34{y[8]}} & (l0a << 8));
+    l0r9 = ({34{y[9]}} & (l0a << 9));
+    l0r10 = ({34{y[10]}} & (l0a << 10));
+    l0r11 = ({34{y[11]}} & (l0a << 11));
+    l0r12 = ({34{y[12]}} & (l0a << 12));
+    l0r13 = ({34{y[13]}} & (l0a << 13));
+    l0r14 = ({34{y[14]}} & (l0a << 14));
+    l0r15 = ({34{y[15]}} & ~(l0a << 15));
+    l0r16 = {33'd0, y[15]};
+    l0s0 = l0r0 ^ l0r1 ^ l0r2; l0c0 = ((l0r0 & l0r1) | (l0r0 & l0r2) | (l0r1 & l0r2)) << 1;
+    l0s1 = l0r3 ^ l0r4 ^ l0r5; l0c1 = ((l0r3 & l0r4) | (l0r3 & l0r5) | (l0r4 & l0r5)) << 1;
+    l0s2 = l0r6 ^ l0r7 ^ l0r8; l0c2 = ((l0r6 & l0r7) | (l0r6 & l0r8) | (l0r7 & l0r8)) << 1;
+    l0s3 = l0r9 ^ l0r10 ^ l0r11; l0c3 = ((l0r9 & l0r10) | (l0r9 & l0r11) | (l0r10 & l0r11)) << 1;
+    l0s4 = l0r12 ^ l0r13 ^ l0r14; l0c4 = ((l0r12 & l0r13) | (l0r12 & l0r14) | (l0r13 & l0r14)) << 1;
+    l0s5 = l0s0 ^ l0c0 ^ l0s1; l0c5 = ((l0s0 & l0c0) | (l0s0 & l0s1) | (l0c0 & l0s1)) << 1;
+    l0s6 = l0c1 ^ l0s2 ^ l0c2; l0c6 = ((l0c1 & l0s2) | (l0c1 & l0c2) | (l0s2 & l0c2)) << 1;
+    l0s7 = l0s3 ^ l0c3 ^ l0s4; l0c7 = ((l0s3 & l0c3) | (l0s3 & l0s4) | (l0c3 & l0s4)) << 1;
+    l0s8 = l0c4 ^ l0r15 ^ l0r16; l0c8 = ((l0c4 & l0r15) | (l0c4 & l0r16) | (l0r15 & l0r16)) << 1;
+    l0s9 = l0s5 ^ l0c5 ^ l0s6; l0c9 = ((l0s5 & l0c5) | (l0s5 & l0s6) | (l0c5 & l0s6)) << 1;
+    l0s10 = l0c6 ^ l0s7 ^ l0c7; l0c10 = ((l0c6 & l0s7) | (l0c6 & l0c7) | (l0s7 & l0c7)) << 1;
+    l0s11 = l0s9 ^ l0c9 ^ l0s10; l0c11 = ((l0s9 & l0c9) | (l0s9 & l0s10) | (l0c9 & l0s10)) << 1;
+    l0s12 = l0c10 ^ l0s8 ^ l0c8; l0c12 = ((l0c10 & l0s8) | (l0c10 & l0c8) | (l0s8 & l0c8)) << 1;
+    l0s13 = l0s11 ^ l0c11 ^ l0s12; l0c13 = ((l0s11 & l0c11) | (l0s11 & l0s12) | (l0c11 & l0s12)) << 1;
+    l0s14 = l0s13 ^ l0c13 ^ l0c12; l0c14 = ((l0s13 & l0c13) | (l0s13 & l0c12) | (l0c13 & l0c12)) << 1;
+    r[0 +: 34] = l0s14;
+    r[34 +: 34] = l0c14;
+    l1a = {{18{x[31]}}, x[31:16]};
+    l1r0 = ({34{y[16]}} & (l1a << 0));
+    l1r1 = ({34{y[17]}} & (l1a << 1));
+    l1r2 = ({34{y[18]}} & (l1a << 2));
+    l1r3 = ({34{y[19]}} & (l1a << 3));
+    l1r4 = ({34{y[20]}} & (l1a << 4));
+    l1r5 = ({34{y[21]}} & (l1a << 5));
+    l1r6 = ({34{y[22]}} & (l1a << 6));
+    l1r7 = ({34{y[23]}} & (l1a << 7));
+    l1r8 = ({34{y[24]}} & (l1a << 8));
+    l1r9 = ({34{y[25]}} & (l1a << 9));
+    l1r10 = ({34{y[26]}} & (l1a << 10));
+    l1r11 = ({34{y[27]}} & (l1a << 11));
+    l1r12 = ({34{y[28]}} & (l1a << 12));
+    l1r13 = ({34{y[29]}} & (l1a << 13));
+    l1r14 = ({34{y[30]}} & (l1a << 14));
+    l1r15 = ({34{y[31]}} & ~(l1a << 15));
+    l1r16 = {33'd0, y[31]};
+    l1s0 = l1r0 ^ l1r1 ^ l1r2; l1c0 = ((l1r0 & l1r1) | (l1r0 & l1r2) | (l1r1 & l1r2)) << 1;
+    l1s1 = l1r3 ^ l1r4 ^ l1r5; l1c1 = ((l1r3 & l1r4) | (l1r3 & l1r5) | (l1r4 & l1r5)) << 1;
+    l1s2 = l1r6 ^ l1r7 ^ l1r8; l1c2 = ((l1r6 & l1r7) | (l1r6 & l1r8) | (l1r7 & l1r8)) << 1;
+    l1s3 = l1r9 ^ l1r10 ^ l1r11; l1c3 = ((l1r9 & l1r10) | (l1r9 & l1r11) | (l1r10 & l1r11)) << 1;
+    l1s4 = l1r12 ^ l1r13 ^ l1r14; l1c4 = ((l1r12 & l1r13) | (l1r12 & l1r14) | (l1r13 & l1r14)) << 1;
+    l1s5 = l1s0 ^ l1c0 ^ l1s1; l1c5 = ((l1s0 & l1c0) | (l1s0 & l1s1) | (l1c0 & l1s1)) << 1;
+    l1s6 = l1c1 ^ l1s2 ^ l1c2; l1c6 = ((l1c1 & l1s2) | (l1c1 & l1c2) | (l1s2 & l1c2)) << 1;
+    l1s7 = l1s3 ^ l1c3 ^ l1s4; l1c7 = ((l1s3 & l1c3) | (l1s3 & l1s4) | (l1c3 & l1s4)) << 1;
+    l1s8 = l1c4 ^ l1r15 ^ l1r16; l1c8 = ((l1c4 & l1r15) | (l1c4 & l1r16) | (l1r15 & l1r16)) << 1;
+    l1s9 = l1s5 ^ l1c5 ^ l1s6; l1c9 = ((l1s5 & l1c5) | (l1s5 & l1s6) | (l1c5 & l1s6)) << 1;
+    l1s10 = l1c6 ^ l1s7 ^ l1c7; l1c10 = ((l1c6 & l1s7) | (l1c6 & l1c7) | (l1s7 & l1c7)) << 1;
+    l1s11 = l1s9 ^ l1c9 ^ l1s10; l1c11 = ((l1s9 & l1c9) | (l1s9 & l1s10) | (l1c9 & l1s10)) << 1;
+    l1s12 = l1c10 ^ l1s8 ^ l1c8; l1c12 = ((l1c10 & l1s8) | (l1c10 & l1c8) | (l1s8 & l1c8)) << 1;
+    l1s13 = l1s11 ^ l1c11 ^ l1s12; l1c13 = ((l1s11 & l1c11) | (l1s11 & l1s12) | (l1c11 & l1s12)) << 1;
+    l1s14 = l1s13 ^ l1c13 ^ l1c12; l1c14 = ((l1s13 & l1c13) | (l1s13 & l1c12) | (l1c13 & l1c12)) << 1;
+    r[68 +: 34] = l1s14;
+    r[102 +: 34] = l1c14;
+    l2a = {{18{x[47]}}, x[47:32]};
+    l2r0 = ({34{y[32]}} & (l2a << 0));
+    l2r1 = ({34{y[33]}} & (l2a << 1));
+    l2r2 = ({34{y[34]}} & (l2a << 2));
+    l2r3 = ({34{y[35]}} & (l2a << 3));
+    l2r4 = ({34{y[36]}} & (l2a << 4));
+    l2r5 = ({34{y[37]}} & (l2a << 5));
+    l2r6 = ({34{y[38]}} & (l2a << 6));
+    l2r7 = ({34{y[39]}} & (l2a << 7));
+    l2r8 = ({34{y[40]}} & (l2a << 8));
+    l2r9 = ({34{y[41]}} & (l2a << 9));
+    l2r10 = ({34{y[42]}} & (l2a << 10));
+    l2r11 = ({34{y[43]}} & (l2a << 11));
+    l2r12 = ({34{y[44]}} & (l2a << 12));
+    l2r13 = ({34{y[45]}} & (l2a << 13));
+    l2r14 = ({34{y[46]}} & (l2a << 14));
+    l2r15 = ({34{y[47]}} & ~(l2a << 15));
+    l2r16 = {33'd0, y[47]};
+    l2s0 = l2r0 ^ l2r1 ^ l2r2; l2c0 = ((l2r0 & l2r1) | (l2r0 & l2r2) | (l2r1 & l2r2)) << 1;
+    l2s1 = l2r3 ^ l2r4 ^ l2r5; l2c1 = ((l2r3 & l2r4) | (l2r3 & l2r5) | (l2r4 & l2r5)) << 1;
+    l2s2 = l2r6 ^ l2r7 ^ l2r8; l2c2 = ((l2r6 & l2r7) | (l2r6 & l2r8) | (l2r7 & l2r8)) << 1;
+    l2s3 = l2r9 ^ l2r10 ^ l2r11; l2c3 = ((l2r9 & l2r10) | (l2r9 & l2r11) | (l2r10 & l2r11)) << 1;
+    l2s4 = l2r12 ^ l2r13 ^ l2r14; l2c4 = ((l2r12 & l2r13) | (l2r12 & l2r14) | (l2r13 & l2r14)) << 1;
+    l2s5 = l2s0 ^ l2c0 ^ l2s1; l2c5 = ((l2s0 & l2c0) | (l2s0 & l2s1) | (l2c0 & l2s1)) << 1;
+    l2s6 = l2c1 ^ l2s2 ^ l2c2; l2c6 = ((l2c1 & l2s2) | (l2c1 & l2c2) | (l2s2 & l2c2)) << 1;
+    l2s7 = l2s3 ^ l2c3 ^ l2s4; l2c7 = ((l2s3 & l2c3) | (l2s3 & l2s4) | (l2c3 & l2s4)) << 1;
+    l2s8 = l2c4 ^ l2r15 ^ l2r16; l2c8 = ((l2c4 & l2r15) | (l2c4 & l2r16) | (l2r15 & l2r16)) << 1;
+    l2s9 = l2s5 ^ l2c5 ^ l2s6; l2c9 = ((l2s5 & l2c5) | (l2s5 & l2s6) | (l2c5 & l2s6)) << 1;
+    l2s10 = l2c6 ^ l2s7 ^ l2c7; l2c10 = ((l2c6 & l2s7) | (l2c6 & l2c7) | (l2s7 & l2c7)) << 1;
+    l2s11 = l2s9 ^ l2c9 ^ l2s10; l2c11 = ((l2s9 & l2c9) | (l2s9 & l2s10) | (l2c9 & l2s10)) << 1;
+    l2s12 = l2c10 ^ l2s8 ^ l2c8; l2c12 = ((l2c10 & l2s8) | (l2c10 & l2c8) | (l2s8 & l2c8)) << 1;
+    l2s13 = l2s11 ^ l2c11 ^ l2s12; l2c13 = ((l2s11 & l2c11) | (l2s11 & l2s12) | (l2c11 & l2s12)) << 1;
+    l2s14 = l2s13 ^ l2c13 ^ l2c12; l2c14 = ((l2s13 & l2c13) | (l2s13 & l2c12) | (l2c13 & l2c12)) << 1;
+    r[136 +: 34] = l2s14;
+    r[170 +: 34] = l2c14;
+    l3a = {{18{x[63]}}, x[63:48]};
+    l3r0 = ({34{y[48]}} & (l3a << 0));
+    l3r1 = ({34{y[49]}} & (l3a << 1));
+    l3r2 = ({34{y[50]}} & (l3a << 2));
+    l3r3 = ({34{y[51]}} & (l3a << 3));
+    l3r4 = ({34{y[52]}} & (l3a << 4));
+    l3r5 = ({34{y[53]}} & (l3a << 5));
+    l3r6 = ({34{y[54]}} & (l3a << 6));
+    l3r7 = ({34{y[55]}} & (l3a << 7));
+    l3r8 = ({34{y[56]}} & (l3a << 8));
+    l3r9 = ({34{y[57]}} & (l3a << 9));
+    l3r10 = ({34{y[58]}} & (l3a << 10));
+    l3r11 = ({34{y[59]}} & (l3a << 11));
+    l3r12 = ({34{y[60]}} & (l3a << 12));
+    l3r13 = ({34{y[61]}} & (l3a << 13));
+    l3r14 = ({34{y[62]}} & (l3a << 14));
+    l3r15 = ({34{y[63]}} & ~(l3a << 15));
+    l3r16 = {33'd0, y[63]};
+    l3s0 = l3r0 ^ l3r1 ^ l3r2; l3c0 = ((l3r0 & l3r1) | (l3r0 & l3r2) | (l3r1 & l3r2)) << 1;
+    l3s1 = l3r3 ^ l3r4 ^ l3r5; l3c1 = ((l3r3 & l3r4) | (l3r3 & l3r5) | (l3r4 & l3r5)) << 1;
+    l3s2 = l3r6 ^ l3r7 ^ l3r8; l3c2 = ((l3r6 & l3r7) | (l3r6 & l3r8) | (l3r7 & l3r8)) << 1;
+    l3s3 = l3r9 ^ l3r10 ^ l3r11; l3c3 = ((l3r9 & l3r10) | (l3r9 & l3r11) | (l3r10 & l3r11)) << 1;
+    l3s4 = l3r12 ^ l3r13 ^ l3r14; l3c4 = ((l3r12 & l3r13) | (l3r12 & l3r14) | (l3r13 & l3r14)) << 1;
+    l3s5 = l3s0 ^ l3c0 ^ l3s1; l3c5 = ((l3s0 & l3c0) | (l3s0 & l3s1) | (l3c0 & l3s1)) << 1;
+    l3s6 = l3c1 ^ l3s2 ^ l3c2; l3c6 = ((l3c1 & l3s2) | (l3c1 & l3c2) | (l3s2 & l3c2)) << 1;
+    l3s7 = l3s3 ^ l3c3 ^ l3s4; l3c7 = ((l3s3 & l3c3) | (l3s3 & l3s4) | (l3c3 & l3s4)) << 1;
+    l3s8 = l3c4 ^ l3r15 ^ l3r16; l3c8 = ((l3c4 & l3r15) | (l3c4 & l3r16) | (l3r15 & l3r16)) << 1;
+    l3s9 = l3s5 ^ l3c5 ^ l3s6; l3c9 = ((l3s5 & l3c5) | (l3s5 & l3s6) | (l3c5 & l3s6)) << 1;
+    l3s10 = l3c6 ^ l3s7 ^ l3c7; l3c10 = ((l3c6 & l3s7) | (l3c6 & l3c7) | (l3s7 & l3c7)) << 1;
+    l3s11 = l3s9 ^ l3c9 ^ l3s10; l3c11 = ((l3s9 & l3c9) | (l3s9 & l3s10) | (l3c9 & l3s10)) << 1;
+    l3s12 = l3c10 ^ l3s8 ^ l3c8; l3c12 = ((l3c10 & l3s8) | (l3c10 & l3c8) | (l3s8 & l3c8)) << 1;
+    l3s13 = l3s11 ^ l3c11 ^ l3s12; l3c13 = ((l3s11 & l3c11) | (l3s11 & l3s12) | (l3c11 & l3s12)) << 1;
+    l3s14 = l3s13 ^ l3c13 ^ l3c12; l3c14 = ((l3s13 & l3c13) | (l3s13 & l3c12) | (l3c13 & l3c12)) << 1;
+    r[204 +: 34] = l3s14;
+    r[238 +: 34] = l3c14;
+    return r;
+  endfunction
+  function automatic logic [259:0] f_pmulhrsh_prep(input logic [63:0] x, input logic [63:0] y);
+    logic [259:0] r;
+    logic [31:0] l0a;
+    logic [31:0] l0r0;
+    logic [31:0] l0r1;
+    logic [31:0] l0r2;
+    logic [31:0] l0r3;
+    logic [31:0] l0r4;
+    logic [31:0] l0r5;
+    logic [31:0] l0r6;
+    logic [31:0] l0r7;
+    logic [31:0] l0r8;
+    logic [31:0] l0r9;
+    logic [31:0] l0r10;
+    logic [31:0] l0r11;
+    logic [31:0] l0r12;
+    logic [31:0] l0r13;
+    logic [31:0] l0r14;
+    logic [31:0] l0r15;
+    logic [31:0] l0r16;
+    logic [31:0] l0s0, l0c0;
+    logic [31:0] l0s1, l0c1;
+    logic [31:0] l0s2, l0c2;
+    logic [31:0] l0s3, l0c3;
+    logic [31:0] l0s4, l0c4;
+    logic [31:0] l0s5, l0c5;
+    logic [31:0] l0s6, l0c6;
+    logic [31:0] l0s7, l0c7;
+    logic [31:0] l0s8, l0c8;
+    logic [31:0] l0s9, l0c9;
+    logic [31:0] l0s10, l0c10;
+    logic [31:0] l0s11, l0c11;
+    logic [31:0] l0s12, l0c12;
+    logic [31:0] l0s13, l0c13;
+    logic [31:0] l0s14, l0c14;
+    logic [31:0] l1a;
+    logic [31:0] l1r0;
+    logic [31:0] l1r1;
+    logic [31:0] l1r2;
+    logic [31:0] l1r3;
+    logic [31:0] l1r4;
+    logic [31:0] l1r5;
+    logic [31:0] l1r6;
+    logic [31:0] l1r7;
+    logic [31:0] l1r8;
+    logic [31:0] l1r9;
+    logic [31:0] l1r10;
+    logic [31:0] l1r11;
+    logic [31:0] l1r12;
+    logic [31:0] l1r13;
+    logic [31:0] l1r14;
+    logic [31:0] l1r15;
+    logic [31:0] l1r16;
+    logic [31:0] l1s0, l1c0;
+    logic [31:0] l1s1, l1c1;
+    logic [31:0] l1s2, l1c2;
+    logic [31:0] l1s3, l1c3;
+    logic [31:0] l1s4, l1c4;
+    logic [31:0] l1s5, l1c5;
+    logic [31:0] l1s6, l1c6;
+    logic [31:0] l1s7, l1c7;
+    logic [31:0] l1s8, l1c8;
+    logic [31:0] l1s9, l1c9;
+    logic [31:0] l1s10, l1c10;
+    logic [31:0] l1s11, l1c11;
+    logic [31:0] l1s12, l1c12;
+    logic [31:0] l1s13, l1c13;
+    logic [31:0] l1s14, l1c14;
+    logic [31:0] l2a;
+    logic [31:0] l2r0;
+    logic [31:0] l2r1;
+    logic [31:0] l2r2;
+    logic [31:0] l2r3;
+    logic [31:0] l2r4;
+    logic [31:0] l2r5;
+    logic [31:0] l2r6;
+    logic [31:0] l2r7;
+    logic [31:0] l2r8;
+    logic [31:0] l2r9;
+    logic [31:0] l2r10;
+    logic [31:0] l2r11;
+    logic [31:0] l2r12;
+    logic [31:0] l2r13;
+    logic [31:0] l2r14;
+    logic [31:0] l2r15;
+    logic [31:0] l2r16;
+    logic [31:0] l2s0, l2c0;
+    logic [31:0] l2s1, l2c1;
+    logic [31:0] l2s2, l2c2;
+    logic [31:0] l2s3, l2c3;
+    logic [31:0] l2s4, l2c4;
+    logic [31:0] l2s5, l2c5;
+    logic [31:0] l2s6, l2c6;
+    logic [31:0] l2s7, l2c7;
+    logic [31:0] l2s8, l2c8;
+    logic [31:0] l2s9, l2c9;
+    logic [31:0] l2s10, l2c10;
+    logic [31:0] l2s11, l2c11;
+    logic [31:0] l2s12, l2c12;
+    logic [31:0] l2s13, l2c13;
+    logic [31:0] l2s14, l2c14;
+    logic [31:0] l3a;
+    logic [31:0] l3r0;
+    logic [31:0] l3r1;
+    logic [31:0] l3r2;
+    logic [31:0] l3r3;
+    logic [31:0] l3r4;
+    logic [31:0] l3r5;
+    logic [31:0] l3r6;
+    logic [31:0] l3r7;
+    logic [31:0] l3r8;
+    logic [31:0] l3r9;
+    logic [31:0] l3r10;
+    logic [31:0] l3r11;
+    logic [31:0] l3r12;
+    logic [31:0] l3r13;
+    logic [31:0] l3r14;
+    logic [31:0] l3r15;
+    logic [31:0] l3r16;
+    logic [31:0] l3s0, l3c0;
+    logic [31:0] l3s1, l3c1;
+    logic [31:0] l3s2, l3c2;
+    logic [31:0] l3s3, l3c3;
+    logic [31:0] l3s4, l3c4;
+    logic [31:0] l3s5, l3c5;
+    logic [31:0] l3s6, l3c6;
+    logic [31:0] l3s7, l3c7;
+    logic [31:0] l3s8, l3c8;
+    logic [31:0] l3s9, l3c9;
+    logic [31:0] l3s10, l3c10;
+    logic [31:0] l3s11, l3c11;
+    logic [31:0] l3s12, l3c12;
+    logic [31:0] l3s13, l3c13;
+    logic [31:0] l3s14, l3c14;
+    l0a = {{16{x[15]}}, x[15:0]};
+    l0r0 = ({32{y[0]}} & (l0a << 0));
+    l0r1 = ({32{y[1]}} & (l0a << 1));
+    l0r2 = ({32{y[2]}} & (l0a << 2));
+    l0r3 = ({32{y[3]}} & (l0a << 3));
+    l0r4 = ({32{y[4]}} & (l0a << 4));
+    l0r5 = ({32{y[5]}} & (l0a << 5));
+    l0r6 = ({32{y[6]}} & (l0a << 6));
+    l0r7 = ({32{y[7]}} & (l0a << 7));
+    l0r8 = ({32{y[8]}} & (l0a << 8));
+    l0r9 = ({32{y[9]}} & (l0a << 9));
+    l0r10 = ({32{y[10]}} & (l0a << 10));
+    l0r11 = ({32{y[11]}} & (l0a << 11));
+    l0r12 = ({32{y[12]}} & (l0a << 12));
+    l0r13 = ({32{y[13]}} & (l0a << 13));
+    l0r14 = ({32{y[14]}} & (l0a << 14));
+    l0r15 = ({32{y[15]}} & ~(l0a << 15));
+    l0r16 = {31'd0, y[15]};
+    l0s0 = l0r0 ^ l0r1 ^ l0r2; l0c0 = ((l0r0 & l0r1) | (l0r0 & l0r2) | (l0r1 & l0r2)) << 1;
+    l0s1 = l0r3 ^ l0r4 ^ l0r5; l0c1 = ((l0r3 & l0r4) | (l0r3 & l0r5) | (l0r4 & l0r5)) << 1;
+    l0s2 = l0r6 ^ l0r7 ^ l0r8; l0c2 = ((l0r6 & l0r7) | (l0r6 & l0r8) | (l0r7 & l0r8)) << 1;
+    l0s3 = l0r9 ^ l0r10 ^ l0r11; l0c3 = ((l0r9 & l0r10) | (l0r9 & l0r11) | (l0r10 & l0r11)) << 1;
+    l0s4 = l0r12 ^ l0r13 ^ l0r14; l0c4 = ((l0r12 & l0r13) | (l0r12 & l0r14) | (l0r13 & l0r14)) << 1;
+    l0s5 = l0s0 ^ l0c0 ^ l0s1; l0c5 = ((l0s0 & l0c0) | (l0s0 & l0s1) | (l0c0 & l0s1)) << 1;
+    l0s6 = l0c1 ^ l0s2 ^ l0c2; l0c6 = ((l0c1 & l0s2) | (l0c1 & l0c2) | (l0s2 & l0c2)) << 1;
+    l0s7 = l0s3 ^ l0c3 ^ l0s4; l0c7 = ((l0s3 & l0c3) | (l0s3 & l0s4) | (l0c3 & l0s4)) << 1;
+    l0s8 = l0c4 ^ l0r15 ^ l0r16; l0c8 = ((l0c4 & l0r15) | (l0c4 & l0r16) | (l0r15 & l0r16)) << 1;
+    l0s9 = l0s5 ^ l0c5 ^ l0s6; l0c9 = ((l0s5 & l0c5) | (l0s5 & l0s6) | (l0c5 & l0s6)) << 1;
+    l0s10 = l0c6 ^ l0s7 ^ l0c7; l0c10 = ((l0c6 & l0s7) | (l0c6 & l0c7) | (l0s7 & l0c7)) << 1;
+    l0s11 = l0s9 ^ l0c9 ^ l0s10; l0c11 = ((l0s9 & l0c9) | (l0s9 & l0s10) | (l0c9 & l0s10)) << 1;
+    l0s12 = l0c10 ^ l0s8 ^ l0c8; l0c12 = ((l0c10 & l0s8) | (l0c10 & l0c8) | (l0s8 & l0c8)) << 1;
+    l0s13 = l0s11 ^ l0c11 ^ l0s12; l0c13 = ((l0s11 & l0c11) | (l0s11 & l0s12) | (l0c11 & l0s12)) << 1;
+    l0s14 = l0s13 ^ l0c13 ^ l0c12; l0c14 = ((l0s13 & l0c13) | (l0s13 & l0c12) | (l0c13 & l0c12)) << 1;
+    r[0 +: 32] = l0s14;
+    r[32 +: 32] = l0c14;
+    r[256] = (x[0 +: 16] == 16'h8000) && (y[0 +: 16] == 16'h8000);
+    l1a = {{16{x[31]}}, x[31:16]};
+    l1r0 = ({32{y[16]}} & (l1a << 0));
+    l1r1 = ({32{y[17]}} & (l1a << 1));
+    l1r2 = ({32{y[18]}} & (l1a << 2));
+    l1r3 = ({32{y[19]}} & (l1a << 3));
+    l1r4 = ({32{y[20]}} & (l1a << 4));
+    l1r5 = ({32{y[21]}} & (l1a << 5));
+    l1r6 = ({32{y[22]}} & (l1a << 6));
+    l1r7 = ({32{y[23]}} & (l1a << 7));
+    l1r8 = ({32{y[24]}} & (l1a << 8));
+    l1r9 = ({32{y[25]}} & (l1a << 9));
+    l1r10 = ({32{y[26]}} & (l1a << 10));
+    l1r11 = ({32{y[27]}} & (l1a << 11));
+    l1r12 = ({32{y[28]}} & (l1a << 12));
+    l1r13 = ({32{y[29]}} & (l1a << 13));
+    l1r14 = ({32{y[30]}} & (l1a << 14));
+    l1r15 = ({32{y[31]}} & ~(l1a << 15));
+    l1r16 = {31'd0, y[31]};
+    l1s0 = l1r0 ^ l1r1 ^ l1r2; l1c0 = ((l1r0 & l1r1) | (l1r0 & l1r2) | (l1r1 & l1r2)) << 1;
+    l1s1 = l1r3 ^ l1r4 ^ l1r5; l1c1 = ((l1r3 & l1r4) | (l1r3 & l1r5) | (l1r4 & l1r5)) << 1;
+    l1s2 = l1r6 ^ l1r7 ^ l1r8; l1c2 = ((l1r6 & l1r7) | (l1r6 & l1r8) | (l1r7 & l1r8)) << 1;
+    l1s3 = l1r9 ^ l1r10 ^ l1r11; l1c3 = ((l1r9 & l1r10) | (l1r9 & l1r11) | (l1r10 & l1r11)) << 1;
+    l1s4 = l1r12 ^ l1r13 ^ l1r14; l1c4 = ((l1r12 & l1r13) | (l1r12 & l1r14) | (l1r13 & l1r14)) << 1;
+    l1s5 = l1s0 ^ l1c0 ^ l1s1; l1c5 = ((l1s0 & l1c0) | (l1s0 & l1s1) | (l1c0 & l1s1)) << 1;
+    l1s6 = l1c1 ^ l1s2 ^ l1c2; l1c6 = ((l1c1 & l1s2) | (l1c1 & l1c2) | (l1s2 & l1c2)) << 1;
+    l1s7 = l1s3 ^ l1c3 ^ l1s4; l1c7 = ((l1s3 & l1c3) | (l1s3 & l1s4) | (l1c3 & l1s4)) << 1;
+    l1s8 = l1c4 ^ l1r15 ^ l1r16; l1c8 = ((l1c4 & l1r15) | (l1c4 & l1r16) | (l1r15 & l1r16)) << 1;
+    l1s9 = l1s5 ^ l1c5 ^ l1s6; l1c9 = ((l1s5 & l1c5) | (l1s5 & l1s6) | (l1c5 & l1s6)) << 1;
+    l1s10 = l1c6 ^ l1s7 ^ l1c7; l1c10 = ((l1c6 & l1s7) | (l1c6 & l1c7) | (l1s7 & l1c7)) << 1;
+    l1s11 = l1s9 ^ l1c9 ^ l1s10; l1c11 = ((l1s9 & l1c9) | (l1s9 & l1s10) | (l1c9 & l1s10)) << 1;
+    l1s12 = l1c10 ^ l1s8 ^ l1c8; l1c12 = ((l1c10 & l1s8) | (l1c10 & l1c8) | (l1s8 & l1c8)) << 1;
+    l1s13 = l1s11 ^ l1c11 ^ l1s12; l1c13 = ((l1s11 & l1c11) | (l1s11 & l1s12) | (l1c11 & l1s12)) << 1;
+    l1s14 = l1s13 ^ l1c13 ^ l1c12; l1c14 = ((l1s13 & l1c13) | (l1s13 & l1c12) | (l1c13 & l1c12)) << 1;
+    r[64 +: 32] = l1s14;
+    r[96 +: 32] = l1c14;
+    r[257] = (x[16 +: 16] == 16'h8000) && (y[16 +: 16] == 16'h8000);
+    l2a = {{16{x[47]}}, x[47:32]};
+    l2r0 = ({32{y[32]}} & (l2a << 0));
+    l2r1 = ({32{y[33]}} & (l2a << 1));
+    l2r2 = ({32{y[34]}} & (l2a << 2));
+    l2r3 = ({32{y[35]}} & (l2a << 3));
+    l2r4 = ({32{y[36]}} & (l2a << 4));
+    l2r5 = ({32{y[37]}} & (l2a << 5));
+    l2r6 = ({32{y[38]}} & (l2a << 6));
+    l2r7 = ({32{y[39]}} & (l2a << 7));
+    l2r8 = ({32{y[40]}} & (l2a << 8));
+    l2r9 = ({32{y[41]}} & (l2a << 9));
+    l2r10 = ({32{y[42]}} & (l2a << 10));
+    l2r11 = ({32{y[43]}} & (l2a << 11));
+    l2r12 = ({32{y[44]}} & (l2a << 12));
+    l2r13 = ({32{y[45]}} & (l2a << 13));
+    l2r14 = ({32{y[46]}} & (l2a << 14));
+    l2r15 = ({32{y[47]}} & ~(l2a << 15));
+    l2r16 = {31'd0, y[47]};
+    l2s0 = l2r0 ^ l2r1 ^ l2r2; l2c0 = ((l2r0 & l2r1) | (l2r0 & l2r2) | (l2r1 & l2r2)) << 1;
+    l2s1 = l2r3 ^ l2r4 ^ l2r5; l2c1 = ((l2r3 & l2r4) | (l2r3 & l2r5) | (l2r4 & l2r5)) << 1;
+    l2s2 = l2r6 ^ l2r7 ^ l2r8; l2c2 = ((l2r6 & l2r7) | (l2r6 & l2r8) | (l2r7 & l2r8)) << 1;
+    l2s3 = l2r9 ^ l2r10 ^ l2r11; l2c3 = ((l2r9 & l2r10) | (l2r9 & l2r11) | (l2r10 & l2r11)) << 1;
+    l2s4 = l2r12 ^ l2r13 ^ l2r14; l2c4 = ((l2r12 & l2r13) | (l2r12 & l2r14) | (l2r13 & l2r14)) << 1;
+    l2s5 = l2s0 ^ l2c0 ^ l2s1; l2c5 = ((l2s0 & l2c0) | (l2s0 & l2s1) | (l2c0 & l2s1)) << 1;
+    l2s6 = l2c1 ^ l2s2 ^ l2c2; l2c6 = ((l2c1 & l2s2) | (l2c1 & l2c2) | (l2s2 & l2c2)) << 1;
+    l2s7 = l2s3 ^ l2c3 ^ l2s4; l2c7 = ((l2s3 & l2c3) | (l2s3 & l2s4) | (l2c3 & l2s4)) << 1;
+    l2s8 = l2c4 ^ l2r15 ^ l2r16; l2c8 = ((l2c4 & l2r15) | (l2c4 & l2r16) | (l2r15 & l2r16)) << 1;
+    l2s9 = l2s5 ^ l2c5 ^ l2s6; l2c9 = ((l2s5 & l2c5) | (l2s5 & l2s6) | (l2c5 & l2s6)) << 1;
+    l2s10 = l2c6 ^ l2s7 ^ l2c7; l2c10 = ((l2c6 & l2s7) | (l2c6 & l2c7) | (l2s7 & l2c7)) << 1;
+    l2s11 = l2s9 ^ l2c9 ^ l2s10; l2c11 = ((l2s9 & l2c9) | (l2s9 & l2s10) | (l2c9 & l2s10)) << 1;
+    l2s12 = l2c10 ^ l2s8 ^ l2c8; l2c12 = ((l2c10 & l2s8) | (l2c10 & l2c8) | (l2s8 & l2c8)) << 1;
+    l2s13 = l2s11 ^ l2c11 ^ l2s12; l2c13 = ((l2s11 & l2c11) | (l2s11 & l2s12) | (l2c11 & l2s12)) << 1;
+    l2s14 = l2s13 ^ l2c13 ^ l2c12; l2c14 = ((l2s13 & l2c13) | (l2s13 & l2c12) | (l2c13 & l2c12)) << 1;
+    r[128 +: 32] = l2s14;
+    r[160 +: 32] = l2c14;
+    r[258] = (x[32 +: 16] == 16'h8000) && (y[32 +: 16] == 16'h8000);
+    l3a = {{16{x[63]}}, x[63:48]};
+    l3r0 = ({32{y[48]}} & (l3a << 0));
+    l3r1 = ({32{y[49]}} & (l3a << 1));
+    l3r2 = ({32{y[50]}} & (l3a << 2));
+    l3r3 = ({32{y[51]}} & (l3a << 3));
+    l3r4 = ({32{y[52]}} & (l3a << 4));
+    l3r5 = ({32{y[53]}} & (l3a << 5));
+    l3r6 = ({32{y[54]}} & (l3a << 6));
+    l3r7 = ({32{y[55]}} & (l3a << 7));
+    l3r8 = ({32{y[56]}} & (l3a << 8));
+    l3r9 = ({32{y[57]}} & (l3a << 9));
+    l3r10 = ({32{y[58]}} & (l3a << 10));
+    l3r11 = ({32{y[59]}} & (l3a << 11));
+    l3r12 = ({32{y[60]}} & (l3a << 12));
+    l3r13 = ({32{y[61]}} & (l3a << 13));
+    l3r14 = ({32{y[62]}} & (l3a << 14));
+    l3r15 = ({32{y[63]}} & ~(l3a << 15));
+    l3r16 = {31'd0, y[63]};
+    l3s0 = l3r0 ^ l3r1 ^ l3r2; l3c0 = ((l3r0 & l3r1) | (l3r0 & l3r2) | (l3r1 & l3r2)) << 1;
+    l3s1 = l3r3 ^ l3r4 ^ l3r5; l3c1 = ((l3r3 & l3r4) | (l3r3 & l3r5) | (l3r4 & l3r5)) << 1;
+    l3s2 = l3r6 ^ l3r7 ^ l3r8; l3c2 = ((l3r6 & l3r7) | (l3r6 & l3r8) | (l3r7 & l3r8)) << 1;
+    l3s3 = l3r9 ^ l3r10 ^ l3r11; l3c3 = ((l3r9 & l3r10) | (l3r9 & l3r11) | (l3r10 & l3r11)) << 1;
+    l3s4 = l3r12 ^ l3r13 ^ l3r14; l3c4 = ((l3r12 & l3r13) | (l3r12 & l3r14) | (l3r13 & l3r14)) << 1;
+    l3s5 = l3s0 ^ l3c0 ^ l3s1; l3c5 = ((l3s0 & l3c0) | (l3s0 & l3s1) | (l3c0 & l3s1)) << 1;
+    l3s6 = l3c1 ^ l3s2 ^ l3c2; l3c6 = ((l3c1 & l3s2) | (l3c1 & l3c2) | (l3s2 & l3c2)) << 1;
+    l3s7 = l3s3 ^ l3c3 ^ l3s4; l3c7 = ((l3s3 & l3c3) | (l3s3 & l3s4) | (l3c3 & l3s4)) << 1;
+    l3s8 = l3c4 ^ l3r15 ^ l3r16; l3c8 = ((l3c4 & l3r15) | (l3c4 & l3r16) | (l3r15 & l3r16)) << 1;
+    l3s9 = l3s5 ^ l3c5 ^ l3s6; l3c9 = ((l3s5 & l3c5) | (l3s5 & l3s6) | (l3c5 & l3s6)) << 1;
+    l3s10 = l3c6 ^ l3s7 ^ l3c7; l3c10 = ((l3c6 & l3s7) | (l3c6 & l3c7) | (l3s7 & l3c7)) << 1;
+    l3s11 = l3s9 ^ l3c9 ^ l3s10; l3c11 = ((l3s9 & l3c9) | (l3s9 & l3s10) | (l3c9 & l3s10)) << 1;
+    l3s12 = l3c10 ^ l3s8 ^ l3c8; l3c12 = ((l3c10 & l3s8) | (l3c10 & l3c8) | (l3s8 & l3c8)) << 1;
+    l3s13 = l3s11 ^ l3c11 ^ l3s12; l3c13 = ((l3s11 & l3c11) | (l3s11 & l3s12) | (l3c11 & l3s12)) << 1;
+    l3s14 = l3s13 ^ l3c13 ^ l3c12; l3c14 = ((l3s13 & l3c13) | (l3s13 & l3c12) | (l3c13 & l3c12)) << 1;
+    r[192 +: 32] = l3s14;
+    r[224 +: 32] = l3c14;
+    r[259] = (x[48 +: 16] == 16'h8000) && (y[48 +: 16] == 16'h8000);
+    return r;
+  endfunction
+  function automatic logic [19:0] f_popquarters(input logic [63:0] x);
+    logic [3:0] q; logic two; logic [2:0] n; logic [19:0] r; r = 20'd0;
     for (int i = 0; i < 16; i++) begin
     q = x[4*i +: 4];
     two = (q[0] & q[1]) | (q[0] & q[2]) | (q[0] & q[3]) | (q[1] & q[2]) | (q[1] & q[3]) | (q[2] & q[3]);
-    v[i] = {4'd0, &q, two & ~(&q), ^q};
+    n = {&q, two & ~(&q), ^q};
+    r[5*(i/4) +: 5] = r[5*(i/4) +: 5] + {2'd0, n};
     end
-    a0 = f_csa7(v[0], v[1], v[2]); a1 = f_csa7(v[3], v[4], v[5]); a2 = f_csa7(v[6], v[7], v[8]);
-    a3 = f_csa7(v[9], v[10], v[11]); a4 = f_csa7(v[12], v[13], v[14]);                         // 16 -> 11
-    b0 = f_csa7(a0[6:0], a0[13:7], a1[6:0]); b1 = f_csa7(a1[13:7], a2[6:0], a2[13:7]);
-    b2 = f_csa7(a3[6:0], a3[13:7], a4[6:0]);                                                     // 11 -> 8
-    c0 = f_csa7(b0[6:0], b0[13:7], b1[6:0]); c1 = f_csa7(b1[13:7], b2[6:0], b2[13:7]);          // 8 -> 6
-    d0 = f_csa7(c0[6:0], c0[13:7], c1[6:0]); d1 = f_csa7(c1[13:7], a4[13:7], v[15]);            // 6 -> 4
-    e0 = f_csa7(d0[6:0], d0[13:7], d1[6:0]);                                                     // 4 -> 3
-    f0 = f_csa7(e0[6:0], e0[13:7], d1[13:7]);                                                    // 3 -> 2
-    return {57'd0, f0[6:0] + f0[13:7]};
+    return r;
+  endfunction
+  function automatic logic [63:0] f_psadb_prep(input logic [63:0] x, input logic [63:0] y);
+    logic [8:0] d, e; logic [63:0] r;
+    for (int i = 0; i < 8; i++) begin
+    d = {1'b0, x[8*i +: 8]} - {1'b0, y[8*i +: 8]}; e = {1'b0, y[8*i +: 8]} - {1'b0, x[8*i +: 8]};
+    r[8*i +: 8] = d[8] ? e[7:0] : d[7:0]; // x - y borrowed: the difference is y - x
+    end
+    return r;
+  endfunction
+
+  assign PREPARED = 272'd0
+      | ({272{SELECT[2]}} & {252'd0, f_popquarters((A ^ B))}) // hamming
+      | ({272{SELECT[10]}} & {208'd0, f_psadb_prep(A, B)}) // psad.b
+      | ({272{SELECT[11]}} & {144'd0, f_pdotb_prep(A, B)}) // pdot.b
+      | ({272{SELECT[12]}} & {f_pdoth_prep(A, B)}) // pdot.h
+      | ({272{SELECT[13]}} & {12'd0, f_pmulhrsh_prep(A, B)}) // pmulhrs.h
+      ;
+endmodule
+
+module CustomUnit (
+    input  logic [63:0] A,        // rs1
+    input  logic [63:0] B,        // rs2 (R format) or the sign-extended immediate (I format)
+    input  logic [271:0] PREPARED, // from CustomPrepare, one stage earlier
+    input  logic [31:0] SELECT,   // from CustomDecode, one stage earlier
+    output logic [63:0] RESULT
+);
+  function automatic logic [63:0] f_add(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, y, 1'b0); return s[63:0];
+  endfunction
+  function automatic logic [64:0] f_addc(input logic [63:0] x, input logic [63:0] y, input logic c);
+    logic [63:0] g, p, h;
+    g = x & y; p = x ^ y; h = p;
+    g[0] = g[0] | (p[0] & c); // the carry in joins bit 0
+    for (int d = 1; d < 64; d = 2 * d)
+    for (int i = 63; i >= d; i--) begin // from the top down, so g[i - d] is still the previous level's
+    g[i] = g[i] | (p[i] & g[i - d]);
+    p[i] = p[i] & p[i - d];
+    end
+    return {g[63], h ^ {g[62:0], c}}; // g[i] is now the carry out of bits i ... 0
+  endfunction
+  function automatic logic f_lts(input logic [63:0] x, input logic [63:0] y); return (x[63] != y[63]) ? x[63] : f_ltu(x, y); endfunction // signs differ: the negative one is smaller
+  function automatic logic f_ltu(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return !s[64]; // x - y borrows
+  endfunction
+  function automatic logic [63:0] f_maxz(input logic [63:0] x); return x[63] ? 64'd0 : x; endfunction // max(x, 0)
+  function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return f_lts(x, y) ? x : y; endfunction
+  function automatic logic [63:0] f_paddusb(input logic [63:0] x, input logic [63:0] y);
+    logic [8:0] s; logic [63:0] r;
+    for (int i = 0; i < 8; i++) begin
+    s = {1'b0, x[8*i +: 8]} + {1'b0, y[8*i +: 8]};
+    r[8*i +: 8] = s[8] ? 8'hff : s[7:0]; // a carry out means the sum passed 255
+    end
+    return r;
+  endfunction
+  function automatic logic [63:0] f_pavgub(input logic [63:0] x, input logic [63:0] y);
+    logic [8:0] s; logic [63:0] r;
+    for (int i = 0; i < 8; i++) begin
+    s = {1'b0, x[8*i +: 8]} + {1'b0, y[8*i +: 8]} + 9'd1; // 9 bits: the carry is the average's top bit
+    r[8*i +: 8] = s[8:1];
+    end
+    return r;
+  endfunction
+  function automatic logic [63:0] f_pdotb_fin(input logic [271:0] P);
+    logic [64:0] t;
+    logic [19:0] v0;
+    logic [19:0] v1;
+    logic [19:0] v2;
+    logic [19:0] v3;
+    logic [19:0] v4;
+    logic [19:0] v5;
+    logic [19:0] v6;
+    logic [19:0] v7;
+    logic [19:0] zs0, zc0;
+    logic [19:0] zs1, zc1;
+    logic [19:0] zs2, zc2;
+    logic [19:0] zs3, zc3;
+    logic [19:0] zs4, zc4;
+    logic [19:0] zs5, zc5;
+    v0 = {{4{P[15]}}, P[0 +: 16]};
+    v1 = {{4{P[31]}}, P[16 +: 16]};
+    v2 = {{4{P[47]}}, P[32 +: 16]};
+    v3 = {{4{P[63]}}, P[48 +: 16]};
+    v4 = {{4{P[79]}}, P[64 +: 16]};
+    v5 = {{4{P[95]}}, P[80 +: 16]};
+    v6 = {{4{P[111]}}, P[96 +: 16]};
+    v7 = {{4{P[127]}}, P[112 +: 16]};
+    zs0 = v0 ^ v1 ^ v2; zc0 = ((v0 & v1) | (v0 & v2) | (v1 & v2)) << 1;
+    zs1 = v3 ^ v4 ^ v5; zc1 = ((v3 & v4) | (v3 & v5) | (v4 & v5)) << 1;
+    zs2 = zs0 ^ zc0 ^ zs1; zc2 = ((zs0 & zc0) | (zs0 & zs1) | (zc0 & zs1)) << 1;
+    zs3 = zc1 ^ v6 ^ v7; zc3 = ((zc1 & v6) | (zc1 & v7) | (v6 & v7)) << 1;
+    zs4 = zs2 ^ zc2 ^ zs3; zc4 = ((zs2 & zc2) | (zs2 & zs3) | (zc2 & zs3)) << 1;
+    zs5 = zs4 ^ zc4 ^ zc3; zc5 = ((zs4 & zc4) | (zs4 & zc3) | (zc4 & zc3)) << 1;
+    t = f_addc({44'd0, zs5}, {44'd0, zc5}, 1'b0);
+    return {{44{t[19]}}, t[19:0]};
+  endfunction
+  function automatic logic [63:0] f_pdoth_fin(input logic [271:0] P);
+    logic [64:0] t;
+    logic [33:0] v0;
+    logic [33:0] v1;
+    logic [33:0] v2;
+    logic [33:0] v3;
+    logic [33:0] v4;
+    logic [33:0] v5;
+    logic [33:0] v6;
+    logic [33:0] v7;
+    logic [33:0] zs0, zc0;
+    logic [33:0] zs1, zc1;
+    logic [33:0] zs2, zc2;
+    logic [33:0] zs3, zc3;
+    logic [33:0] zs4, zc4;
+    logic [33:0] zs5, zc5;
+    v0 = P[0 +: 34];
+    v1 = P[34 +: 34];
+    v2 = P[68 +: 34];
+    v3 = P[102 +: 34];
+    v4 = P[136 +: 34];
+    v5 = P[170 +: 34];
+    v6 = P[204 +: 34];
+    v7 = P[238 +: 34];
+    zs0 = v0 ^ v1 ^ v2; zc0 = ((v0 & v1) | (v0 & v2) | (v1 & v2)) << 1;
+    zs1 = v3 ^ v4 ^ v5; zc1 = ((v3 & v4) | (v3 & v5) | (v4 & v5)) << 1;
+    zs2 = zs0 ^ zc0 ^ zs1; zc2 = ((zs0 & zc0) | (zs0 & zs1) | (zc0 & zs1)) << 1;
+    zs3 = zc1 ^ v6 ^ v7; zc3 = ((zc1 & v6) | (zc1 & v7) | (v6 & v7)) << 1;
+    zs4 = zs2 ^ zc2 ^ zs3; zc4 = ((zs2 & zc2) | (zs2 & zs3) | (zc2 & zs3)) << 1;
+    zs5 = zs4 ^ zc4 ^ zc3; zc5 = ((zs4 & zc4) | (zs4 & zc3) | (zc4 & zc3)) << 1;
+    t = f_addc({30'd0, zs5}, {30'd0, zc5}, 1'b0);
+    return {{30{t[33]}}, t[33:0]};
+  endfunction
+  function automatic logic [63:0] f_pmaxub(input logic [63:0] x, input logic [63:0] y);
+    logic [63:0] r;
+    for (int i = 0; i < 8; i++) r[8*i +: 8] = (x[8*i +: 8] > y[8*i +: 8]) ? x[8*i +: 8] : y[8*i +: 8];
+    return r;
+  endfunction
+  function automatic logic [63:0] f_pminub(input logic [63:0] x, input logic [63:0] y);
+    logic [63:0] r;
+    for (int i = 0; i < 8; i++) r[8*i +: 8] = (x[8*i +: 8] < y[8*i +: 8]) ? x[8*i +: 8] : y[8*i +: 8];
+    return r;
+  endfunction
+  function automatic logic [63:0] f_pmulhrsh_fin(input logic [271:0] P);
+    logic [63:0] r; logic [31:0] a, b, s, c; logic [64:0] t;
+    for (int i = 0; i < 4; i++) begin
+    a = P[64*i +: 32]; b = P[64*i + 32 +: 32];
+    s = a ^ b ^ 32'h4000; c = ((a & b) | ((a | b) & 32'h4000)) << 1; // + 2^14: rounds to the nearest
+    t = f_addc({32'd0, s}, {32'd0, c}, 1'b0);
+    r[16*i +: 16] = P[256 + i] ? 16'h7fff : t[30:15];
+    end
+    return r;
+  endfunction
+  function automatic logic [63:0] f_popfinish(input logic [19:0] q);
+    logic [5:0] lo, hi; lo = {1'b0, q[4:0]} + {1'b0, q[9:5]}; hi = {1'b0, q[14:10]} + {1'b0, q[19:15]};
+    return {57'd0, {1'b0, lo} + {1'b0, hi}};
+  endfunction
+  function automatic logic [63:0] f_psadb_fin(input logic [271:0] P);
+    logic [64:0] t;
+    logic [10:0] v0;
+    logic [10:0] v1;
+    logic [10:0] v2;
+    logic [10:0] v3;
+    logic [10:0] v4;
+    logic [10:0] v5;
+    logic [10:0] v6;
+    logic [10:0] v7;
+    logic [10:0] zs0, zc0;
+    logic [10:0] zs1, zc1;
+    logic [10:0] zs2, zc2;
+    logic [10:0] zs3, zc3;
+    logic [10:0] zs4, zc4;
+    logic [10:0] zs5, zc5;
+    v0 = {3'd0, P[0 +: 8]};
+    v1 = {3'd0, P[8 +: 8]};
+    v2 = {3'd0, P[16 +: 8]};
+    v3 = {3'd0, P[24 +: 8]};
+    v4 = {3'd0, P[32 +: 8]};
+    v5 = {3'd0, P[40 +: 8]};
+    v6 = {3'd0, P[48 +: 8]};
+    v7 = {3'd0, P[56 +: 8]};
+    zs0 = v0 ^ v1 ^ v2; zc0 = ((v0 & v1) | (v0 & v2) | (v1 & v2)) << 1;
+    zs1 = v3 ^ v4 ^ v5; zc1 = ((v3 & v4) | (v3 & v5) | (v4 & v5)) << 1;
+    zs2 = zs0 ^ zc0 ^ zs1; zc2 = ((zs0 & zc0) | (zs0 & zs1) | (zc0 & zs1)) << 1;
+    zs3 = zc1 ^ v6 ^ v7; zc3 = ((zc1 & v6) | (zc1 & v7) | (v6 & v7)) << 1;
+    zs4 = zs2 ^ zc2 ^ zs3; zc4 = ((zs2 & zc2) | (zs2 & zs3) | (zc2 & zs3)) << 1;
+    zs5 = zs4 ^ zc4 ^ zc3; zc5 = ((zs4 & zc4) | (zs4 & zc3) | (zc4 & zc3)) << 1;
+    t = f_addc({53'd0, zs5}, {53'd0, zc5}, 1'b0);
+    return {53'd0, t[10:0]};
+  endfunction
+  function automatic logic [63:0] f_psubusb(input logic [63:0] x, input logic [63:0] y);
+    logic [8:0] s; logic [63:0] r;
+    for (int i = 0; i < 8; i++) begin
+    s = {1'b0, x[8*i +: 8]} - {1'b0, y[8*i +: 8]};
+    r[8*i +: 8] = s[8] ? 8'h00 : s[7:0]; // a borrow means the difference went below 0
+    end
+    return r;
   endfunction
   function automatic logic [63:0] f_srl(input logic [63:0] x, input logic [63:0] n); return x >> n[5:0]; endfunction
+  function automatic logic [63:0] f_sub(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return s[63:0]; // x + ~y + 1
+  endfunction
 
   assign RESULT = 64'd0
-      | ({64{SELECT[0]}} & ((A > B) ? (A - B) : (B - A))) // absdiff: a > b ? a - b : b - a
-      | ({64{SELECT[1]}} & ((A & B) + f_srl((A ^ B), 64'h1))) // avgu: (a & b) + ((a ^ b) >> 1)
-      | ({64{SELECT[2]}} & f_popcount((A ^ B))) // hamming: popcount(a ^ b)
-      | ({64{SELECT[3]}} & f_min(f_max(A, 64'h0), B)) // clampi: min(max(a, 0), imm)
+      | ({64{SELECT[0]}} & (f_ltu(B, A) ? f_sub(A, B) : f_sub(B, A))) // absdiff: a > b ? a - b : b - a
+      | ({64{SELECT[1]}} & f_add((A & B), f_srl((A ^ B), 64'h1))) // avgu: (a & b) + ((a ^ b) >> 1)
+      | ({64{SELECT[2]}} & f_popfinish(PREPARED[0 +: 20])) // hamming: popcount(a ^ b)
+      | ({64{SELECT[3]}} & f_min(f_maxz(A), B)) // clampi: min(max(a, 0), imm)
       | ({64{SELECT[4]}} & {63'd0, (A == B)}) // hsec.cteq: a == b
+      | ({64{SELECT[5]}} & f_paddusb(A, B)) // paddus.b: paddusb(a, b)
+      | ({64{SELECT[6]}} & f_psubusb(A, B)) // psubus.b: psubusb(a, b)
+      | ({64{SELECT[7]}} & f_pavgub(A, B)) // pavgu.b: pavgub(a, b)
+      | ({64{SELECT[8]}} & f_pmaxub(A, B)) // pmaxu.b: pmaxub(a, b)
+      | ({64{SELECT[9]}} & f_pminub(A, B)) // pminu.b: pminub(a, b)
+      | ({64{SELECT[10]}} & f_psadb_fin({208'd0, PREPARED[0 +: 64]})) // psad.b: psadb(a, b)
+      | ({64{SELECT[11]}} & f_pdotb_fin({144'd0, PREPARED[0 +: 128]})) // pdot.b: pdotb(a, b)
+      | ({64{SELECT[12]}} & f_pdoth_fin(PREPARED[0 +: 272])) // pdot.h: pdoth(a, b)
+      | ({64{SELECT[13]}} & f_pmulhrsh_fin({12'd0, PREPARED[0 +: 260]})) // pmulhrs.h: pmulhrsh(a, b)
       ;
 endmodule
 /* verilator lint_on UNUSEDSIGNAL */

@@ -14,25 +14,31 @@ SV2V_URL = https://github.com/zachjs/sv2v/releases/download/v0.0.13/sv2v-Linux.z
 MODULES = GSharePredictor BranchComparator BranchControl ALU ImmediateGenerator ControlUnit LoadControl StoreControl RegisterFile CSRFile
 BPFLAG = $(if $(filter 0,$(BP)),--bp=off) --history=$(HIST) --config=$(CONFIG)
 
-TBDEF = $(if $(filter baseline,$(CONFIG)),-DBASELINE)
+TBDEF = $(if $(filter baseline,$(CONFIG)),-DBASELINE)$(if $(filter turbo,$(CONFIG)),-DTURBO)
 FPGA_RTL = $(filter-out src/Scratchpad_Memory.sv src/Riscv64_top.sv,$(RTL)) $(shell cat fpga/sources.f)
-.PHONY: a11y custom custom-check isa-check isa-compare check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
+.PHONY: all-checks icarus-check fpga-synth-check docs-check riscv-tests compare asic-corner asic-planned asic-auto test-sram compute-bench deep-check floorplan clock-floor turbo-report a11y custom custom-check isa-check isa-compare check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
 
 help:            ## list targets
 	@grep -E '^[a-z0-9-]+:.*##' Makefile | sed 's/:.*##/\t/' | expand -t 14
-	@echo "\nvariables: PROG=<name in programs/, tests/ or fpga/examples/> (default $(PROG))  BP=1|0  HIST=<history bits> (default 6)  CONFIG=performance|baseline"
+	@echo "\nvariables: PROG=<name in programs/, tests/ or fpga/examples/> (default $(PROG))  BP=1|0  HIST=<history bits> (default 6)  CONFIG=performance|baseline|turbo"
 
 deps:            ## install Ubuntu packages (needs sudo)
 	sudo apt-get update
 	sudo apt-get install -y nodejs npm iverilog verilator gtkwave yosys graphviz librsvg2-bin python3-serial make git curl unzip
 
-test:            ## full regression: both builds, predictor on and off, RTL vs model cycle-exact (Verilator, else Icarus)
+test:            ## full regression: all four builds (deep-pipeline edition included), predictor on and off, RTL vs model cycle-exact (Verilator, else Icarus)
 	node tools/test.mjs
 
 test-model:      ## regression without a Verilog simulator (model only)
 	node tools/test.mjs --no-rtl
 
-math:            ## verify cycles = N + 5 + L + 3F + R + K + I + D + X on every program, both builds
+compare:         ## turbo (6 stages) against the deep edition (14 stages) by kind of work: run time at 7 nm (docs/img/charts/build_compare.*)
+	node tools/compare_builds.mjs
+
+deep-check:      ## the deep-pipeline edition's model on every program: CPI against turbo and its holds by reason
+	node tools/deep_check.mjs
+
+math:            ## verify cycles = N + 5 + L + 3F + R + K + I + D + X + B on every program, all five builds
 	node tools/verify_math.mjs
 
 run:             ## run PROG on the model:   make run PROG=09_primes_sieve BP=0
@@ -69,8 +75,10 @@ wave: build/sim.vvp  ## dump waveforms of PROG and open GTKWave with the pipelin
 	vvp -n build/sim.vvp +HEX=build/$(NAME).hex +VCD=build/$(NAME).vcd +BP=$(BP)
 	gtkwave build/$(NAME).vcd docs/gtkwave/pipeline.gtkw &
 
-lint:            ## Verilator lint (all warnings except naming style and intentionally unused bits)
+lint:            ## Verilator lint (all warnings except naming style and intentionally unused bits), the deep-pipeline edition and the SRAM chip top too
 	verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-IMPORTSTAR -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL $(RTL) --top-module riscv64_top
+	verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-IMPORTSTAR -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL $(shell cat src/deep/sources.f) --top-module riscv64_deep_top
+	verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-IMPORTSTAR -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL $(RTL) asic/macros/sram22_64x32m4w8/sram22_64x32m4w8.v asic/src/Sixfold_Silicon.sv --top-module Sixfold_Silicon
 
 fpga-lint:       ## Verilator lint of the FPGA system (core + block RAM memory + UART + devices) and the Basys 3 / Arty board tops
 	verilator --lint-only -Wall -DSIXFOLD_FPGA -Wno-DECLFILENAME -Wno-IMPORTSTAR -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL $(FPGA_RTL) --top-module SixfoldSystem
@@ -103,8 +111,16 @@ fpga-basys3:     ## bitstream for the Digilent Basys 3 with Vivado: build/basys3
 docs:            ## regenerate binary/, docs/img/{formats,instructions,pipeline}, web/programs.js
 	node tools/gendocs.mjs
 
-charts:          ## CPI stack and predictor sweep charts (docs/img/charts)
+charts:          ## CPI stack, predictor sweep and packed-instruction speedup charts (docs/img/charts)
 	node tools/charts.mjs
+	node tools/compute_bench.mjs > /dev/null
+	python3 tools/kernel_reference.py
+
+compute-bench:   ## the packed (xcompute) instructions against plain RV64 code on the kernel programs 25 ... 28, every build
+	node tools/compute_bench.mjs
+
+turbo-report:    ## performance vs turbo edition on every program, with the cycle equation's terms (docs/img/charts/turbo_table.md)
+	node tools/turbo_report.mjs
 
 arena:           ## branch predictor arena: BHT, gshare, tournament, perceptron, TAGE on every program's real branches
 	node tools/predictor_arena.mjs
@@ -118,9 +134,54 @@ diagrams:        ## detailed figures: front end, cache, memory, multiplier, oper
 animations:      ## animated SVGs for the README and the site (docs/img/animations)
 	node tools/animations.mjs
 
-timing:          ## logic-only sky130 timing of both builds (sv2v + Yosys + ABC): see docs/PERFORMANCE.md
+floorplan:       ## planned floorplan of the turbo core on sky130 with real SRAM macro sizes (docs/img/silicon/floorplan.svg)
+	@[ -f build/floorplan/areas.json ] || ./tools/floorplan_areas.sh
+	python3 tools/floorplan.py
+
+asic-corner:     ## place and route the core with its 32 SRAM cache macros on sky130, macros in one corner (OpenROAD; two global routes, two hours or more on 4 cores)
+	./asic/flow.sh corner
+
+asic-planned:    ## the same, I-cache macros on the west edge and D-cache macros on the east edge (asic/flow/macros.py)
+	./asic/flow.sh planned
+
+asic-auto:       ## the same, macros placed by OpenROAD's automatic macro placer
+	./asic/flow.sh auto
+
+all-checks:      ## the whole verify list in CI's order; stops at the first failure and names it
+	@for t in lint icarus-check test test-sram math riscv-tests fpga-lint fpga-sim fpga-load-test fpga-synth-check docs-check custom-check isa-check a11y check-links; do \
+	  echo "==== make $$t"; $(MAKE) --no-print-directory $$t || { echo "all-checks: FAILED at make $$t"; exit 1; }; done; \
+	echo "all-checks: all 15 checks passed"
+
+icarus-check:    ## Icarus Verilog compiles the RTL of the baseline and performance builds (make rtl uses it)
+	@mkdir -p build
+	iverilog -g2012 -o build/icarus_check.vvp $(RTL) tb/riscv64_testbench.sv
+	iverilog -g2012 -DBASELINE -o build/icarus_check.vvp $(RTL) tb/riscv64_testbench.sv
+
+fpga-synth-check: build/sv2v  ## ECP5 synthesis of the FPGA system with Yosys (place and route takes too long for CI)
+	node tools/fpga_image.mjs programs/20_leds_and_buttons.s --out build/ci_fpga
+	./build/sv2v -DSIXFOLD_FPGA $(filter-out src/Scratchpad_Memory.sv src/Riscv64_top.sv,$(RTL)) $$(cat fpga/sources.f) > build/ci_fpga/system.v
+	sed -i 's#"[^"]*memory.hex"#"build/ci_fpga/memory.hex"#g' build/ci_fpga/system.v
+	yosys -q -p "read_verilog build/ci_fpga/system.v; synth_ecp5 -top SixfoldSystem"
+
+docs-check:      ## regenerate every generated doc, chart and figure, then fail if any differs from git
+	$(MAKE) --no-print-directory docs charts diagram diagrams animations arena
+	node tools/perf_report.mjs > /dev/null && node tools/readme_table.mjs --write
+	node tools/custom.mjs --check
+	git diff --exit-code -- binary docs/img/pipeline docs/img/instructions docs/img/formats docs/img/charts docs/img/diagrams docs/img/animations docs/img/cpu_block_diagram.svg web/programs.js README.md docs/PERFORMANCE.md
+
+riscv-tests:     ## the official riscv-tests (RV64I, M, Zba, Zbb, Zbs; 106 programs) on every build, RTL cycle-exact against the model (needs gcc-riscv64-unknown-elf)
+	node tools/riscv_tests.mjs
+
+test-sram:       ## regression with the caches' data in SRAM macro models (performance and turbo builds), cycle-exact against the model
+	node tools/test.mjs --config=performance --sram && node tools/test.mjs --config=turbo --sram
+
+clock-floor:     ## the ALU-bypass loop alone (64/32/16 bits) and the flip-flop's share, ASAP7 7 nm: the limit of any single-issue pipeline
+	./tools/clock_floor.sh
+
+timing:          ## logic-only sky130 timing of all three builds (sv2v + Yosys + ABC): see docs/PERFORMANCE.md
 	./tools/timing.sh performance
 	./tools/timing.sh baseline
+	./tools/timing.sh turbo
 
 $(LIB):
 	@mkdir -p build

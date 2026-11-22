@@ -1,0 +1,66 @@
+`default_nettype none
+
+import const_pkg::*;
+
+// riscv64_deep_top: the deep-pipeline edition wired to the same Scratchpad Memory and machine timer as riscv64_top
+module riscv64_deep_top (
+  input  logic        clk,
+  input  logic        reset,
+  input  logic        BRANCH_PREDICTION_ENABLE,
+  output logic [63:0] csr,
+  output logic        HALTED,
+  input  logic [4:0]  DEBUG_REGISTER_ADDRESS,
+  output logic [63:0] DEBUG_REGISTER_DATA,
+  output logic [13:0] TRACE_VALID,
+  output logic [31:0] TRACE_PC [0:13],
+  output logic [7:0]  TRACE_FLAGS
+);
+  logic [63:0] DATA_ADDRESS, DATA_WRITE_DATA, MEMORY_DATA, INSTRUCTION_REFILL_ADDRESS, DATA_REFILL_ADDRESS, DEVICE_READ_DATA;
+  logic [7:0] DATA_WRITE_MASK;
+  logic [255:0] INSTRUCTION_REFILL_LINE, DATA_REFILL_LINE;
+  logic [31:0] UNUSED_INSTRUCTION;
+
+  // the machine timer, as in riscv64_top
+  logic [63:0] MACHINE_TIME, MACHINE_TIME_COMPARE;
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      MACHINE_TIME <= 64'd0;
+      MACHINE_TIME_COMPARE <= 64'hFFFF_FFFF_FFFF_FFFF;
+    end else begin
+      MACHINE_TIME <= MACHINE_TIME + 64'd1;
+      if (DATA_ADDRESS == MMIO_MTIMECMP)
+        for (int BYTE_LANE = 0; BYTE_LANE < 8; BYTE_LANE = BYTE_LANE + 1)
+          if (DATA_WRITE_MASK[BYTE_LANE]) MACHINE_TIME_COMPARE[8*BYTE_LANE +: 8] <= DATA_WRITE_DATA[8*BYTE_LANE +: 8];
+    end
+  end
+  always_comb begin
+    if (DATA_ADDRESS == MMIO_MTIME) DEVICE_READ_DATA = MACHINE_TIME;
+    else if (DATA_ADDRESS == MMIO_MTIMECMP) DEVICE_READ_DATA = MACHINE_TIME_COMPARE;
+    else DEVICE_READ_DATA = MEMORY_DATA; // the scratchpad answers 0 for the rest of the device page
+  end
+
+  ScratchpadMemory mem (
+    .clk (clk),
+    .INSTRUCTION_ADDRESS (64'd0), .INSTRUCTION_DATA (UNUSED_INSTRUCTION),
+    .DATA_ADDRESS (DATA_ADDRESS), .DATA_WRITE_MASK (DATA_WRITE_MASK), .DATA_WRITE_DATA (DATA_WRITE_DATA), .DATA_READ_DATA (MEMORY_DATA),
+    .INSTRUCTION_REFILL_ADDRESS (INSTRUCTION_REFILL_ADDRESS), .INSTRUCTION_REFILL_LINE (INSTRUCTION_REFILL_LINE),
+    .DATA_REFILL_ADDRESS (DATA_REFILL_ADDRESS), .DATA_REFILL_LINE (DATA_REFILL_LINE)
+  );
+
+  Riscv64Deep cpu (
+    .clk (clk), .reset (reset), .BRANCH_PREDICTION_ENABLE (BRANCH_PREDICTION_ENABLE),
+    .TIMER_INTERRUPT_LINE (MACHINE_TIME >= MACHINE_TIME_COMPARE), .EXTERNAL_INTERRUPT_LINE (1'b0), .RESET_VECTOR (PC_RESET[31:0]),
+    .INSTRUCTION_REFILL_ADDRESS (INSTRUCTION_REFILL_ADDRESS), .INSTRUCTION_REFILL_LINE (INSTRUCTION_REFILL_LINE),
+    .DATA_REFILL_ADDRESS (DATA_REFILL_ADDRESS), .DATA_REFILL_LINE (DATA_REFILL_LINE),
+    .DATA_ADDRESS (DATA_ADDRESS), .DATA_WRITE_MASK (DATA_WRITE_MASK), .DATA_WRITE_DATA (DATA_WRITE_DATA), .DEVICE_READ_DATA (DEVICE_READ_DATA),
+    .csr (csr), .HALTED (HALTED), .DEBUG_REGISTER_ADDRESS (DEBUG_REGISTER_ADDRESS), .DEBUG_REGISTER_DATA (DEBUG_REGISTER_DATA),
+    .TRACE_VALID (TRACE_VALID), .TRACE_PC (TRACE_PC), .TRACE_FLAGS (TRACE_FLAGS)
+  );
+
+  /* verilator lint_off UNUSEDSIGNAL */
+  logic UNUSED;
+  assign UNUSED = ^UNUSED_INSTRUCTION;
+  /* verilator lint_on UNUSEDSIGNAL */
+endmodule
+
+`default_nettype wire

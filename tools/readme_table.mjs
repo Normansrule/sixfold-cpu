@@ -9,7 +9,7 @@ for (const f of fs.readdirSync('programs').filter(x => x.endsWith('.s')).sort())
   const src = fs.readFileSync('programs/' + f, 'utf8');
   const what = (src.split('\n')[1].split(': ')[1] || '').trim();
   const img = assemble(src);
-  const r = [true, false].map(bp => { const c = new Core(img, { bp }); c.run(5e6, false); return c.stats; });
+  const r = [true, false].map(bp => { const c = new Core(img, { bp, xcompute: true }); c.run(5e6, false); return c.stats; });
   out.push(`| [\`${f.replace('.s', '')}\`](programs/${f}) | ${what} | ${r[0].cycles} | ${(r[0].cycles / r[0].retired).toFixed(2)} | ${r[1].cycles} | ${(r[1].cycles / r[1].retired).toFixed(2)} |`);
 }
 if (process.argv.includes('--write')) {

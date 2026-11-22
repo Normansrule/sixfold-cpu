@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 865 1010" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<title>Planned floorplan of the turbo core on sky130</title>
+<style>.bg{fill:#fbfbf8}.die{fill:#f1f2ee;stroke:#9aa0a6}.lbl{fill:#111}.sub{fill:#444}.sram{fill:#607d8b;stroke:#37474f}.tag{fill:#455a64;stroke:#263238}.net{stroke:#c62828;stroke-width:2;fill:none;marker-end:url(#a)}@media (prefers-color-scheme: dark){.bg{fill:#16181b}.die{fill:#202327;stroke:#5f6368}.lbl{fill:#eee}.sub{fill:#bbb}}</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="#c62828"/></marker></defs>
+<rect class="bg" x="0" y="0" width="100%" height="100%"/>
+<rect class="die" x="30.0" y="30.0" width="804.6186722665665" height="900.0000000000001"/>
+<rect x="158.7" y="406.4" width="132.0" height="141.3" fill="#4c8bf5" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="162.7" y="420.4">I-cache controller</text>
+<text class="sub" x="162.7" y="434.4">21,237 um²</text>
+<rect x="158.7" y="547.6" width="132.0" height="249.6" fill="#4c8bf5" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="162.7" y="561.6">btb</text>
+<text class="sub" x="162.7" y="575.6">37,531 um²</text>
+<rect x="158.7" y="797.3" width="132.0" height="132.7" fill="#4c8bf5" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="162.7" y="811.3">return stack</text>
+<text class="sub" x="162.7" y="825.3">19,953 um²</text>
+<rect x="158.7" y="264.1" width="132.0" height="142.3" fill="#4c8bf5" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="162.7" y="278.1">fetch control</text>
+<text class="sub" x="162.7" y="292.1">21,391 um²</text>
+<rect x="158.7" y="30.0" width="132.0" height="234.1" fill="#4c8bf5" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="162.7" y="44.0">gshare + tournament</text>
+<text class="sub" x="162.7" y="58.0">35,196 um²</text>
+<rect x="290.7" y="177.1" width="127.6" height="752.9" fill="#a35bd6" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="294.7" y="191.1">register file</text>
+<text class="sub" x="294.7" y="205.1">109,476 um²</text>
+<rect x="290.7" y="30.0" width="127.6" height="147.1" fill="#a35bd6" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="294.7" y="44.0">decode + forwarding</text>
+<text class="sub" x="294.7" y="58.0">21,391 um²</text>
+<rect x="418.3" y="30.0" width="130.1" height="900.0" fill="#e0a030" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" x="422.3" y="44.0">multiply / divide</text>
+<text class="sub" x="422.3" y="58.0">133,458 um²</text>
+<rect x="548.4" y="440.1" width="105.4" height="311.7" fill="#ef7d22" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(562.4,745.8) rotate(-90)">ALU · 37,426 um²</text>
+<rect x="548.4" y="751.8" width="105.4" height="178.2" fill="#ef7d22" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(562.4,924.0) rotate(-90)">execute control · 21,391 um²</text>
+<rect x="548.4" y="30.0" width="105.4" height="410.1" fill="#ef7d22" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(562.4,434.1) rotate(-90)">CSR file · 49,232 um²</text>
+<rect x="653.8" y="390.3" width="52.1" height="298.6" fill="#1fa38a" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(667.8,682.8) rotate(-90)">D-cache controller · 17,728 um²</text>
+<rect x="653.8" y="688.8" width="52.1" height="241.2" fill="#1fa38a" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(667.8,924.0) rotate(-90)">custom unit · 14,319 um²</text>
+<rect x="653.8" y="210.1" width="52.1" height="180.1" fill="#1fa38a" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(667.8,384.3) rotate(-90)">memory control · 10,695 um²</text>
+<rect x="653.8" y="30.0" width="52.1" height="180.1" fill="#1fa38a" fill-opacity="0.75" stroke="#fff" stroke-width="1"/>
+<text class="lbl" font-size="11" transform="translate(667.8,204.1) rotate(-90)">writeback control · 10,695 um²</text>
+<rect class="sram" x="37.6" y="752.3" width="113.6" height="170.1"/>
+<text x="41.6" y="841.4" fill="#fff" font-size="11">I-cache data 0</text>
+<rect class="sram" x="37.6" y="567.1" width="113.6" height="170.1"/>
+<text x="41.6" y="656.1" fill="#fff" font-size="11">I-cache data 1</text>
+<rect class="tag" x="37.6" y="487.6" width="113.6" height="64.4"/>
+<text x="41.6" y="523.8" fill="#fff" font-size="11">I-cache tag 0</text>
+<rect class="tag" x="37.6" y="408.0" width="113.6" height="64.4"/>
+<text x="41.6" y="444.2" fill="#fff" font-size="11">I-cache tag 1</text>
+<rect class="sram" x="37.6" y="222.8" width="113.6" height="170.1"/>
+<text x="41.6" y="311.9" fill="#fff" font-size="11">I-cache data 2</text>
+<rect class="sram" x="37.6" y="37.6" width="113.6" height="170.1"/>
+<text x="41.6" y="126.6" fill="#fff" font-size="11">I-cache data 3</text>
+<rect class="sram" x="713.5" y="752.3" width="113.6" height="170.1"/>
+<text x="717.5" y="841.4" fill="#fff" font-size="11">D-cache data 0</text>
+<rect class="sram" x="713.5" y="567.1" width="113.6" height="170.1"/>
+<text x="717.5" y="656.1" fill="#fff" font-size="11">D-cache data 1</text>
+<rect class="tag" x="713.5" y="487.6" width="113.6" height="64.4"/>
+<text x="717.5" y="523.8" fill="#fff" font-size="11">D-cache tag 0</text>
+<rect class="tag" x="713.5" y="408.0" width="113.6" height="64.4"/>
+<text x="717.5" y="444.2" fill="#fff" font-size="11">D-cache tag 1</text>
+<rect class="sram" x="713.5" y="222.8" width="113.6" height="170.1"/>
+<text x="717.5" y="311.9" fill="#fff" font-size="11">D-cache data 2</text>
+<rect class="sram" x="713.5" y="37.6" width="113.6" height="170.1"/>
+<text x="717.5" y="126.6" fill="#fff" font-size="11">D-cache data 3</text>
+<text class="lbl" font-weight="bold" x="224.7" y="22.0" text-anchor="middle">FETCH</text>
+<text class="lbl" font-weight="bold" x="354.5" y="22.0" text-anchor="middle">DECODE</text>
+<text class="lbl" font-weight="bold" x="483.4" y="22.0" text-anchor="middle">M UNIT</text>
+<text class="lbl" font-weight="bold" x="601.1" y="22.0" text-anchor="middle">EXECUTE</text>
+<text class="lbl" font-weight="bold" x="679.9" y="22.0" text-anchor="middle">MEMORY</text>
+<path class="net" d="M224.7,335.2 L94.4,335.2 L94.4,480.0"/>
+<path class="net" d="M601.1,596.0 L770.3,596.0 L770.3,480.0"/>
+<text class="lbl" x="30" y="952.0000000000001">Planned, not placed: 1065 x 1192 um core area, sky130. Cell areas measured (tools/floorplan_areas.sh), SRAM macros the prototype's sram22 sizes,</text>
+<text class="lbl" x="30" y="968.0000000000001">65% utilization and the split of the pipeline control assumed. Red: the cache hit paths (address to tag arrays).</text>
+</svg>

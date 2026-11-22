@@ -39,5 +39,86 @@ export default [
     "funct7": 0,
     "expr": "a == b",
     "desc": "Constant-time equality: 1 if rs1 equals rs2, in the same time whatever the operands (no early exit to leak how much matched). From HYDRA-130's Xhydrasec extension; see docs/learn/12_adding_instructions.md"
+  },
+  {
+    "name": "paddus.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 0,
+    "expr": "paddusb(a, b)",
+    "desc": "Packed: 8 bytes added, each saturating at 255 instead of wrapping (brightening pixels, additive blending of light and particles, mixing 8-bit audio)",
+    "group": "xcompute"
+  },
+  {
+    "name": "psubus.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 1,
+    "expr": "psubusb(a, b)",
+    "desc": "Packed: 8 bytes subtracted, each stopping at 0 instead of wrapping (darkening, shadow masks, image differences)",
+    "group": "xcompute"
+  },
+  {
+    "name": "pavgu.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 2,
+    "expr": "pavgub(a, b)",
+    "desc": "Packed: the rounded average of 8 pairs of bytes (50% blends, halving an image for a mipmap, motion compensation in video)",
+    "group": "xcompute"
+  },
+  {
+    "name": "pmaxu.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 3,
+    "expr": "pmaxub(a, b)",
+    "desc": "Packed: the larger of each of 8 pairs of bytes (image dilation, keeping the brightest sample, per-channel clamps)",
+    "group": "xcompute"
+  },
+  {
+    "name": "pminu.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 4,
+    "expr": "pminub(a, b)",
+    "desc": "Packed: the smaller of each of 8 pairs of bytes (image erosion, per-channel clamps)",
+    "group": "xcompute"
+  },
+  {
+    "name": "psad.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 5,
+    "expr": "psadb(a, b)",
+    "desc": "Packed: the sum of the 8 bytes' absolute differences, one number (motion search in video encoders, template matching, comparing image blocks)",
+    "group": "xcompute"
+  },
+  {
+    "name": "pdot.b",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 6,
+    "expr": "pdotb(a, b)",
+    "desc": "Packed: dot product of 8 signed bytes, a 64-bit sum (int8 neural-network layers, 8-tap filters, convolution kernels)",
+    "group": "xcompute"
+  },
+  {
+    "name": "pdot.h",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 7,
+    "expr": "pdoth(a, b)",
+    "desc": "Packed: dot product of 4 signed 16-bit numbers, a 64-bit sum (fixed-point vectors and matrices for 3D, audio filters)",
+    "group": "xcompute"
+  },
+  {
+    "name": "pmulhrs.h",
+    "format": "R",
+    "funct3": 3,
+    "funct7": 8,
+    "expr": "pmulhrsh(a, b)",
+    "desc": "Packed: 4 Q15 fixed-point multiplies, rounded, -1 x -1 saturating to the largest value (audio gain and mixing, fixed-point lighting)",
+    "group": "xcompute"
   }
 ];

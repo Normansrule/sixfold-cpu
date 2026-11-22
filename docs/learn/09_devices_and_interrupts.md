@@ -125,7 +125,7 @@ handler.
 ## Try it
 
 * In `programs/21_timer_interrupts.s`, halve `PERIOD`. How many ticks now, and how many cycles? Check the
-  answer with `cycles = N + 5 + L + 3F + R + K + I + D + X` from [MATH.md](../MATH.md).
+  answer with `cycles = N + 5 + L + 3F + R + K + I + D + X + B` from [MATH.md](../MATH.md).
 * Remove `csrci mstatus, 8` at the end, and make the handler never move `MTIMECMP` forward. What
   happens, and why does `wfi` not help?
 * Write a handler that saves and restores the registers it uses on the stack, so that it could interrupt

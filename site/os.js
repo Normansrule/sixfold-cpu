@@ -85,6 +85,7 @@ function setup() {
   $('os-q').oninput = () => { $('os-q-o').textContent = $('os-q').value; };
   $('os-q').onchange = async () => { if (await prepare()) { if (reducedMotion) runAll(); else play(); } };
   addEventListener('resize', () => { if (prof) draw(); });
+  addEventListener('sixfold:theme', () => { if (prof) draw(); }); // site/theme.js: colours changed
   new IntersectionObserver(async (es, o) => {
     if (!es[0].isIntersecting) return;
     o.disconnect();

@@ -2,7 +2,7 @@
 // =============================================================================
 // tools/custom_fuzz.mjs: random custom instructions, checked on the RTL against the model
 //
-//   node tools/custom_fuzz.mjs [rounds=5] [seed=1]      (make custom-check)
+//   node tools/custom_fuzz.mjs [rounds] [seed=1]      (make custom-check; rounds: every function at least once)
 //
 // The custom-instruction compiler (model/custom.js) translates one expression two ways: to JavaScript for
 // the model and to SystemVerilog for src/Custom_Unit.sv. This test makes random instruction sets that use
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { FUNCTIONS, parse } from '../model/custom.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const rounds = Number(process.argv[2] || 5);
+const roundsArg = Number(process.argv[2] || 0); // default: enough rounds that every function and operator is used once (MUST below)
 let seed = Number(process.argv[3] || 1) >>> 0;
 const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
 const pick = xs => xs[Math.floor(rand() * xs.length)];
@@ -35,9 +35,10 @@ function expr(depth, vars) {
   return `${f}(${Array.from({ length: FUNCTIONS[f][0] }, () => expr(depth - 1, vars)).join(', ')})`;
 }
 
-// Every function and binary operator appears in some round (9 R-format slots a round: 5 rounds cover all
-// 37); the remaining slots, and the 3 I-format ones, get random nested expressions.
+// Every function and binary operator appears in some round (9 R-format slots a round; the default number of
+// rounds covers them all); the remaining slots, and the 3 I-format ones, get random nested expressions.
 const MUST = [...FNS.map(f => `${f}(${Array.from({ length: FUNCTIONS[f][0] }, (_, i) => (i ? 'b' : 'a')).join(', ')})`), ...BIN.map(o => `(a ${o} b)`)];
+const rounds = roundsArg || Math.ceil(MUST.length / 9);
 function spec(round) {
   const list = [], used = new Set();
   for (let k = 0; k < 12; k++) {
@@ -52,7 +53,8 @@ function spec(round) {
   return list;
 }
 
-const VALUES = ['0', '1', '-1', '2', '63', '64', '0x7fffffffffffffff', '0x8000000000000000', '0x0123456789abcdef', '0xfedcba9876543210', '-200', '255', '1000'];
+const VALUES = ['0', '1', '-1', '2', '63', '64', '0x7fffffffffffffff', '0x8000000000000000', '0x0123456789abcdef', '0xfedcba9876543210', '-200', '255', '1000',
+  '0x8080808080808080', '0x7f7f7f7f7f7f7f7f', '0x8000800080008000', '0x7fff7fff7fff7fff', '0xff00ff00ff00ff00']; // and lane edge cases for the packed functions
 function program(list) {
   const lines = ['# custom_fuzz: random custom instructions on random operands (generated; RTL vs model)', '    li a0, 0'];
   for (const c of list) for (let n = 0; n < 4; n++) {

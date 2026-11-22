@@ -1,0 +1,178 @@
+{
+ "builds": [
+  "performance",
+  "baseline",
+  "turbo",
+  "deep"
+ ],
+ "kernels": [
+  {
+   "program": "25_pixel_blend",
+   "name": "brighten 2048 bytes (saturating add)",
+   "performance": {
+    "plain": 25616,
+    "packed": 2363,
+    "instPlain": 20484,
+    "instPacked": 2308
+   },
+   "baseline": {
+    "plain": 26627,
+    "packed": 2563,
+    "instPlain": 20484,
+    "instPacked": 2308
+   },
+   "turbo": {
+    "plain": 25617,
+    "packed": 2353,
+    "instPlain": 20484,
+    "instPacked": 2308
+   },
+   "deep": {
+    "plain": 31963,
+    "packed": 2881,
+    "instPlain": 20486,
+    "instPacked": 2310
+   }
+  },
+  {
+   "program": "25_pixel_blend",
+   "name": "blend 2048 bytes (rounded average)",
+   "performance": {
+    "plain": 24635,
+    "packed": 2363,
+    "instPlain": 22532,
+    "instPacked": 2308
+   },
+   "baseline": {
+    "plain": 26627,
+    "packed": 2563,
+    "instPlain": 22532,
+    "instPacked": 2308
+   },
+   "turbo": {
+    "plain": 24629,
+    "packed": 2353,
+    "instPlain": 22532,
+    "instPacked": 2308
+   },
+   "deep": {
+    "plain": 34881,
+    "packed": 2881,
+    "instPlain": 22534,
+    "instPacked": 2310
+   }
+  },
+  {
+   "program": "26_motion_search",
+   "name": "motion search, 24 candidates x 256 pixels (SAD)",
+   "performance": {
+    "plain": 77113,
+    "packed": 5121,
+    "instPlain": 63355,
+    "instPacked": 4988
+   },
+   "baseline": {
+    "plain": 83077,
+    "packed": 5501,
+    "instPlain": 63354,
+    "instPacked": 4988
+   },
+   "turbo": {
+    "plain": 77526,
+    "packed": 5142,
+    "instPlain": 63355,
+    "instPacked": 4988
+   },
+   "deep": {
+    "plain": 123190,
+    "packed": 7375,
+    "instPlain": 63355,
+    "instPacked": 4990
+   }
+  },
+  {
+   "program": "27_int8_dot",
+   "name": "int8 layer, 8 neurons x 512 inputs (dot products)",
+   "performance": {
+    "plain": 66539,
+    "packed": 3397,
+    "instPlain": 32840,
+    "instPacked": 3162
+   },
+   "baseline": {
+    "plain": 41056,
+    "packed": 3440,
+    "instPlain": 32839,
+    "instPacked": 3161
+   },
+   "turbo": {
+    "plain": 54253,
+    "packed": 3407,
+    "instPlain": 32840,
+    "instPacked": 3161
+   },
+   "deep": {
+    "plain": 83146,
+    "packed": 4762,
+    "instPlain": 32840,
+    "instPacked": 3161
+   }
+  },
+  {
+   "program": "28_fixed_point",
+   "name": "transform 256 vertices by a 4 x 4 Q15 matrix",
+   "performance": {
+    "plain": 49052,
+    "packed": 4652,
+    "instPlain": 19976,
+    "instPacked": 4367
+   },
+   "baseline": {
+    "plain": 21011,
+    "packed": 4878,
+    "instPlain": 19975,
+    "instPacked": 4367
+   },
+   "turbo": {
+    "plain": 32662,
+    "packed": 4634,
+    "instPlain": 19976,
+    "instPacked": 4367
+   },
+   "deep": {
+    "plain": 66290,
+    "packed": 6685,
+    "instPlain": 19976,
+    "instPacked": 4367
+   }
+  },
+  {
+   "program": "28_fixed_point",
+   "name": "audio gain on 2048 Q15 samples",
+   "performance": {
+    "plain": 35559,
+    "packed": 2634,
+    "instPlain": 18445,
+    "instPacked": 2578
+   },
+   "baseline": {
+    "plain": 22540,
+    "packed": 2833,
+    "instPlain": 18445,
+    "instPacked": 2578
+   },
+   "turbo": {
+    "plain": 29395,
+    "packed": 2628,
+    "instPlain": 18445,
+    "instPacked": 2578
+   },
+   "deep": {
+    "plain": 45911,
+    "packed": 3672,
+    "instPlain": 18445,
+    "instPacked": 2578
+   }
+  }
+ ]
+}
