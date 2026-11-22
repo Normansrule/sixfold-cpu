@@ -15,6 +15,8 @@
 //   node tools/test.mjs --no-rtl     model only (no Icarus Verilog needed)
 //   node tools/test.mjs 05           only programs whose name contains "05"
 //   node tools/test.mjs --bp=off     only the static not-taken configuration
+//   node tools/test.mjs --config=turbo   one build only (performance, baseline, turbo or deep; default all four)
+//   (deep: the deep-pipeline edition, model/deep.js against src/deep/ and tb/riscv64_deep_testbench.sv)
 //
 // Every program runs TWICE: with the gshare predictor and with it disabled.
 // =============================================================================
@@ -23,14 +25,15 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { assemble, toHex, toListing } from '../model/asm.js';
 import { Core, CONFIGS } from '../model/core.js';
+import { DeepCore } from '../model/deep.js';
 import { regNum, ABI } from '../model/isa.js';
 
 const args = process.argv.slice(2);
 const noRtl = args.includes('--no-rtl');
 const filter = args.find(a => !a.startsWith('--'));
 const bpArg = (args.find(a => a.startsWith('--bp=')) || '--bp=both').slice(5);
-const cfgArg = (args.find(a => a.startsWith('--config=')) || '--config=both').slice(9);
-const CONFIG_NAMES = cfgArg === 'both' ? ['performance', 'baseline'] : [cfgArg];
+const cfgArg = (args.find(a => a.startsWith('--config=')) || '--config=all').slice(9);
+const CONFIG_NAMES = cfgArg === 'all' ? ['performance', 'baseline', 'turbo', 'deep', 'compact'] : cfgArg === 'both' ? ['performance', 'baseline'] : [cfgArg];
 const MODES = (bpArg === 'on' ? [true] : bpArg === 'off' ? [false] : [true, false]).flatMap(bp => CONFIG_NAMES.map(cfg => ({ bp, cfg })));
 const useIcarus = args.includes('--icarus');
 const tty = process.stdout.isTTY;
@@ -44,21 +47,24 @@ let haveRtl = false;
 const SIM = {};
 if (!noRtl) {
   // Verilator (compiled C++, fast) if installed, otherwise Icarus Verilog. One binary per configuration.
-  const sources = fs.readFileSync('src/sources.f', 'utf8').split('\n').filter(Boolean);
+  // The deep-pipeline edition is its own design (src/deep/sources.f, its own testbench and trace format)
   const hasVerilator = !useIcarus && !spawnSync('verilator', ['--version']).error;
   for (const cfg of CONFIG_NAMES) {
-    const def = cfg === 'baseline' ? ['-DBASELINE'] : [];
+    const deep = cfg === 'deep';
+    const sources = fs.readFileSync(deep ? 'src/deep/sources.f' : 'src/sources.f', 'utf8').split('\n').filter(Boolean);
+    const tb = deep ? 'tb/riscv64_deep_testbench.sv' : 'tb/riscv64_testbench.sv', top = deep ? 'riscv64_deep_testbench' : 'riscv64_testbench';
+    const def = cfg === 'baseline' ? ['-DBASELINE'] : cfg === 'turbo' ? ['-DTURBO'] : cfg === 'compact' ? ['-DCOMPACT'] : [];
     let r;
     if (hasVerilator) {
       const dir = `build/vsim_${cfg}`;
-      const stamp = sources.concat('tb/riscv64_testbench.sv').map(f => fs.statSync(f).mtimeMs).reduce((a, b) => Math.max(a, b));
+      const stamp = sources.concat(tb).map(f => fs.statSync(f).mtimeMs).reduce((a, b) => Math.max(a, b));
       if (fs.existsSync(`${dir}/vsim`) && fs.statSync(`${dir}/vsim`).mtimeMs > stamp) { SIM[cfg] = [`${dir}/vsim`]; continue; }
       process.stdout.write(`building ${cfg} RTL with Verilator... `);
-      r = spawnSync('verilator', ['--binary', '--timing', '-O3', '-Wno-fatal', '-Wno-lint', '-Wno-style', ...def, ...sources, 'tb/riscv64_testbench.sv', '--top-module', 'riscv64_testbench', '-Mdir', dir, '-o', 'vsim'], { encoding: 'utf8', maxBuffer: 1 << 26 });
+      r = spawnSync('verilator', ['--binary', '--timing', '-O3', '-Wno-fatal', '-Wno-lint', '-Wno-style', ...def, ...sources, tb, '--top-module', top, '-Mdir', dir, '-o', 'vsim'], { encoding: 'utf8', maxBuffer: 1 << 26 });
       console.log(r.status === 0 ? 'done' : 'failed');
       SIM[cfg] = [`${dir}/vsim`];
     } else {
-      r = spawnSync('iverilog', ['-g2012', ...def, '-o', `build/sim_${cfg}.vvp`, ...sources, 'tb/riscv64_testbench.sv'], { encoding: 'utf8' });
+      r = spawnSync('iverilog', ['-g2012', ...def, '-o', `build/sim_${cfg}.vvp`, ...sources, tb], { encoding: 'utf8' });
       SIM[cfg] = ['vvp', '-n', `build/sim_${cfg}.vvp`];
     }
     if (r.error) { console.log('no Verilog simulator found: skipping RTL comparison (sudo apt install verilator iverilog)'); break; }
@@ -71,10 +77,11 @@ if (!noRtl) {
 // "# EXPECT: a0 = 5" always; "# EXPECT[gshare]: ..." / "# EXPECT[bp-off]: ..." only in that predictor mode
 // (timing measured with rdcycle legitimately differs between the two modes).
 // "# EXPECT[gshare]" / "# EXPECT[bp-off]" are timing values of the BASELINE build; "# EXPECT[perf]" /
-// "# EXPECT[perf-bp-off]" of the performance build.
+// "# EXPECT[perf-bp-off]" of the performance build; "# EXPECT[turbo]" / "# EXPECT[turbo-bp-off]" of the turbo build;
+// "# EXPECT[deep]" / "# EXPECT[deep-bp-off]" of the deep-pipeline edition.
 function parseExpect(src, bp, cfg) {
   const regs = [], out = [];
-  const want = cfg === 'baseline' ? (bp ? 'gshare' : 'bp-off') : (bp ? 'perf' : 'perf-bp-off');
+  const want = cfg === 'baseline' ? (bp ? 'gshare' : 'bp-off') : cfg === 'turbo' ? (bp ? 'turbo' : 'turbo-bp-off') : cfg === 'deep' ? (bp ? 'deep' : 'deep-bp-off') : cfg === 'compact' ? (bp ? 'compact' : 'compact-bp-off') : (bp ? 'perf' : 'perf-bp-off');
   for (const m of src.matchAll(/^#\s*EXPECT(?:\[([\w-]+)\])?:\s*(\w+)\s*=\s*(-?\w+)\s*$/gm))
     if (!m[1] || m[1] === want) regs.push([m[2], BigInt.asUintN(64, BigInt(m[3]))]);
   for (const m of src.matchAll(/^#\s*EXPECT-OUTPUT:\s?(.*)$/gm)) out.push(m[1].replace(/\\n/g, '\n'));
@@ -92,12 +99,13 @@ for (const f of files) {
 
   for (const { bp, cfg } of MODES) {
   const problems = [];
-  const tag = `${cfg === 'baseline' ? 'base' : 'perf'} ${bp ? 'gshare' : 'no-bp '}`;
+  const tag = `${cfg === 'baseline' ? 'base' : cfg === 'turbo' ? 'turb' : cfg === 'deep' ? 'deep' : cfg === 'compact' ? 'cmpt' : 'perf'} ${bp ? 'gshare' : 'no-bp '}`;
   const tr = `${cfg}.${bp ? 'bp' : 'nobp'}`;
   // ---------------- model ----------------
-  const core = new Core(img, { ...CONFIGS[cfg], bp });
+  const core = cfg === 'deep' ? new DeepCore(img, { bp }) : new Core(img, { ...CONFIGS[cfg], bp });
+  const traceLine = cfg === 'deep' ? DeepCore.traceLine : Core.traceLine;
   const trace = [];
-  while (!core.halted && core.cycle < 2000000) trace.push(Core.traceLine(core.step()));
+  while (!core.halted && core.cycle < 2000000) trace.push(traceLine(core.step()));
   if (!core.halted) problems.push('model did not halt');
   fs.writeFileSync(`build/${name}.${tr}.model.trace`, trace.join('\n') + '\n');
   const exp = parseExpect(src, bp, cfg);

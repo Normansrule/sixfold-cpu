@@ -194,27 +194,49 @@ export const compileJS = ast => (a, b) => evaluate(ast, u64(a), u64(b)) & M64;
 // Each node becomes a 64-bit SystemVerilog expression over A and B. Comparisons give 1 bit, widened with
 // {63'd0, ...}; anything that needs bit selects (shifts by a variable amount, clz, sext8, ...) calls a
 // small function that tools/custom.mjs emits once per module. `used` collects those function names.
-export function toVerilog(ast, used = new Set()) {
-  const v = n => toVerilog(n, used);
+// prep: when given, the first PREPARE_SLOTS popcount calls are split across two stages (CustomPrepare in
+// EXECUTE counts the argument's ones in four 16-bit quarters, CustomUnit in MEMORY adds the four counts):
+// their argument's Verilog is pushed onto prep and the call becomes f_popfinish of its slot of PREPARED.
+export const PREPARE_SLOTS = 3;
+export function toVerilog(ast, used = new Set(), prep = null) {
+  const v = n => toVerilog(n, used, prep);
   const fn = (name, ...args) => { used.add(name); return `f_${name}(${args.join(', ')})`; };
   const bit = s => `{63'd0, ${s}}`;
+  // An unsigned comparison is the carry out of x - y on the prefix adder; == and != are trees already
+  const compare = (op, x, y) => ({ '==': `(${x} == ${y})`, '!=': `(${x} != ${y})`, '<': fn('ltu', x, y), '>': fn('ltu', y, x),
+    '<=': `!${fn('ltu', y, x)}`, '>=': `!${fn('ltu', x, y)}` })[op];
   switch (ast.k) {
     case 'num': return `64'h${ast.v.toString(16)}`;
     case 'var': return ast.v === 'a' ? 'A' : 'B';
-    case 'un': return ast.op === '-' ? `(64'd0 - ${v(ast.x)})` : ast.op === '~' ? `(~${v(ast.x)})` : bit(`(${v(ast.x)} == 64'd0)`);
+    case 'un': return ast.op === '-' ? fn('sub', "64'd0", v(ast.x)) : ast.op === '~' ? `(~${v(ast.x)})` : bit(`(${v(ast.x)} == 64'd0)`);
     case 'cond': { // a comparison used as the condition needs no widening: (A > B) ? ... : ...
       const c = ast.c, cmp = c.k === 'bin' && ['==', '!=', '<', '<=', '>', '>='].includes(c.op);
-      return `(${cmp ? `(${v(c.x)} ${c.op} ${v(c.y)})` : `(${v(c)} != 64'd0)`} ? ${v(ast.x)} : ${v(ast.y)})`;
+      return `(${cmp ? compare(c.op, v(c.x), v(c.y)) : `(${v(c)} != 64'd0)`} ? ${v(ast.x)} : ${v(ast.y)})`;
     }
-    case 'call': return fn(ast.f, ...ast.args.map(v));
+    case 'call': { // against the constant 0 a signed min / max / slt needs only the sign bit, no comparator
+      const zero = n => n.k === 'num' && n.v === 0n, [p, q] = ast.args;
+      if (['min', 'max', 'slt'].includes(ast.f) && ast.args.length === 2 && (zero(p) || zero(q))) {
+        const other = v(zero(p) ? q : p);
+        if (ast.f === 'max') return fn('maxz', other);
+        if (ast.f === 'min') return fn('minz', other);
+        if (zero(q)) return fn('ltz', other); // slt(x, 0) = sign of x
+      }
+      if (ast.f === 'popcount' && prep && prep.length < PREPARE_SLOTS) {
+        prep.push(toVerilog(ast.args[0], used, null)); // the argument is computed in EXECUTE (no nested split)
+        used.add('popquarters');
+        return fn('popfinish', `PREPARED[${20 * (prep.length - 1)} +: 20]`);
+      }
+      return fn(ast.f, ...ast.args.map(v));
+    }
     case 'bin': {
       const x = v(ast.x), y = v(ast.y);
       switch (ast.op) {
         case '&&': return bit(`((${x} != 64'd0) && (${y} != 64'd0))`);
         case '||': return bit(`((${x} != 64'd0) || (${y} != 64'd0))`);
         case '<<': return fn('sll', x, y); case '>>': return fn('srl', x, y); case '>>>': return fn('sra', x, y);
-        case '==': case '!=': case '<': case '<=': case '>': case '>=': return bit(`(${x} ${ast.op} ${y})`);
-        default: return `(${x} ${ast.op} ${y})`; // + - * & | ^ : 64-bit operands, 64-bit result
+        case '==': case '!=': case '<': case '<=': case '>': case '>=': return bit(compare(ast.op, x, y));
+        case '+': return fn('add', x, y); case '-': return fn('sub', x, y); // prefix adders (see f_addc)
+        default: return `(${x} ${ast.op} ${y})`; // * & | ^ : 64-bit operands, 64-bit result
       }
     }
   }
@@ -223,16 +245,45 @@ export function toVerilog(ast, used = new Set()) {
 
 // The SystemVerilog functions toVerilog may call (all 64-bit in, 64-bit out; loops unroll in synthesis)
 export const VERILOG_FUNCTIONS = {
+  // Every + - < > min max goes through one prefix adder. Written as a plain "x + y", synthesis
+  // builds a ripple-carry chain (each bit waits for the one below it): 64 steps, which set the whole core's
+  // clock on the 130 nm library. Here the carries are combined in pairs, then fours, eights ... (a
+  // Kogge-Stone prefix: generate g = x & y, propagate p = x ^ y, then (g, p) = (g_hi | p_hi & g_lo, p_hi & p_lo)),
+  // 6 levels for 64 bits, like src/Parallel_Prefix_Adder.sv. Returns {carry out, sum}.
+  addc: `function automatic logic [64:0] f_addc(input logic [63:0] x, input logic [63:0] y, input logic c);
+    logic [63:0] g, p, h;
+    g = x & y; p = x ^ y; h = p;
+    g[0] = g[0] | (p[0] & c); // the carry in joins bit 0
+    for (int d = 1; d < 64; d = 2 * d)
+      for (int i = 63; i >= d; i--) begin // from the top down, so g[i - d] is still the previous level's
+        g[i] = g[i] | (p[i] & g[i - d]);
+        p[i] = p[i] & p[i - d];
+      end
+    return {g[63], h ^ {g[62:0], c}}; // g[i] is now the carry out of bits i ... 0
+  endfunction`,
+  add: `function automatic logic [63:0] f_add(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, y, 1'b0); return s[63:0];
+  endfunction`,
+  sub: `function automatic logic [63:0] f_sub(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return s[63:0]; // x + ~y + 1
+  endfunction`,
+  ltu: `function automatic logic f_ltu(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return !s[64]; // x - y borrows
+  endfunction`,
+  lts: 'function automatic logic f_lts(input logic [63:0] x, input logic [63:0] y); return (x[63] != y[63]) ? x[63] : f_ltu(x, y); endfunction // signs differ: the negative one is smaller',
+  maxz: 'function automatic logic [63:0] f_maxz(input logic [63:0] x); return x[63] ? 64\'d0 : x; endfunction // max(x, 0)',
+  minz: 'function automatic logic [63:0] f_minz(input logic [63:0] x); return x[63] ? x : 64\'d0; endfunction // min(x, 0)',
+  ltz: 'function automatic logic [63:0] f_ltz(input logic [63:0] x); return {63\'d0, x[63]}; endfunction // slt(x, 0)',
   sll: 'function automatic logic [63:0] f_sll(input logic [63:0] x, input logic [63:0] n); return x << n[5:0]; endfunction',
   srl: 'function automatic logic [63:0] f_srl(input logic [63:0] x, input logic [63:0] n); return x >> n[5:0]; endfunction',
   sra: 'function automatic logic [63:0] f_sra(input logic [63:0] x, input logic [63:0] n); return $unsigned($signed(x) >>> n[5:0]); endfunction',
-  min: 'function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return ($signed(x) < $signed(y)) ? x : y; endfunction',
-  max: 'function automatic logic [63:0] f_max(input logic [63:0] x, input logic [63:0] y); return ($signed(x) > $signed(y)) ? x : y; endfunction',
-  minu: 'function automatic logic [63:0] f_minu(input logic [63:0] x, input logic [63:0] y); return (x < y) ? x : y; endfunction',
-  maxu: 'function automatic logic [63:0] f_maxu(input logic [63:0] x, input logic [63:0] y); return (x > y) ? x : y; endfunction',
-  abs: 'function automatic logic [63:0] f_abs(input logic [63:0] x); return x[63] ? 64\'d0 - x : x; endfunction',
-  slt: 'function automatic logic [63:0] f_slt(input logic [63:0] x, input logic [63:0] y); return {63\'d0, $signed(x) < $signed(y)}; endfunction',
-  sltu: 'function automatic logic [63:0] f_sltu(input logic [63:0] x, input logic [63:0] y); return {63\'d0, x < y}; endfunction',
+  min: 'function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return f_lts(x, y) ? x : y; endfunction',
+  max: 'function automatic logic [63:0] f_max(input logic [63:0] x, input logic [63:0] y); return f_lts(y, x) ? x : y; endfunction',
+  minu: 'function automatic logic [63:0] f_minu(input logic [63:0] x, input logic [63:0] y); return f_ltu(x, y) ? x : y; endfunction',
+  maxu: 'function automatic logic [63:0] f_maxu(input logic [63:0] x, input logic [63:0] y); return f_ltu(y, x) ? x : y; endfunction',
+  abs: 'function automatic logic [63:0] f_abs(input logic [63:0] x); return x[63] ? f_sub(64\'d0, x) : x; endfunction',
+  slt: 'function automatic logic [63:0] f_slt(input logic [63:0] x, input logic [63:0] y); return {63\'d0, f_lts(x, y)}; endfunction',
+  sltu: 'function automatic logic [63:0] f_sltu(input logic [63:0] x, input logic [63:0] y); return {63\'d0, f_ltu(x, y)}; endfunction',
   // clz / ctz / popcount are trees, not chains: log2(64) = 6 levels, like src/Leading_Zero_Counter.sv and
   // src/Population_Count.sv (a 64-step loop would synthesize to a 64-deep chain and set the clock)
   clz: `function automatic logic [63:0] f_clz(input logic [63:0] x);
@@ -281,6 +332,22 @@ export const VERILOG_FUNCTIONS = {
     e0 = f_csa7(d0[6:0], d0[13:7], d1[6:0]);                                                     // 4 -> 3
     f0 = f_csa7(e0[6:0], e0[13:7], d1[13:7]);                                                    // 3 -> 2
     return {57'd0, f0[6:0] + f0[13:7]};
+  endfunction`,
+  // popcount split across two stages (the first PREPARE_SLOTS calls): the argument's ones in four 16-bit
+  // quarters in EXECUTE (CustomPrepare), the sum of the four in MEMORY, like src/Population_Count.sv
+  popquarters: `function automatic logic [19:0] f_popquarters(input logic [63:0] x);
+    logic [3:0] q; logic two; logic [2:0] n; logic [19:0] r; r = 20'd0;
+    for (int i = 0; i < 16; i++) begin
+      q = x[4*i +: 4];
+      two = (q[0] & q[1]) | (q[0] & q[2]) | (q[0] & q[3]) | (q[1] & q[2]) | (q[1] & q[3]) | (q[2] & q[3]);
+      n = {&q, two & ~(&q), ^q};
+      r[5*(i/4) +: 5] = r[5*(i/4) +: 5] + {2'd0, n};
+    end
+    return r;
+  endfunction`,
+  popfinish: `function automatic logic [63:0] f_popfinish(input logic [19:0] q);
+    logic [5:0] lo, hi; lo = {1'b0, q[4:0]} + {1'b0, q[9:5]}; hi = {1'b0, q[14:10]} + {1'b0, q[19:15]};
+    return {57'd0, {1'b0, lo} + {1'b0, hi}};
   endfunction`,
   rev8: 'function automatic logic [63:0] f_rev8(input logic [63:0] x); return {x[7:0], x[15:8], x[23:16], x[31:24], x[39:32], x[47:40], x[55:48], x[63:56]}; endfunction',
   rotl: 'function automatic logic [63:0] f_rotl(input logic [63:0] x, input logic [63:0] n); return (x << n[5:0]) | (x >> (7\'d64 - {1\'b0, n[5:0]})); endfunction',
@@ -377,12 +444,15 @@ export function execute(word, a, b) {
 // list: validated instructions ({ name, format, funct3, funct7, expr }). tools/custom.mjs writes the result to
 // src/Custom_Unit.sv; web/custom.html shows it.
 export function verilogModule(list) {
-  const used = new Set();
-  const body = list.map((c, i) => ({ c, i, sv: toVerilog(parse(c.expr, c.format), used) }));
-  if (used.has('popcount')) used.add('csa7'); // popcount's helper
+  const used = new Set(), prep = [];
+  const body = list.map((c, i) => ({ c, i, sv: toVerilog(parse(c.expr, c.format), used, prep) }));
+  const NEEDS = { popcount: ['csa7'], add: ['addc'], sub: ['addc'], ltu: ['addc'], lts: ['ltu'], min: ['lts'], max: ['lts'],
+    slt: ['lts'], minu: ['ltu'], maxu: ['ltu'], sltu: ['ltu'], abs: ['sub'] }; // the helpers each function calls
+  for (let grew = true; grew;) { grew = false; for (const n of [...used]) for (const d of NEEDS[n] || []) if (!used.has(d)) { used.add(d); grew = true; } }
   const fns = [...used].sort().map(n => VERILOG_FUNCTIONS[n].split('\n').map((l, i, all) => (i === 0 || i === all.length - 1 ? '  ' : '    ') + l.trim()).join('\n')).join('\n');
   const match = c => c.format === 'I' ? `(FUNCT3 == 3'd${c.funct3})` : `(FUNCT3 == 3'd${c.funct3}) && (FUNCT7 == 7'd${c.funct7})`;
   const selects = body.map(({ c, i }) => `  assign SELECT[${i}] = ${match(c)}; // ${c.name}`).join('\n');
+  const prepared = prep.length ? `{${64 - 20 * prep.length}'d0${prep.map(sv => `,\n      f_popquarters(${sv})`).reverse().join('')}}` : "64'd0"; // slot 0 in bits 19:0
   const terms = body.map(({ c, i, sv }) => `      | ({64{SELECT[${i}]}} & ${sv}) // ${c.name}: ${c.expr}`).join('\n');
   return `\`default_nettype none
 // =============================================================================
@@ -393,6 +463,9 @@ export function verilogModule(list) {
 // funct3 4 to 7 is I format (rd, rs1, a 12-bit immediate).
 //   CustomDecode (in DECODE): which instruction this is, one bit per instruction (one-hot), carried along
 //     with the instruction, so no funct3 / funct7 comparison is left on the custom unit's path.
+//   CustomPrepare (in EXECUTE): the first part of each popcount (at most ${PREPARE_SLOTS}): the ones of its argument
+//     in four 16-bit quarters, registered into MEMORY with the operands. A 64-bit count is too deep for one
+//     cycle next to everything else; split like src/Population_Count.sv, each half fits.
 //   CustomUnit (in MEMORY): every instruction's result in parallel, and an AND-OR keeps the selected one.
 //     A is rs1 and B is rs2 or the sign-extended immediate, chosen and forwarded in DECODE like the ALU's
 //     and registered at the end of EXECUTE, so this logic has the whole MEMORY cycle to itself. The result
@@ -409,10 +482,20 @@ module CustomDecode (
 );
 ${selects ? selects + '\n' : ''}${list.length < 32 ? `  assign SELECT[31:${list.length}] = '0;\n` : ''}endmodule
 
+module CustomPrepare (
+    input  logic [63:0] A,        // rs1, at the start of EXECUTE
+    input  logic [63:0] B,        // rs2 or the immediate
+    output logic [63:0] PREPARED  // 20 bits per split popcount: four quarter counts of 5 bits
+);
+${fns ? fns + '\n' : ''}
+  assign PREPARED = ${prepared};
+endmodule
+
 module CustomUnit (
-    input  logic [63:0] A,       // rs1
-    input  logic [63:0] B,       // rs2 (R format) or the sign-extended immediate (I format)
-    input  logic [31:0] SELECT,  // from CustomDecode, one stage earlier
+    input  logic [63:0] A,        // rs1
+    input  logic [63:0] B,        // rs2 (R format) or the sign-extended immediate (I format)
+    input  logic [63:0] PREPARED, // from CustomPrepare, one stage earlier
+    input  logic [31:0] SELECT,   // from CustomDecode, one stage earlier
     output logic [63:0] RESULT
 );
 ${fns ? fns + '\n' : ''}
@@ -444,10 +527,11 @@ export function decodeShare(text) {
 // ---------------------------------------------------------------- how deep is it?
 // The longest path through an expression, in "adder delays": the time one 64-bit add takes. The custom
 // unit has a MEMORY cycle to itself; measured with `make timing` on sky130 (docs/CUSTOM_INSTRUCTIONS.md,
-// "What fits in a cycle"), absdiff, avgu and clampi leave the clock where it was and a 64-bit popcount
-// (hamming) just fits, so the budget is about 1.5 adder delays. Shifts by a constant are only wiring, and
-// a comparison with 0 is just the sign bit.
-export const DEPTH = { add: 1, compare: 1, multiply: 3, counter: 1, popcount: 1.4, shift: 0.5, mux: 0.15, logic: 0.08 };
+// "What fits in a cycle"), absdiff, avgu and clampi leave the clock where it was, so the budget is about 1.5
+// adder delays. A popcount's argument and its quarter counts run in EXECUTE (CustomPrepare), so in MEMORY it
+// is only the last addition of four small counts (popfinish); a whole 64-bit count (popcount) did not fit.
+// Shifts by a constant are only wiring, and a comparison with 0 is just the sign bit.
+export const DEPTH = { add: 1, compare: 1, multiply: 3, counter: 1, popcount: 1.4, popfinish: 0.4, shift: 0.5, mux: 0.15, logic: 0.08 };
 export const DEPTH_BUDGET = 1.5;
 const isZero = n => n.k === 'num' && n.v === 0n;
 export function depth(ast) {
@@ -459,7 +543,7 @@ export function depth(ast) {
     case 'call': {
       const inner = Math.max(0, ...ast.args.map(d));
       const f = ast.f;
-      if (f === 'popcount') return inner + DEPTH.popcount; // a 64-input sum (src/Population_Count.sv)
+      if (f === 'popcount') return DEPTH.popfinish; // the argument and the quarter counts are done in EXECUTE (CustomPrepare)
       if (f === 'clz' || f === 'ctz') return inner + DEPTH.counter; // a 6-level tree (src/Leading_Zero_Counter.sv)
       const cmp = ast.args.some(isZero) || f === 'abs' ? DEPTH.logic : DEPTH.compare; // against 0: the sign bit (abs negates, below)
       if (['min', 'max', 'minu', 'maxu'].includes(f)) return inner + cmp + DEPTH.mux;

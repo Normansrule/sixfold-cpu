@@ -20,9 +20,21 @@
     ],
     [
       "performance, ASAP7 7 nm, now",
-      513,
+      496,
+      "measured",
+      "limit: the ALU operand -> branch compare -> flush path (with FENCE.I)"
+    ],
+    [
+      "turbo, ASAP7 7 nm, 6 stages",
+      471,
+      "measured",
+      "limit: the ALU loop and the multiply/divide steps (a flat wall)"
+    ],
+    [
+      "deep-pipeline edition, ASAP7 7 nm, 14 stages",
+      402,
       "best",
-      "limit: branch compare -> flush -> next PC (B extension + interrupts)"
+      "staggered ALU, caches retimed; CPI 2.25 against turbo's 1.47"
     ],
     [
       "target: 2.5 GHz",
@@ -80,18 +92,28 @@
     ],
     [
       "Split EXECUTE in two (8 stages)",
-      "add in EX1, select and forward from EX2: one more bubble per dependence and mispredict",
-      "next"
+      "done in the deep-pipeline edition, four ways: one 16-bit ALU slice per stage, dependent adds still back to back",
+      "done"
     ],
     [
       "3-stage front end, pipelined caches",
-      "BTB, direction, I-cache in separate stages like real cores",
-      "next"
+      "done in the deep-pipeline edition: F1 to F4, tags and LRU retimed, caches beside the stages that use them",
+      "done"
+    ],
+    [
+      "14 stages: the deep-pipeline edition",
+      "16-bit ALU slices, a two-cycle M unit, the caches' tags and LRU retimed; 402 ps (369 to 402 across runs)",
+      "done"
     ],
     [
       "15 to 20 stages + out-of-order core",
       "what 4 to 6 GHz desktop cores do: 12 to 20 gate delays per stage, custom circuits",
       "next"
+    ],
+    [
+      "5 GHz with synthesized cells",
+      "the 16-bit add + bypass loop alone is 183.5 ps against a ~166 ps budget: needs hand-built circuits",
+      "measured"
     ]
   ]
 }

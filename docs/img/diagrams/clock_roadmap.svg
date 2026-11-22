@@ -1,29 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 782" width="1600" height="782">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 926" width="1600" height="926">
 <defs><marker id="m-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2B3A31"/></marker><marker id="m-pred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#00796B"/></marker><marker id="m-flush" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C2185B"/></marker><marker id="m-F1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E86C1"/></marker><marker id="m-F2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-E" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#E08E0B"/></marker><marker id="m-M" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#27AE60"/></marker><marker id="m-tag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9982E"/></marker><marker id="m-idx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#17A2B8"/></marker><marker id="m-off" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A5ACD"/></marker><marker id="m-hit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1E8449"/></marker><marker id="m-miss" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker><marker id="m-sub" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4A5A50"/></marker></defs>
 <rect width="100%" height="100%" rx="12" fill="#FBFCF8" stroke="#D5DBD0"/>
 <text x="24" y="34" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="20" font-weight="700" fill="#17251D" text-anchor="start">Clock frequency: where Sixfold is, and what it takes to reach 2.5 GHz and 5 GHz</text>
 <text x="24" y="56" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#4A5A50" text-anchor="start">Longest register-to-register path, logic only (tools/timing.sh, typical corner). Shorter bar = faster clock. Log scale.</text>
-<line x1="470" y1="92" x2="470" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="470" y1="92" x2="470" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="470" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">100 ps</text>
-<line x1="551.0644732450476" y1="92" x2="551.0644732450476" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="551.0644732450476" y1="92" x2="551.0644732450476" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="551.0644732450476" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">200 ps</text>
-<line x1="632.1289464900951" y1="92" x2="632.1289464900951" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="632.1289464900951" y1="92" x2="632.1289464900951" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="632.1289464900951" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">400 ps</text>
-<line x1="739.2903511699683" y1="92" x2="739.2903511699683" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="739.2903511699683" y1="92" x2="739.2903511699683" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="739.2903511699683" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">1 ns</text>
-<line x1="820.3548244150159" y1="92" x2="820.3548244150159" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="820.3548244150159" y1="92" x2="820.3548244150159" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="820.3548244150159" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">2 ns</text>
-<line x1="927.516229094889" y1="92" x2="927.516229094889" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="927.516229094889" y1="92" x2="927.516229094889" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="927.516229094889" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">5 ns</text>
-<line x1="1008.5807023399366" y1="92" x2="1008.5807023399366" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="1008.5807023399366" y1="92" x2="1008.5807023399366" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="1008.5807023399366" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">10 ns</text>
-<line x1="1089.6451755849841" y1="92" x2="1089.6451755849841" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="1089.6451755849841" y1="92" x2="1089.6451755849841" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="1089.6451755849841" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">20 ns</text>
-<line x1="1196.8065802648575" y1="92" x2="1196.8065802648575" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="1196.8065802648575" y1="92" x2="1196.8065802648575" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="1196.8065802648575" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">50 ns</text>
-<line x1="1277.8710535099049" y1="92" x2="1277.8710535099049" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="1277.8710535099049" y1="92" x2="1277.8710535099049" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="1277.8710535099049" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">100 ns</text>
-<line x1="1358.9355267549524" y1="92" x2="1358.9355267549524" y2="376" stroke="#D5DBD0" stroke-width="1"/>
+<line x1="1358.9355267549524" y1="92" x2="1358.9355267549524" y2="468" stroke="#D5DBD0" stroke-width="1"/>
 <text x="1358.9355267549524" y="86" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="400" fill="#8A968E" text-anchor="middle">200 ns</text>
 <text x="456" y="120" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">baseline, single-cycle M unit, 130 nm</text>
 <rect x="470" y="104" width="841.223105398908" height="22" rx="3" fill="#8A968E" stroke="#8A968E" stroke-width="1.5" fill-opacity="0.85"/>
@@ -37,64 +37,80 @@
 <rect x="470" y="196" width="232.32419906474615" height="22" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.85"/>
 <text x="710.3241990647462" y="212" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#2E86C1" text-anchor="start">729 ps  =  1.37 GHz</text>
 <text x="456" y="227" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">limit: a second PC + 4 adder in FETCH2</text>
-<text x="456" y="258" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#17251D" text-anchor="end">performance, ASAP7 7 nm, now</text>
-<rect x="470" y="242" width="191.22775462285358" height="22" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="669.2277546228536" y="258" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#27AE60" text-anchor="start">513 ps  =  1.95 GHz</text>
-<text x="456" y="273" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">limit: branch compare -&gt; flush -&gt; next PC (B extension + interrupts)</text>
-<text x="456" y="304" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">target: 2.5 GHz</text>
-<line x1="632.1289464900951" y1="284" x2="632.1289464900951" y2="314" stroke="#C2185B" stroke-width="3"/>
-<rect x="470" y="288" width="162.12894649009513" height="22" rx="3" fill="#C2185B" stroke="#C2185B" stroke-width="1.5" stroke-dasharray="5 4" fill-opacity="0.08"/>
-<text x="640.1289464900951" y="304" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C2185B" text-anchor="start">400 ps  =  2.50 GHz</text>
-<text x="456" y="319" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">needs 1.3x less logic per stage</text>
-<text x="456" y="350" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">target: 5 GHz</text>
-<line x1="551.0644732450476" y1="330" x2="551.0644732450476" y2="360" stroke="#C2185B" stroke-width="3"/>
-<rect x="470" y="334" width="81.06447324504757" height="22" rx="3" fill="#C2185B" stroke="#C2185B" stroke-width="1.5" stroke-dasharray="5 4" fill-opacity="0.08"/>
-<text x="559.0644732450476" y="350" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C2185B" text-anchor="start">200 ps  =  5.00 GHz</text>
-<text x="456" y="365" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">needs 2.6x less logic per stage</text>
-<rect x="20" y="406" width="1560" height="356" rx="8" fill="#FFF" stroke="#D5DBD0" stroke-width="1.5"/>
-<text x="36" y="432" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="start">Closing the gap: the clock is set by the slowest pipeline stage, so every step cuts the logic between two registers</text>
-<rect x="36" y="445" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="457" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="458" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Prefix (Kogge-Stone) adders everywhere</text>
-<text x="560" y="458" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">ALU, branch compare, FETCH2 target, PC incrementers: log2(64) = 6 levels instead of 64</text>
-<rect x="36" y="471" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="483" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="484" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Iterative multiply/divide, split counters</text>
-<text x="560" y="484" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">a 64-step divide spread over many cycles instead of one 133 ns cycle</text>
-<rect x="36" y="497" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="509" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="510" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Wallace-tree multiply with carry-save accumulator</text>
-<text x="560" y="510" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">18 numbers -&gt; 2 in 6 full-adder levels; one adder at the end sums and negates</text>
-<rect x="36" y="523" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="535" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="536" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Leading-zero counter tree, registered M result</text>
-<text x="560" y="536" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">a tree instead of six chained tests; nothing slow in front of forwarding</text>
-<rect x="36" y="549" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="561" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="562" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Decide early, keep FLUSH off register enables</text>
-<text x="560" y="562" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">ALU/M controls and ALU operands chosen in DECODE; data registers ignore flushes</text>
-<rect x="36" y="575" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="587" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="588" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Zba + Zbb without slowing the loop</text>
-<text x="560" y="588" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">early/late operand paths, adder enters the result mux last, cpop/min/max take 2 cycles</text>
-<rect x="36" y="601" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="613" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="614" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Zbs, cpop over two stages</text>
-<text x="560" y="614" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">single-bit decoder only on the early operand path; cpop finishes its count in MEMORY</text>
-<rect x="36" y="627" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
-<text x="78" y="639" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
-<text x="134" y="640" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Precise interrupts, decided from registers only</text>
-<text x="560" y="640" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">take the interrupt in DECODE; stall and flush applied where they already are</text>
-<rect x="36" y="653" width="84" height="18" rx="9" fill="#8A968E" fill-opacity="0.13" stroke="#8A968E"/>
-<text x="78" y="665" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#8A968E" text-anchor="middle">next</text>
-<text x="134" y="666" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Split EXECUTE in two (8 stages)</text>
-<text x="560" y="666" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">add in EX1, select and forward from EX2: one more bubble per dependence and mispredict</text>
-<rect x="36" y="679" width="84" height="18" rx="9" fill="#8A968E" fill-opacity="0.13" stroke="#8A968E"/>
-<text x="78" y="691" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#8A968E" text-anchor="middle">next</text>
-<text x="134" y="692" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">3-stage front end, pipelined caches</text>
-<text x="560" y="692" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">BTB, direction, I-cache in separate stages like real cores</text>
-<rect x="36" y="705" width="84" height="18" rx="9" fill="#8A968E" fill-opacity="0.13" stroke="#8A968E"/>
-<text x="78" y="717" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#8A968E" text-anchor="middle">next</text>
-<text x="134" y="718" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">15 to 20 stages + out-of-order core</text>
-<text x="560" y="718" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">what 4 to 6 GHz desktop cores do: 12 to 20 gate delays per stage, custom circuits</text>
+<text x="456" y="258" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">performance, ASAP7 7 nm, now</text>
+<rect x="470" y="242" width="187.28650489432357" height="22" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="665.2865048943236" y="258" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#2E86C1" text-anchor="start">496 ps  =  2.02 GHz</text>
+<text x="456" y="273" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">limit: the ALU operand -&gt; branch compare -&gt; flush path (with FENCE.I)</text>
+<text x="456" y="304" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">turbo, ASAP7 7 nm, 6 stages</text>
+<rect x="470" y="288" width="181.23803642547114" height="22" rx="3" fill="#2E86C1" stroke="#2E86C1" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="659.2380364254711" y="304" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#2E86C1" text-anchor="start">471 ps  =  2.12 GHz</text>
+<text x="456" y="319" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">limit: the ALU loop and the multiply/divide steps (a flat wall)</text>
+<text x="456" y="350" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#17251D" text-anchor="end">deep-pipeline edition, ASAP7 7 nm, 14 stages</text>
+<rect x="470" y="334" width="162.7122460211608" height="22" rx="3" fill="#27AE60" stroke="#27AE60" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="640.7122460211608" y="350" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#27AE60" text-anchor="start">402 ps  =  2.49 GHz</text>
+<text x="456" y="365" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">staggered ALU, caches retimed; CPI 2.25 against turbo's 1.47</text>
+<text x="456" y="396" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">target: 2.5 GHz</text>
+<line x1="632.1289464900951" y1="376" x2="632.1289464900951" y2="406" stroke="#C2185B" stroke-width="3"/>
+<rect x="470" y="380" width="162.12894649009513" height="22" rx="3" fill="#C2185B" stroke="#C2185B" stroke-width="1.5" stroke-dasharray="5 4" fill-opacity="0.08"/>
+<text x="640.1289464900951" y="396" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C2185B" text-anchor="start">400 ps  =  2.50 GHz</text>
+<text x="456" y="411" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">needs 1.3x less logic per stage</text>
+<text x="456" y="442" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#17251D" text-anchor="end">target: 5 GHz</text>
+<line x1="551.0644732450476" y1="422" x2="551.0644732450476" y2="452" stroke="#C2185B" stroke-width="3"/>
+<rect x="470" y="426" width="81.06447324504757" height="22" rx="3" fill="#C2185B" stroke="#C2185B" stroke-width="1.5" stroke-dasharray="5 4" fill-opacity="0.08"/>
+<text x="559.0644732450476" y="442" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#C2185B" text-anchor="start">200 ps  =  5.00 GHz</text>
+<text x="456" y="457" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">needs 2.6x less logic per stage</text>
+<rect x="20" y="498" width="1560" height="408" rx="8" fill="#FFF" stroke="#D5DBD0" stroke-width="1.5"/>
+<text x="36" y="524" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="start">Closing the gap: the clock is set by the slowest pipeline stage, so every step cuts the logic between two registers</text>
+<rect x="36" y="537" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="549" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="550" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Prefix (Kogge-Stone) adders everywhere</text>
+<text x="560" y="550" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">ALU, branch compare, FETCH2 target, PC incrementers: log2(64) = 6 levels instead of 64</text>
+<rect x="36" y="563" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="575" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="576" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Iterative multiply/divide, split counters</text>
+<text x="560" y="576" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">a 64-step divide spread over many cycles instead of one 133 ns cycle</text>
+<rect x="36" y="589" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="601" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="602" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Wallace-tree multiply with carry-save accumulator</text>
+<text x="560" y="602" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">18 numbers -&gt; 2 in 6 full-adder levels; one adder at the end sums and negates</text>
+<rect x="36" y="615" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="627" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="628" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Leading-zero counter tree, registered M result</text>
+<text x="560" y="628" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">a tree instead of six chained tests; nothing slow in front of forwarding</text>
+<rect x="36" y="641" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="653" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="654" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Decide early, keep FLUSH off register enables</text>
+<text x="560" y="654" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">ALU/M controls and ALU operands chosen in DECODE; data registers ignore flushes</text>
+<rect x="36" y="667" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="679" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="680" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Zba + Zbb without slowing the loop</text>
+<text x="560" y="680" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">early/late operand paths, adder enters the result mux last, cpop/min/max take 2 cycles</text>
+<rect x="36" y="693" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="705" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="706" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Zbs, cpop over two stages</text>
+<text x="560" y="706" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">single-bit decoder only on the early operand path; cpop finishes its count in MEMORY</text>
+<rect x="36" y="719" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="731" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="732" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Precise interrupts, decided from registers only</text>
+<text x="560" y="732" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">take the interrupt in DECODE; stall and flush applied where they already are</text>
+<rect x="36" y="745" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="757" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">Split EXECUTE in two (8 stages)</text>
+<text x="560" y="758" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">done in the deep-pipeline edition, four ways: one 16-bit ALU slice per stage, dependent adds still back to back</text>
+<rect x="36" y="771" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="783" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="784" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">3-stage front end, pipelined caches</text>
+<text x="560" y="784" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">done in the deep-pipeline edition: F1 to F4, tags and LRU retimed, caches beside the stages that use them</text>
+<rect x="36" y="797" width="84" height="18" rx="9" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60"/>
+<text x="78" y="809" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#27AE60" text-anchor="middle">done</text>
+<text x="134" y="810" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">14 stages: the deep-pipeline edition</text>
+<text x="560" y="810" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">16-bit ALU slices, a two-cycle M unit, the caches' tags and LRU retimed; 402 ps (369 to 402 across runs)</text>
+<rect x="36" y="823" width="84" height="18" rx="9" fill="#8A968E" fill-opacity="0.13" stroke="#8A968E"/>
+<text x="78" y="835" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#8A968E" text-anchor="middle">next</text>
+<text x="134" y="836" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">15 to 20 stages + out-of-order core</text>
+<text x="560" y="836" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">what 4 to 6 GHz desktop cores do: 12 to 20 gate delays per stage, custom circuits</text>
+<rect x="36" y="849" width="84" height="18" rx="9" fill="#2E86C1" fill-opacity="0.13" stroke="#2E86C1"/>
+<text x="78" y="861" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10" font-weight="700" fill="#2E86C1" text-anchor="middle">measured</text>
+<text x="134" y="862" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="700" fill="#17251D" text-anchor="start">5 GHz with synthesized cells</text>
+<text x="560" y="862" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">the 16-bit add + bypass loop alone is 183.5 ps against a ~166 ps budget: needs hand-built circuits</text>
 </svg>

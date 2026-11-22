@@ -14,6 +14,7 @@
 //   docs/img/diagrams/multitasking.svg       a preemptive kernel: timeline, task control blocks, one context switch
 //   docs/img/diagrams/isa_encodings.svg, isa_pipelines.svg   RISC-V, MIPS and x86-64 side by side
 //   docs/img/diagrams/custom_instruction.svg a custom instruction in the pipeline, with real traces
+//   docs/img/diagrams/deep_pipeline.svg      the 14-stage deep-pipeline edition (src/deep/), its caches and its numbers
 //
 // Every number in these figures comes from the RTL parameters (src/*.sv) or from
 // docs/PERFORMANCE.md; the figures are redrawn by `make diagrams`.
@@ -788,7 +789,7 @@ export async function interruptDiagram() {
   const notes = [
     [C.flush, `cycle ${evs[i0].cycle}: the timer interrupt is pending and enabled, so the instruction in DECODE does not go on: an interrupt pseudo-instruction takes its place.`],
     [C.flush, `cycle ${evs[i0 + 1].cycle}: in EXECUTE it traps like ecall: mepc = the replaced instruction, mcause = 2^63 + 7, MIE off, jump to mtvec; FETCH1..DECODE are flushed.`],
-    [C.E, 'It never retires (MEMORY gets a bubble): an interrupt costs 4 cycles, the X term of cycles = N + 5 + L + 3F + R + K + I + D + X.'],
+    [C.E, 'It never retires (MEMORY gets a bubble): an interrupt costs 4 cycles, the X term of cycles = N + 5 + L + 3F + R + K + I + D + X + B.'],
     [C.M, 'The handler moves MTIMECMP forward and runs mret, a flush back to mepc: the replaced instruction runs now, and the loop never notices.'],
     [C.faint, 'Faded rows were fetched and then squashed; their slots are the bubbles the equation counts.'],
   ];
@@ -867,6 +868,68 @@ export async function multitaskingDiagram() {
 }
 
 export const FPGA_RESULTS = JSON.parse(fs.readFileSync(new URL('../docs/fpga_results.json', import.meta.url), 'utf8'));
+// =============================================================================
+// The deep-pipeline edition (src/deep/, docs/DEEP_PIPELINE.md): 14 stages, the caches beside the stages
+// that use them, one stall point (D2), one commit point (M1)
+// =============================================================================
+export function deepPipeline() {
+  const W = 1600, H = 820;
+  const g = canvas(W, H, 'The deep-pipeline edition: 14 short stages, one place that stalls, one place that commits',
+    'src/deep/Riscv64_Deep.sv. Each stage does less, so the clock is shorter; every wrong guess and every wait now costs more stages (docs/DEEP_PIPELINE.md).');
+  const { text, rect, box, wire, pill, add } = g;
+  const stages = [
+    ['F1', C.F1, 'PC to I-cache', 'and predictors'], ['F2', C.F1, 'arrays read', ''], ['F3', C.F1, 'tag compare,', 'word + predecode'], ['F4', C.F1, 'prediction:', 'redirect or miss'],
+    ['D1', C.D, 'decode,', 'register read'], ['D2', C.D, 'issue check:', 'the only stall'],
+    ['X1', C.E, 'ALU slice', 'bits 0-15'], ['X2', C.E, 'ALU slice', 'bits 16-31'], ['X3', C.E, 'bits 32-47;', 'whole-value unit'], ['X4', C.E, 'bits 48-63;', 'address done'],
+    ['M1', C.M, 'COMMIT: branch,', 'trap, fence.i, store'], ['M2', C.M, 'load align;', 'miss replays'], ['M3', C.M, 'write-back', 'drive'], ['W', C.W, 'register', 'file write']];
+  const x0 = 40, sw = 98, gap = 10, sy = 300, sh = 92;
+  const X = i => x0 + i * (sw + gap);
+  // groups
+  [['FETCH', 0, 3, C.F1], ['DECODE', 4, 5, C.D], ['EXECUTE (staggered ALU)', 6, 9, C.E], ['MEMORY', 10, 12, C.M], ['WB', 13, 13, C.W]].forEach(([n, a, b, col]) => {
+    rect(X(a) - 4, sy - 34, X(b) + sw - X(a) + 8, sh + 42, { fill: col, stroke: col, op: 0.06, rx: 8 });
+    text((X(a) + X(b) + sw) / 2, sy - 14, n, { size: 12, weight: 700, fill: col, anchor: 'middle' });
+  });
+  stages.forEach(([n, col, a, b], i) => {
+    rect(X(i), sy, sw, sh, { fill: col, stroke: col, op: 0.14 });
+    text(X(i) + sw / 2, sy + 26, n, { size: 17, weight: 700, fill: col, anchor: 'middle' });
+    text(X(i) + sw / 2, sy + 52, a, { size: 10, fill: C.sub, anchor: 'middle' });
+    if (b) text(X(i) + sw / 2, sy + 66, b, { size: 10, fill: C.sub, anchor: 'middle' });
+    if (i < 13) wire([[X(i) + sw, sy + sh / 2], [X(i + 1), sy + sh / 2]], 'sub', { width: 1.5 });
+  });
+  // staggered ALU slices
+  for (let k = 0; k < 4; k++) {
+    const i = 6 + k;
+    for (let j = 0; j < 4; j++) rect(X(i) + 10 + j * 20, sy + 74, 18, 10, { fill: j <= k ? C.E : '#FFF', stroke: C.E, sw: 1, rx: 2, op: j <= k ? 0.8 : 1 });
+  }
+  // caches and units
+  box(X(0), 110, X(3) + sw - X(0), 110, 'Instruction cache (DeepCache)', ['4 KiB, 2 ways; tags, LRU, refill, prefetch, predecode', 'F1 sends the index, F2 reads, F3 compares, F4 acts', 'emptied by reset or by fence.i at M1'], { stroke: C.F1, file: 'src/deep/Deep_Cache.sv' });
+  for (const i of [0, 1, 2]) wire([[X(i) + sw / 2, 220], [X(i) + sw / 2, sy]], 'F1', { width: 1.5 });
+  box(X(4), 130, X(5) + sw - X(4), 90, 'Predictors', ['gshare, tournament,', 'BTB (own counter), RAS', 'read in F1, trained after M1'], { stroke: C.pred, file: 'src/deep/Deep_Predictors.sv' });
+  box(X(7), 470, X(10) + 60 - X(7), 100, 'Data cache (DeepCache)', ['X4 finishes the address, M1 reads the arrays', 'write-through: every store reaches memory', 'a miss replays the load from M2'], { stroke: C.M, file: 'src/deep/Deep_Cache.sv' });
+  wire([[X(10) + sw / 2, sy + sh], [X(10) + sw / 2, 470]], 'M', { width: 1.5 });
+  box(X(12), 470, X(13) + sw - X(12), 100, 'M unit', ['DeepMultiplyDivideUnit', 'every state 2 cycles', '718 ps / 868 ps budget'], { stroke: C.D, file: 'Deep_Multiply_Divide.sv' });
+  wire([[X(10) + sw, sy + sh - 10], [X(12) + 20, sy + sh - 10], [X(12) + 20, 470]], 'D', { width: 1.5 });
+  // control paths
+  pill(X(5) - 6, sy + sh + 10, 'holds F1..D2 when an operand is late', C.D, { size: 9.5 });
+  pill(X(10) - 4, sy - 64, 'commit point', C.M, { size: 10.5 });
+  wire([[X(3) + sw / 2, sy - 34], [X(3) + sw / 2, 246], [X(0) + 14, 246], [X(0) + 14, sy - 34]], 'F2', { width: 1.6 });
+  text(X(1) + 10, 240, 'F4 redirect: 3 bubbles', { size: 10, fill: C.F2, weight: 600 });
+  wire([[X(10) + sw - 12, sy + sh], [X(10) + sw - 12, 616], [X(0) + 50, 616], [X(0) + 50, sy + sh]], 'flush', { width: 2 });
+  text(X(1), 608, 'M1 flush (wrong guess, JALR, trap, fence.i): F1..D2 refilled, X1..X4 dropped. The six-stage pipeline pays 3 of those bubbles; the rest are B', { size: 10.5, fill: C.flush, weight: 600 });
+  wire([[X(11) + sw / 2, sy + sh], [X(11) + sw / 2, 640], [X(0) + 30, 640], [X(0) + 30, sy + sh]], 'miss', { width: 1.6, dash: '6 3' });
+  text(X(1), 660, 'load miss: the load and everything younger are fetched again when the line is nearly in', { size: 10, fill: C.miss });
+  // numbers
+  rect(40, 690, W - 80, 108, { fill: '#FFF', stroke: C.line, rx: 8 });
+  text(56, 714, 'Measured (ASAP7 7 nm-class, logic only, tools/timing.sh) and projected; wires and clock skew not included', { size: 12, weight: 700 });
+  const rows = [['', 'logic', 'cycle (+ 64 ps flip-flops)', 'clock 7 nm', '5 nm (projected, / 1.15)', 'CPI, example programs', 'time per instruction'],
+    ['turbo, 6 stages', '471 ps', '535 ps', '1.87 GHz', '2.15 GHz', '1.472', '787 ps'],
+    ['deep, 14 stages', '402 ps', '466 ps', '2.15 GHz', '2.47 GHz', '2.249', '1048 ps']];
+  const cx = [56, 260, 380, 600, 740, 960, 1160];
+  rows.forEach((r, j) => r.forEach((v, k) => text(cx[k], 738 + j * 20, v, { size: 11.5, weight: j === 0 || k === 0 ? 700 : 400, fill: j === 0 ? C.sub : C.ink })));
+  text(1330, 758, 'faster clock,', { size: 11, fill: C.sub }); text(1330, 776, 'slower per instruction', { size: 11, fill: C.sub });
+  return g.done();
+}
+
 export const CLOCK_DATA = JSON.parse(fs.readFileSync(new URL('../docs/clock_roadmap.json', import.meta.url), 'utf8'));
 
 // The counter values program 19 reads, from the cycle-exact model (performance build)
@@ -887,7 +950,7 @@ if (isMain) {
   const figs = { branch_prediction: branchPrediction(), cache: cache(), memory_hierarchy: hierarchy(), clock_roadmap: clockRoadmap(CLOCK_DATA),
     multiply_divide: multiplyDivideUnit(), operands_and_alu: operandsAndAlu(), performance_counters: performanceCounters(await program19Counters()),
     cache_interfaces: cacheInterfaces(), memory_map: memoryMap(), boot_sequence: bootSequence(), fpga_system: fpgaSystem(FPGA_RESULTS), interrupt: await interruptDiagram(), multitasking: await multitaskingDiagram(),
-    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines(), custom_instruction: await customDiagram() };
+    isa_encodings: await isaEncodings(), isa_pipelines: await isaPipelines(), custom_instruction: await customDiagram(), deep_pipeline: deepPipeline() };
   for (const [n, svg] of Object.entries(figs)) { fs.writeFileSync(`docs/img/diagrams/${n}.svg`, svg); console.log(`wrote docs/img/diagrams/${n}.svg`); }
 }
 
@@ -916,7 +979,7 @@ export function cacheInterfaces() {
   for (let i = 0; i < 5; i++) wire([[px + pw / 2, sy(i) + 70], [px + pw / 2, sy(i + 1)]], 'sub', { width: 1.5 });
 
   const cx = 540, cw = 300, mx = 1140, mw = 280, dx = 930;
-  box(cx, 110, cw, 210, 'Instruction cache', ['4 KiB, 2 ways x 64 sets x 32-byte lines', 'hit: the instruction in the same cycle', 'miss: refill engine, 11 cycles', 'then prefetch the next line', 'reset clears every valid bit'], { file: 'src/Instruction_Cache.sv', stroke: C.F1 });
+  box(cx, 110, cw, 210, 'Instruction cache', ['4 KiB, 2 ways x 64 sets x 32-byte lines', 'hit: the instruction in the same cycle', 'miss: refill engine, 11 cycles', 'then prefetch the next line', 'reset or FENCE.I clears every valid bit'], { file: 'src/Instruction_Cache.sv', stroke: C.F1 });
   box(cx, 430, cw, 250, 'Data cache', ['4 KiB, 2 ways x 64 sets x 32-byte lines', 'load hit: the doubleword in the same cycle', 'load miss: DATA_CACHE_STALL, 11 cycles', 'store: write-through to main memory,', 'and into the line if it is cached', 'a prefetch waits one cycle for a store', '(one write per cycle into the arrays)'], { file: 'src/Data_Cache.sv', stroke: C.M });
   box(mx, 110, mw, 260, 'Main memory', ['64 KiB, 2048 lines x 256 bits', 'simulation: src/Scratchpad_Memory.sv', 'FPGA: fpga/rtl/Main_Memory.sv', 'two block-RAM copies: a store writes', 'both, each refill port reads its own', 'the line address is steady for the', 'whole refill, so 1-cycle block RAM', 'keeps up; the last store is merged in'], { stroke: C.edge });
   box(mx, 470, mw, 210, 'Device registers', ['0x1000_0000 .. 0x1000_00FF', 'PUTCHAR LEDS BUTTONS UART BOOT', 'CLOCK LAST_TOHOST LAST_CYCLES', 'BOOT_REASON TIMER BOOT_ADDRESS', 'never cached, never written to RAM', 'fpga/rtl/Sixfold_System.sv'], { stroke: C.flush });
@@ -928,6 +991,9 @@ export function cacheInterfaces() {
   wire([[cx, sy(1) + 30], [px + pw, sy(1) + 30]], 'F1'); lbl(mid, sy(1) + 24, 'INSTRUCTION [31:0]', C.F1);
   wire([[cx, 300], [505, 300], [505, sy(0) + 56], [px + pw, sy(0) + 56]], 'miss', { dash: '5 3' });
   lbl(512, 338, 'HIT = 0: FETCH1 holds (an I-cache miss bubble)', C.miss, 'start');
+  // FENCE.I (ZIFENCEI): EXECUTE pulses the instruction cache's reset (and the BTB's, inside the core)
+  wire([[px + pw - 30, sy(3)], [px + pw - 30, sy(3) - 9], [488, sy(3) - 9], [488, 250], [cx, 250]], 'E', { width: 1.6, dash: '2 3' });
+  lbl(cx - 6, 244, 'icache_invalidate (FENCE.I)', C.E, 'end');
 
   // Data side
   wire([[px + pw, sy(3) + 18], [cx, sy(3) + 18]], 'E'); lbl(mid, sy(3) + 12, 'ADDRESS, LOAD_REQUEST', C.E);
@@ -952,7 +1018,7 @@ export function cacheInterfaces() {
 
   rect(540, 790, 880, 54, { fill: '#FFF', stroke: C.line, rx: 8 });
   text(556, 812, 'Timing: a hit costs nothing; a miss costs 11 cycles (10-cycle main memory + 1). The model counts them as the I and D terms', { size: 11, fill: C.sub });
-  text(556, 830, 'of cycles = N + 5 + L + 3F + R + K + I + D, and the FPGA system reports the same count: its memory answers in the same 10 cycles.', { size: 11, fill: C.sub });
+  text(556, 830, 'of cycles = N + 5 + L + 3F + R + K + I + D + X + B, and the FPGA system reports the same count: its memory answers in the same 10 cycles.', { size: 11, fill: C.sub });
   text(px, 812, 'solid: every cycle', { size: 10.5, fill: C.sub });
   text(px, 830, 'dashed: stall / store paths', { size: 10.5, fill: C.sub });
   return g.done();

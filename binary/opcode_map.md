@@ -19,7 +19,7 @@ Rows are `inst[6:5]`, columns are `inst[4:2]`.
 
 ### MISC_MEM `0001111`
 
-[`fence`](RV64I/fence.md)
+[`fence`](RV64I/fence.md) · [`fence.i`](Zifencei/fence.i.md)
 
 ### OP_IMM `0010011`
 

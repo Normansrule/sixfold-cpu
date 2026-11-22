@@ -67,7 +67,7 @@
 <text x="1190" y="232" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#8A968E" text-anchor="start">0xC08</text>
 <text x="1146" y="260" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">data-cache miss cycles</text>
 <text x="1146" y="278" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="start">TRACE_DATA_MISS</text>
-<text x="1146" y="322" font-family="'IBM Plex Mono',Consolas,monospace" font-size="22" font-weight="700" fill="#27AE60" text-anchor="start">23</text>
+<text x="1146" y="322" font-family="'IBM Plex Mono',Consolas,monospace" font-size="22" font-weight="700" fill="#27AE60" text-anchor="start">22</text>
 <text x="1316" y="322" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">in prog 19</text>
 <path d="M1405,120 L1405,150 L1448,150 L1448,190" fill="none" stroke="#2B3A31" stroke-width="1.4" stroke-linejoin="round" marker-end="url(#m-data)"/>
 <rect x="1348" y="190" width="200" height="150" rx="10" fill="#FFF" stroke="#C0392B" stroke-width="2"/>
@@ -78,30 +78,30 @@
 <text x="1364" y="278" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="start">WRITEBACK_VALID</text>
 <text x="1364" y="322" font-family="'IBM Plex Mono',Consolas,monospace" font-size="22" font-weight="700" fill="#C0392B" text-anchor="start">96</text>
 <text x="1534" y="322" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" font-weight="400" fill="#8A968E" text-anchor="end">in prog 19</text>
-<text x="40" y="390" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="start">Program 19 at the moment it reads the counters: rdcycle says 192; the counters add up to 96 + 5 + 12 + 3 x 7 + 2 + 24 + 12 + 23 = 195.</text>
+<text x="40" y="390" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="start">Program 19 at the moment it reads the counters: rdcycle says 191; the counters add up to 96 + 5 + 12 + 3 x 7 + 2 + 24 + 12 + 22 = 194.</text>
 <text x="40" y="408" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" font-weight="400" fill="#4A5A50" text-anchor="start">The 3-cycle difference: some counted bubbles and instructions have not reached WRITEBACK yet when rdcycle is read in EXECUTE. At the end of a program the two sides are exactly equal (make math).</text>
-<rect x="40" y="420" width="747.3076923076923" height="44" rx="3" fill="#C0392B" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="414.15384615384613" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">N</text>
-<text x="414.15384615384613" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">96</text>
-<rect x="788.3076923076923" y="420" width="37.97435897435897" height="44" rx="3" fill="#8A968E" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="807.7948717948717" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">fill</text>
-<text x="807.7948717948717" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">5</text>
-<rect x="827.2820512820513" y="420" width="92.53846153846153" height="44" rx="3" fill="#6A5ACD" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="874.051282051282" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">L</text>
-<text x="874.051282051282" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">12</text>
-<rect x="920.8205128205128" y="420" width="162.69230769230768" height="44" rx="3" fill="#C2185B" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="1002.6666666666666" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">3F</text>
-<text x="1002.6666666666666" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">21</text>
-<rect x="1084.5128205128206" y="420" width="14.58974358974359" height="44" rx="3" fill="#17A2B8" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<rect x="1100.1025641025642" y="420" width="186.07692307692307" height="44" rx="3" fill="#E08E0B" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="1193.6410256410256" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">K</text>
-<text x="1193.6410256410256" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">24</text>
-<rect x="1287.1794871794873" y="420" width="92.53846153846153" height="44" rx="3" fill="#2E86C1" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="1333.948717948718" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">I</text>
-<text x="1333.948717948718" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">12</text>
-<rect x="1380.7179487179487" y="420" width="178.28205128205127" height="44" rx="3" fill="#27AE60" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
-<text x="1470.3589743589744" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">D</text>
-<text x="1470.3589743589744" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">23</text>
+<rect x="40" y="420" width="751.1649484536083" height="44" rx="3" fill="#C0392B" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="416.08247422680415" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">N</text>
+<text x="416.08247422680415" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">96</text>
+<rect x="792.1649484536083" y="420" width="38.175257731958766" height="44" rx="3" fill="#8A968E" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="811.7525773195877" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">fill</text>
+<text x="811.7525773195877" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">5</text>
+<rect x="831.340206185567" y="420" width="93.02061855670104" height="44" rx="3" fill="#6A5ACD" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="878.3505154639175" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">L</text>
+<text x="878.3505154639175" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">12</text>
+<rect x="925.360824742268" y="420" width="163.53608247422682" height="44" rx="3" fill="#C2185B" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="1007.6288659793814" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">3F</text>
+<text x="1007.6288659793814" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">21</text>
+<rect x="1089.8969072164948" y="420" width="14.670103092783505" height="44" rx="3" fill="#17A2B8" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<rect x="1105.5670103092782" y="420" width="187.04123711340208" height="44" rx="3" fill="#E08E0B" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="1199.5876288659792" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">K</text>
+<text x="1199.5876288659792" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">24</text>
+<rect x="1293.6082474226803" y="420" width="93.02061855670104" height="44" rx="3" fill="#2E86C1" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="1340.6185567010307" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">I</text>
+<text x="1340.6185567010307" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">12</text>
+<rect x="1387.6288659793813" y="420" width="171.37113402061857" height="44" rx="3" fill="#27AE60" stroke="none" stroke-width="1.5" fill-opacity="0.85"/>
+<text x="1473.8144329896907" y="440" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#FFF" text-anchor="middle">D</text>
+<text x="1473.8144329896907" y="456" font-family="'IBM Plex Mono',Consolas,monospace" font-size="11" font-weight="400" fill="#FFF" text-anchor="middle">22</text>
 <text x="40" y="500" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#4A5A50" text-anchor="start">How to use them: read a counter before and after a piece of code (csrr t0, hpmcounter4 ... csrr t1, hpmcounter4); the difference is how many</text>
 <text x="40" y="518" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#4A5A50" text-anchor="start">times that event happened in between. programs/19_performance_counters.s adds them all up and checks the sum against rdcycle.</text>
 <text x="40" y="536" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#4A5A50" text-anchor="start">Real CPUs have hundreds of such events (Intel's "top-down" method builds exactly this kind of CPI stack from them); the counters are 64 bits,</text>

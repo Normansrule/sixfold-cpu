@@ -60,6 +60,7 @@ module SixfoldSystem #(
     parameter int BAUD = 115_200,
     parameter string MEMORY_IMAGE = "memory.hex", // firmware + demo program (tools/fpga_image.mjs)
     parameter int MISS_LATENCY = 10,
+    parameter int CACHE_SETS = 64, // sets per way in each cache (64: 4 KiB each)
     parameter logic [63:0] FIRMWARE_ENTRY = 64'h0
 ) (
     input  logic clk,
@@ -86,18 +87,19 @@ module SixfoldSystem #(
     logic [7:0] dcache_we;
     logic [31:0] icache_dout;
     logic icache_hit, dcache_re, dcache_hit, HALTED;
+    logic ICACHE_INVALIDATE; // FENCE.I: the instruction cache takes its reset at this edge
     logic [63:0] INSTRUCTION_REFILL_ADDRESS, DATA_REFILL_ADDRESS;
     logic [255:0] INSTRUCTION_REFILL_LINE, DATA_REFILL_LINE;
 
     /* verilator lint_off PINCONNECTEMPTY */
     Riscv64 #(
         .GSHARE_HISTORY_BITS (6), .BTB_ENABLE (1'b1), .RAS_ENABLE (1'b1), .PRECISE_LOAD_STALL (1'b1),
-        .ITERATIVE_MULTIPLY_DIVIDE (1'b1), .TOURNAMENT_PREDICTOR (1'b1)
+        .ITERATIVE_MULTIPLY_DIVIDE (1'b1), .TOURNAMENT_PREDICTOR (1'b1), .ZIFENCEI (1'b1)
     ) core (
         .clk (clk), .reset (CORE_RESET), .BRANCH_PREDICTION_ENABLE (1'b1), .RESET_VECTOR (RESET_VECTOR),
         .TIMER_INTERRUPT_LINE (TIMER >= MACHINE_TIME_COMPARE), .EXTERNAL_INTERRUPT_LINE (!RX_QUEUE_EMPTY),
         .dcache_addr (dcache_addr), .icache_addr (icache_addr), .dcache_we (dcache_we), .dcache_din (dcache_din),
-        .dcache_dout (dcache_dout), .icache_dout (icache_dout), .icache_hit (icache_hit), .dcache_re (dcache_re),
+        .dcache_dout (dcache_dout), .icache_dout (icache_dout), .icache_hit (icache_hit), .icache_invalidate (ICACHE_INVALIDATE), .dcache_re (dcache_re),
         .dcache_hit (dcache_hit), .csr (TOHOST), .HALTED (HALTED),
         .DEBUG_REGISTER_ADDRESS (5'd0), .DEBUG_REGISTER_DATA (),
         .TRACE_VALID (), .TRACE_FETCH1_PC (), .TRACE_FETCH2_PC (), .TRACE_DECODE_PC (), .TRACE_EXECUTE_PC (),
@@ -107,12 +109,12 @@ module SixfoldSystem #(
     /* verilator lint_on PINCONNECTEMPTY */
     assign CORE_HALTED = HALTED;
 
-    InstructionCache #(.MISS_LATENCY (MISS_LATENCY)) instruction_cache (
-        .clk (clk), .reset (CORE_RESET), .FREEZE (HALTED),
+    InstructionCache #(.MISS_LATENCY (MISS_LATENCY), .SETS (CACHE_SETS)) instruction_cache (
+        .clk (clk), .reset (CORE_RESET || ICACHE_INVALIDATE), .FREEZE (HALTED),
         .FETCH_ADDRESS (icache_addr), .INSTRUCTION (icache_dout), .HIT (icache_hit),
         .REFILL_ADDRESS (INSTRUCTION_REFILL_ADDRESS), .REFILL_LINE (INSTRUCTION_REFILL_LINE)
     );
-    DataCache #(.MISS_LATENCY (MISS_LATENCY)) data_cache (
+    DataCache #(.MISS_LATENCY (MISS_LATENCY), .SETS (CACHE_SETS)) data_cache (
         .clk (clk), .reset (CORE_RESET), .FREEZE (HALTED),
         .LOAD_REQUEST (dcache_re), .ADDRESS (dcache_addr), .WRITE_MASK (dcache_we), .WRITE_DATA (dcache_din),
         .READ_DATA (CACHE_DATA), .HIT (dcache_hit),

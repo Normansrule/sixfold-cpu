@@ -7,6 +7,9 @@
 // funct3 4 to 7 is I format (rd, rs1, a 12-bit immediate).
 //   CustomDecode (in DECODE): which instruction this is, one bit per instruction (one-hot), carried along
 //     with the instruction, so no funct3 / funct7 comparison is left on the custom unit's path.
+//   CustomPrepare (in EXECUTE): the first part of each popcount (at most 3): the ones of its argument
+//     in four 16-bit quarters, registered into MEMORY with the operands. A 64-bit count is too deep for one
+//     cycle next to everything else; split like src/Population_Count.sv, each half fits.
 //   CustomUnit (in MEMORY): every instruction's result in parallel, and an AND-OR keeps the selected one.
 //     A is rs1 and B is rs2 or the sign-extended immediate, chosen and forwarded in DECODE like the ALU's
 //     and registered at the end of EXECUTE, so this logic has the whole MEMORY cycle to itself. The result
@@ -33,42 +36,105 @@ module CustomDecode (
   assign SELECT[31:5] = '0;
 endmodule
 
-module CustomUnit (
-    input  logic [63:0] A,       // rs1
-    input  logic [63:0] B,       // rs2 (R format) or the sign-extended immediate (I format)
-    input  logic [31:0] SELECT,  // from CustomDecode, one stage earlier
-    output logic [63:0] RESULT
+module CustomPrepare (
+    input  logic [63:0] A,        // rs1, at the start of EXECUTE
+    input  logic [63:0] B,        // rs2 or the immediate
+    output logic [63:0] PREPARED  // 20 bits per split popcount: four quarter counts of 5 bits
 );
-  function automatic logic [13:0] f_csa7(input logic [6:0] a, input logic [6:0] b, input logic [6:0] c);
-    return {((a & b) | (a & c) | (b & c)) << 1, a ^ b ^ c}; // {carry (already moved one column left), sum}
+  function automatic logic [63:0] f_add(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, y, 1'b0); return s[63:0];
   endfunction
-  function automatic logic [63:0] f_max(input logic [63:0] x, input logic [63:0] y); return ($signed(x) > $signed(y)) ? x : y; endfunction
-  function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return ($signed(x) < $signed(y)) ? x : y; endfunction
-  function automatic logic [63:0] f_popcount(input logic [63:0] x);
-    logic [15:0][6:0] v; logic [3:0] q; logic two;
-    logic [13:0] a0, a1, a2, a3, a4, b0, b1, b2, c0, c1, d0, d1, e0, f0;
+  function automatic logic [64:0] f_addc(input logic [63:0] x, input logic [63:0] y, input logic c);
+    logic [63:0] g, p, h;
+    g = x & y; p = x ^ y; h = p;
+    g[0] = g[0] | (p[0] & c); // the carry in joins bit 0
+    for (int d = 1; d < 64; d = 2 * d)
+    for (int i = 63; i >= d; i--) begin // from the top down, so g[i - d] is still the previous level's
+    g[i] = g[i] | (p[i] & g[i - d]);
+    p[i] = p[i] & p[i - d];
+    end
+    return {g[63], h ^ {g[62:0], c}}; // g[i] is now the carry out of bits i ... 0
+  endfunction
+  function automatic logic f_lts(input logic [63:0] x, input logic [63:0] y); return (x[63] != y[63]) ? x[63] : f_ltu(x, y); endfunction // signs differ: the negative one is smaller
+  function automatic logic f_ltu(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return !s[64]; // x - y borrows
+  endfunction
+  function automatic logic [63:0] f_maxz(input logic [63:0] x); return x[63] ? 64'd0 : x; endfunction // max(x, 0)
+  function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return f_lts(x, y) ? x : y; endfunction
+  function automatic logic [63:0] f_popfinish(input logic [19:0] q);
+    logic [5:0] lo, hi; lo = {1'b0, q[4:0]} + {1'b0, q[9:5]}; hi = {1'b0, q[14:10]} + {1'b0, q[19:15]};
+    return {57'd0, {1'b0, lo} + {1'b0, hi}};
+  endfunction
+  function automatic logic [19:0] f_popquarters(input logic [63:0] x);
+    logic [3:0] q; logic two; logic [2:0] n; logic [19:0] r; r = 20'd0;
     for (int i = 0; i < 16; i++) begin
     q = x[4*i +: 4];
     two = (q[0] & q[1]) | (q[0] & q[2]) | (q[0] & q[3]) | (q[1] & q[2]) | (q[1] & q[3]) | (q[2] & q[3]);
-    v[i] = {4'd0, &q, two & ~(&q), ^q};
+    n = {&q, two & ~(&q), ^q};
+    r[5*(i/4) +: 5] = r[5*(i/4) +: 5] + {2'd0, n};
     end
-    a0 = f_csa7(v[0], v[1], v[2]); a1 = f_csa7(v[3], v[4], v[5]); a2 = f_csa7(v[6], v[7], v[8]);
-    a3 = f_csa7(v[9], v[10], v[11]); a4 = f_csa7(v[12], v[13], v[14]);                         // 16 -> 11
-    b0 = f_csa7(a0[6:0], a0[13:7], a1[6:0]); b1 = f_csa7(a1[13:7], a2[6:0], a2[13:7]);
-    b2 = f_csa7(a3[6:0], a3[13:7], a4[6:0]);                                                     // 11 -> 8
-    c0 = f_csa7(b0[6:0], b0[13:7], b1[6:0]); c1 = f_csa7(b1[13:7], b2[6:0], b2[13:7]);          // 8 -> 6
-    d0 = f_csa7(c0[6:0], c0[13:7], c1[6:0]); d1 = f_csa7(c1[13:7], a4[13:7], v[15]);            // 6 -> 4
-    e0 = f_csa7(d0[6:0], d0[13:7], d1[6:0]);                                                     // 4 -> 3
-    f0 = f_csa7(e0[6:0], e0[13:7], d1[13:7]);                                                    // 3 -> 2
-    return {57'd0, f0[6:0] + f0[13:7]};
+    return r;
   endfunction
   function automatic logic [63:0] f_srl(input logic [63:0] x, input logic [63:0] n); return x >> n[5:0]; endfunction
+  function automatic logic [63:0] f_sub(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return s[63:0]; // x + ~y + 1
+  endfunction
+
+  assign PREPARED = {44'd0,
+      f_popquarters((A ^ B))};
+endmodule
+
+module CustomUnit (
+    input  logic [63:0] A,        // rs1
+    input  logic [63:0] B,        // rs2 (R format) or the sign-extended immediate (I format)
+    input  logic [63:0] PREPARED, // from CustomPrepare, one stage earlier
+    input  logic [31:0] SELECT,   // from CustomDecode, one stage earlier
+    output logic [63:0] RESULT
+);
+  function automatic logic [63:0] f_add(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, y, 1'b0); return s[63:0];
+  endfunction
+  function automatic logic [64:0] f_addc(input logic [63:0] x, input logic [63:0] y, input logic c);
+    logic [63:0] g, p, h;
+    g = x & y; p = x ^ y; h = p;
+    g[0] = g[0] | (p[0] & c); // the carry in joins bit 0
+    for (int d = 1; d < 64; d = 2 * d)
+    for (int i = 63; i >= d; i--) begin // from the top down, so g[i - d] is still the previous level's
+    g[i] = g[i] | (p[i] & g[i - d]);
+    p[i] = p[i] & p[i - d];
+    end
+    return {g[63], h ^ {g[62:0], c}}; // g[i] is now the carry out of bits i ... 0
+  endfunction
+  function automatic logic f_lts(input logic [63:0] x, input logic [63:0] y); return (x[63] != y[63]) ? x[63] : f_ltu(x, y); endfunction // signs differ: the negative one is smaller
+  function automatic logic f_ltu(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return !s[64]; // x - y borrows
+  endfunction
+  function automatic logic [63:0] f_maxz(input logic [63:0] x); return x[63] ? 64'd0 : x; endfunction // max(x, 0)
+  function automatic logic [63:0] f_min(input logic [63:0] x, input logic [63:0] y); return f_lts(x, y) ? x : y; endfunction
+  function automatic logic [63:0] f_popfinish(input logic [19:0] q);
+    logic [5:0] lo, hi; lo = {1'b0, q[4:0]} + {1'b0, q[9:5]}; hi = {1'b0, q[14:10]} + {1'b0, q[19:15]};
+    return {57'd0, {1'b0, lo} + {1'b0, hi}};
+  endfunction
+  function automatic logic [19:0] f_popquarters(input logic [63:0] x);
+    logic [3:0] q; logic two; logic [2:0] n; logic [19:0] r; r = 20'd0;
+    for (int i = 0; i < 16; i++) begin
+    q = x[4*i +: 4];
+    two = (q[0] & q[1]) | (q[0] & q[2]) | (q[0] & q[3]) | (q[1] & q[2]) | (q[1] & q[3]) | (q[2] & q[3]);
+    n = {&q, two & ~(&q), ^q};
+    r[5*(i/4) +: 5] = r[5*(i/4) +: 5] + {2'd0, n};
+    end
+    return r;
+  endfunction
+  function automatic logic [63:0] f_srl(input logic [63:0] x, input logic [63:0] n); return x >> n[5:0]; endfunction
+  function automatic logic [63:0] f_sub(input logic [63:0] x, input logic [63:0] y);
+    logic [64:0] s; s = f_addc(x, ~y, 1'b1); return s[63:0]; // x + ~y + 1
+  endfunction
 
   assign RESULT = 64'd0
-      | ({64{SELECT[0]}} & ((A > B) ? (A - B) : (B - A))) // absdiff: a > b ? a - b : b - a
-      | ({64{SELECT[1]}} & ((A & B) + f_srl((A ^ B), 64'h1))) // avgu: (a & b) + ((a ^ b) >> 1)
-      | ({64{SELECT[2]}} & f_popcount((A ^ B))) // hamming: popcount(a ^ b)
-      | ({64{SELECT[3]}} & f_min(f_max(A, 64'h0), B)) // clampi: min(max(a, 0), imm)
+      | ({64{SELECT[0]}} & (f_ltu(B, A) ? f_sub(A, B) : f_sub(B, A))) // absdiff: a > b ? a - b : b - a
+      | ({64{SELECT[1]}} & f_add((A & B), f_srl((A ^ B), 64'h1))) // avgu: (a & b) + ((a ^ b) >> 1)
+      | ({64{SELECT[2]}} & f_popfinish(PREPARED[0 +: 20])) // hamming: popcount(a ^ b)
+      | ({64{SELECT[3]}} & f_min(f_maxz(A), B)) // clampi: min(max(a, 0), imm)
       | ({64{SELECT[4]}} & {63'd0, (A == B)}) // hsec.cteq: a == b
       ;
 endmodule

@@ -27,18 +27,23 @@ export const MMIO_BASE = 0x10000000n, MMIO_PUTCHAR = 0x10000000n, MMIO_LEDS = 0x
 export const MMIO_MTIME = 0x10000058n, MMIO_MTIMECMP = 0x10000060n; // the machine timer (src/Riscv64_top.sv)
 export const MMIO_SWITCHES = 0x10000068n, MMIO_DISPLAY = 0x10000070n; // FPGA boards: slide switches, seven-segment digits
 // The LEDS register is 16 bits and DISPLAY 32: a store changes only the bytes it writes
-const mergeBytes = (old, op, bytes) => { let v = old; for (let k = 0; k < bytes; k++) if (op.mask & (1 << k)) v = (v & ~(0xff << (8 * k))) | (Number((op.data >> BigInt(8 * k)) & 0xffn) << (8 * k)); return v >>> 0; };
+export const mergeBytes = (old, op, bytes) => { let v = old; for (let k = 0; k < bytes; k++) if (op.mask & (1 << k)) v = (v & ~(0xff << (8 * k))) | (Number((op.data >> BigInt(8 * k)) & 0xffn) << (8 * k)); return v >>> 0; };
 export const isMmio = a => (a >> 8n) === (MMIO_BASE >> 8n); // 0x1000_0000 .. 0x1000_00FF: devices, never RAM
-export const HPM = { 0xC03: 'stall', 0xC04: 'flush', 0xC05: 'redirect', 0xC06: 'busy', 0xC07: 'imiss', 0xC08: 'dmiss', 0xC09: 'intr' }; // hpmcounter3..9 = L F R K I D X
+export const HPM = { 0xC03: 'stall', 0xC04: 'flush', 0xC05: 'redirect', 0xC06: 'busy', 0xC07: 'imiss', 0xC08: 'dmiss', 0xC09: 'intr', 0xC0A: 'late' }; // hpmcounter3..10 = L F R K I D X B
 export const CSR = { TOHOST: 0x51E, STATUS: 0x50A, HARTID: 0x50B, CYCLE: 0xC00, INSTRET: 0xC02, MHARTID: 0xF14,
   MSTATUS: 0x300, MTVEC: 0x305, MSCRATCH: 0x340, MEPC: 0x341, MCAUSE: 0x342, MIE: 0x304, MIP: 0x344 };
 // mcause values for the two interrupts (bit 63 set: an interrupt, not an exception)
 export const CAUSE_TIMER_INTERRUPT = (1n << 63n) | 7n, CAUSE_EXTERNAL_INTERRUPT = (1n << 63n) | 11n;
 export const DEFAULT_HISTORY_BITS = 6; // GSHARE_HISTORY_BITS in src/Riscv64.sv
-// The two builds `make test` checks (parameters of src/Riscv64.sv):
+// The builds `make test` checks (parameters of src/Riscv64.sv and src/Riscv64_top.sv):
 export const CONFIGS = {
-  performance: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10 },
-  baseline: { historyBits: 4, btb: false, ras: false, preciseStall: false, iterativeMdu: false, tournament: false, caches: false, missLatency: 10 }, // the plain pipeline
+  performance: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, zifencei: true },
+  baseline: { historyBits: 4, btb: false, ras: false, preciseStall: false, iterativeMdu: false, tournament: false, caches: false, missLatency: 10, zifencei: true }, // the plain pipeline
+  // the performance edition plus the FAST_* parameters of src/Riscv64.sv (docs/PERFORMANCE.md, the turbo edition)
+  turbo: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, fastMdu: true, streamPrefetch: true, lateBranch: true, fastAlu: true, zifencei: true },
+  // the performance edition with 1 KiB caches (16 sets x 2 ways each): CACHE_SETS = 16, for a chip where 4 KiB of
+  // flip-flop caches cost too much area (HYDRA-130's SkyWater 130 build)
+  compact: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, cacheSets: 16, zifencei: true },
 };
 // ControlUnit USES_REGISTER1 / USES_REGISTER2 (by opcode, exactly as src/Control_Unit.sv)
 export function usesRegisters(word) {
@@ -51,26 +56,46 @@ export function usesRegisters(word) {
 }
 // Cycles an M instruction spends iterating in IterativeMultiplyDivideUnit (it occupies EXECUTE for steps + 4 cycles:
 // IDLE capture, PREPARE, the steps, SIGN, DONE; a divide's ALIGN cycle is counted as one more step)
-export function multiplyDivideSteps(op, isWord, a) {
-  if (!['DIV', 'DIVU', 'REM', 'REMU'].includes(op)) return 4;
+// fast (FAST_MULTIPLY_DIVIDE, the turbo edition): PREPARE only for a negative operand, so EXECUTE holds it for steps + 2 cycles
+// (IDLE, the steps, SIGN, which is also the cycle it leaves); a multiply is 2 steps of 64 x 32 bits; a divide is radix 4: ALIGN + (64 - even shift) / 2 steps,
+// the shift counted from A or ~A in IDLE, one less for a negative A, and a REM of a negative dividend adds a NEGATE
+// cycle (FastMultiplyDivideUnit in src/Iterative_Multiply_Divide_Unit.sv).
+export function multiplyDivideSteps(op, isWord, a, fast = false, b = 0n) {
+  if (!['DIV', 'DIVU', 'REM', 'REMU'].includes(op)) {
+    if (!fast) return 4;
+    const aSigned = op === 'MULH' || op === 'MULHSU', bSigned = op === 'MULH'; // MUL / MULW: treated as unsigned
+    return 2 + ((aSigned && !!(a >> 63n)) || (bSigned && !!(b >> 63n)) ? 1 : 0); // 2 steps of 64 x 32 bits; + 1: PREPARE (a negative operand)
+  }
   const signed = op === 'DIV' || op === 'REM';
   let x = isWord ? (signed ? BigInt.asUintN(64, BigInt.asIntN(32, a)) : BigInt.asUintN(32, a)) : a;
+  if (fast) {
+    const y = isWord ? (signed ? BigInt.asUintN(64, BigInt.asIntN(32, b)) : BigInt.asUintN(32, b)) : b;
+    const negative = signed && !!(x >> 63n), v = negative ? BigInt.asUintN(64, ~x) : x;
+    let lz = v === 0n ? 63 : 64 - v.toString(2).length;
+    if (negative && lz > 0) lz--;
+    const yNegative = signed && !!(y >> 63n), w = yNegative ? BigInt.asUintN(64, ~y) : y;
+    const lzd = w === 0n ? 63 : 64 - w.toString(2).length; // of ~B for a negative B: never below |B|'s
+    const r = lzd - lz; // a - d: the quotient has at most r + 1 bits, ceil((r + 1) / 2) radix-4 steps
+    const steps = r < 0 ? 1 : (r >> 1) + 1;
+    const prepare = negative || yNegative ? 1 : 0;
+    return prepare + 1 + steps + ((op === 'REM' && negative) ? 1 : 0); // PREPARE, ALIGN, the steps, NEGATE (a negative remainder)
+  }
   if (signed && (x >> 63n)) x = BigInt.asUintN(64, -x);
   return 1 + Math.max(1, x.toString(2).replace(/^0+/, '').length); // + 1: the ALIGN cycle
 }
 
-const u64 = x => BigInt.asUintN(64, x);
+export const u64 = x => BigInt.asUintN(64, x);
 const s64 = x => BigInt.asIntN(64, x);
 const u32 = x => BigInt.asUintN(32, x);
 const s32 = x => BigInt.asIntN(32, x);
 const sx32 = x => u64(s32(x)); // low 32 bits sign-extended to 64
-const bits = (w, hi, lo) => (w >>> lo) & ((1 << (hi - lo + 1)) - 1);
+export const bits = (w, hi, lo) => (w >>> lo) & ((1 << (hi - lo + 1)) - 1);
 const sextN = (v, n) => BigInt.asIntN(n, BigInt(v));
 
 // ---------------------------------------------------------------- ControlUnit + ALUdec
 // Mirrors src/Control_Unit.sv and src/ALUdec.sv exactly (by opcode/funct bits, not by name).
 export const OPC = { LUI: 0x37, AUIPC: 0x17, JAL: 0x6f, JALR: 0x67, BRANCH: 0x63, STORE: 0x23, LOAD: 0x03,
-  OP: 0x33, OP_IMM: 0x13, OP_32: 0x3b, OP_IMM_32: 0x1b, SYSTEM: 0x73, CUSTOM_0: 0x0b };
+  OP: 0x33, OP_IMM: 0x13, OP_32: 0x3b, OP_IMM_32: 0x1b, SYSTEM: 0x73, CUSTOM_0: 0x0b, MISC_MEM: 0x0f };
 export const WB = { ALU: 0, MEMORY: 1, PC_ADD_4: 2, CSR: 3 };
 export const WB_NAMES = ['ALU', 'MEMORY', 'PC_ADD_4', 'CSR'];
 const ARITH = ['ADD', 'SLL', 'SLT', 'SLTU', 'XOR', 'SRL_SRA', 'OR', 'AND'];
@@ -138,7 +163,7 @@ export const LATE_OPS = new Set(['CPOP', 'MIN', 'MINU', 'MAX', 'MAXU', 'CUSTOM']
 export function control(word) {
   const op = word & 0x7f, f3 = bits(word, 14, 12), f7 = bits(word, 31, 25), rs1f = bits(word, 19, 15);
   const c = { regWrite: 0, memRead: 0, memWrite: 0, csrWrite: 0, csrImm: 0, aIsPC: 0, bIsImm: 0, isWord: 0, isMulDiv: 0,
-    isBranch: 0, isJal: 0, isJalr: 0, isEcall: 0, isEbreak: 0, isMret: 0, immType: 'I', wbSel: WB.ALU, aluOp: 'XXX',
+    isBranch: 0, isJal: 0, isJalr: 0, isEcall: 0, isEbreak: 0, isMret: 0, isFenceI: 0, immType: 'I', wbSel: WB.ALU, aluOp: 'XXX',
     aZext: 0, aShift: 0, invB: 0, oneB: 0, late: 0 };
   const md = f7 === 0b0000001;
   const dec = () => { const d = aluDecode(word); Object.assign(c, { aluOp: d.aluOp, aZext: d.aZext, aShift: d.aShift, invB: d.invB, oneB: d.oneB, late: LATE_OPS.has(d.aluOp) ? 1 : 0 }); return d; };
@@ -174,7 +199,8 @@ export function control(word) {
       Object.assign(c, { regWrite: 1, bIsImm: f3 >= 4 ? 1 : 0, immType: 'I' });
       dec();
       break;
-    default: break; // FENCE and unknown opcodes: no operation
+    case OPC.MISC_MEM: c.isFenceI = f3 === 0b001 ? 1 : 0; break; // FENCE: no operation; FENCE.I (Zifencei): see Core
+    default: break; // unknown opcodes: no operation
   }
   return c;
 }
@@ -353,12 +379,14 @@ export class Core {
   // devices (optional): { load(address) -> value, store(address, value, mask) } answers the device page
   // 0x1000_0000 .. 0x1000_00FF the way fpga/rtl/Sixfold_System.sv does (the site's FPGA console uses it).
   // Without it, device loads read 0, like the simulation testbench. resetPc: the RESET_VECTOR input.
-  constructor(image, { bp = true, historyBits = DEFAULT_HISTORY_BITS, btb = true, ras = true, preciseStall = true, iterativeMdu = true, tournament = true, caches = true, missLatency = 10, devices = null, resetPc = RESET_PC } = {}) {
-    this.opts = { bp, historyBits, btb, ras, preciseStall, iterativeMdu, tournament, caches, missLatency, devices, resetPc };
+  constructor(image, { bp = true, historyBits = DEFAULT_HISTORY_BITS, btb = true, ras = true, preciseStall = true, iterativeMdu = true, tournament = true, caches = true, missLatency = 10, cacheSets = 64, fastMdu = false, streamPrefetch = false, lateBranch = false, fastAlu = false, zifencei = false, devices = null, resetPc = RESET_PC } = {}) {
+    this.opts = { bp, historyBits, btb, ras, preciseStall, iterativeMdu, tournament, caches, missLatency, cacheSets, fastMdu: fastMdu && iterativeMdu, streamPrefetch, lateBranch, fastAlu, zifencei, devices, resetPc };
     this.bht = new Uint8Array(128).fill(2); // TournamentChooser: per-branch history table (weakly taken)
     this.chooser = new Uint8Array(128).fill(1); // ... and chooser (weakly trust the BHT)
-    // 2-way set-associative: slot = way * 64 + set (64 sets x 2 ways), one LRU bit per set
-    const cache = () => ({ valid: new Uint8Array(128), tag: new Uint32Array(128), lru: new Uint8Array(64), busy: false, left: 0, line: 0, demand: false, pf: false, pfLine: 0 });
+    // 2-way set-associative: slot = way * sets + set (sets x 2 ways; 64 sets = 4 KiB, the CACHE_SETS default), one LRU bit per set
+    if (!(cacheSets >= 2 && (cacheSets & (cacheSets - 1)) === 0)) throw new Error(`cacheSets must be a power of two >= 2, not ${cacheSets}`);
+    const sets = cacheSets, setBits = Math.log2(sets);
+    const cache = () => ({ sets, setBits, valid: new Uint8Array(2 * sets), tag: new Uint32Array(2 * sets), lru: new Uint8Array(sets), busy: false, left: 0, line: 0, demand: false, pf: false, pfLine: 0 });
     this.icache = cache(); this.dcache = cache();
     this.btb = Array.from({ length: 16 }, () => ({ valid: false, tag: 0, target: 0, isJal: false }));
     this.ras = { stack: new Array(8).fill(0n), top: 0 };
@@ -368,7 +396,7 @@ export class Core {
     this.regs = new Array(32).fill(0n);
     this.bp = new GShare(historyBits, bp);
     this.csr = { tohost: 0n, status: 0n, cycle: 0n, instret: 0n, mstatus: 0n, mtvec: 0n, mscratch: 0n, mepc: 0n, mcause: 0n, mie: 0n };
-    this.hpm = { stall: 0n, flush: 0n, redirect: 0n, busy: 0n, imiss: 0n, dmiss: 0n, intr: 0n };
+    this.hpm = { stall: 0n, flush: 0n, redirect: 0n, busy: 0n, imiss: 0n, dmiss: 0n, intr: 0n, late: 0n };
     this.mtime = 0n; this.mtimecmp = (1n << 64n) - 1n; // the machine timer device
     this.mip = { timer: false, external: false }; // the interrupt lines as the CSR file registered them
     this.F1PC = resetPc;
@@ -378,26 +406,26 @@ export class Core {
     this.stats = { cycles: 0, retired: 0, loadStalls: 0, falseLoadStalls: 0, flushes: 0, mispredicts: 0, jalrFlushes: 0,
       redirects: 0, branches: 0, predictedTaken: 0, forwards: 0, btbRedirects: 0, returnsPredicted: 0, multiplyDivideBusy: 0,
       icacheMisses: 0, dcacheMisses: 0, choseGshare: 0,
-      interrupts: 0, bubbles: { fill: 0, loaduse: 0, flush: 0, redirect: 0, muldiv: 0, imiss: 0, dmiss: 0, interrupt: 0 } };
+      interrupts: 0, bubbles: { fill: 0, loaduse: 0, flush: 0, redirect: 0, muldiv: 0, imiss: 0, dmiss: 0, interrupt: 0, late: 0 } };
   }
 
-  cacheSlot(c, addr) { // way * 64 + set of the line holding addr, or -1 (InstructionCache / DataCache lookup)
+  cacheSlot(c, addr) { // way * sets + set of the line holding addr, or -1 (InstructionCache / DataCache lookup)
     const a = typeof addr === 'bigint' ? addr : BigInt(addr >>> 0);
     if (a >> 32n) return -1;
-    const set = Number((a >> 5n) & 63n), tag = Number((a >> 11n) & 0x1fffffn);
-    for (const way of [0, 1]) if (c.valid[way * 64 + set] && c.tag[way * 64 + set] === tag) return way * 64 + set;
+    const set = Number((a >> 5n) & BigInt(c.sets - 1)), tag = Number((a >> BigInt(5 + c.setBits)) & ((1n << BigInt(27 - c.setBits)) - 1n));
+    for (const way of [0, 1]) if (c.valid[way * c.sets + set] && c.tag[way * c.sets + set] === tag) return way * c.sets + set;
     return -1;
   }
   cacheHit(c, addr) { return this.cacheSlot(c, addr) >= 0; }
   victimSlot(c, line) { // an empty way first, otherwise the least recently used one
-    const set = (line >>> 5) & 63;
-    const way = !c.valid[set] ? 0 : !c.valid[64 + set] ? 1 : c.lru[set];
-    return way * 64 + set;
+    const set = (line >>> 5) & (c.sets - 1);
+    const way = !c.valid[set] ? 0 : !c.valid[c.sets + set] ? 1 : c.lru[set];
+    return way * c.sets + set;
   }
-  touch(c, slot) { if (slot >= 0) c.lru[slot & 63] = slot < 64 ? 1 : 0; } // the other way becomes least recently used
+  touch(c, slot) { if (slot >= 0) c.lru[slot & (c.sets - 1)] = slot < c.sets ? 1 : 0; } // the other way becomes least recently used
   install(c) { // uses the victim chosen at the START of the cycle (before this cycle's LRU updates), like the RTL
-    const slot = c.victim >= 0 ? c.victim : this.victimSlot(c, c.line), set = slot & 63;
-    c.valid[slot] = 1; c.tag[slot] = (c.line >>> 11) & 0x1fffff; c.lru[set] = slot < 64 ? 1 : 0;
+    const slot = c.victim >= 0 ? c.victim : this.victimSlot(c, c.line), set = slot & (c.sets - 1);
+    c.valid[slot] = 1; c.tag[slot] = (c.line >>> (5 + c.setBits)) & ((1 << (27 - c.setBits)) - 1); c.lru[set] = slot < c.sets ? 1 : 0;
   }
   refill(c, missing, addr) { // one clock edge of the DataCache refill engine
     if (!c.busy) { if (missing) { c.busy = true; c.left = this.opts.missLatency; c.line = Number(BigInt.asUintN(32, (typeof addr === 'bigint' ? addr : BigInt(addr >>> 0))) & ~31n); return true; } }
@@ -405,11 +433,16 @@ export class Core {
     else c.left--;
     return false;
   }
-  irefill(missing, pc) { return this.prefetchingRefill(this.icache, missing, pc); }
-  prefetchingRefill(c, missing, addr, storing = false) { // a refill engine with next-line prefetch (InstructionCache and DataCache)
+  irefill(missing, pc) {
+    const c = this.icache, next = c.nextLine; // STREAM_PREFETCH: NEXT_LINE_ADDRESS as registered last cycle
+    if (this.opts.streamPrefetch) c.nextLine = (Number(BigInt.asUintN(32, BigInt(pc >>> 0)) & ~31n) + 32) >>> 0;
+    return this.prefetchingRefill(c, missing, pc, false, this.opts.streamPrefetch ? next : undefined);
+  }
+  prefetchingRefill(c, missing, addr, storing = false, streamLine = undefined) { // a refill engine with next-line prefetch (InstructionCache and DataCache)
     if (!c.busy) {
       if (missing) { c.busy = true; c.left = this.opts.missLatency; c.line = Number(BigInt.asUintN(32, (typeof addr === 'bigint' ? addr : BigInt(addr >>> 0))) & ~31n); c.demand = true; return true; }
       if (c.pf) { c.pf = false; if (!this.cacheHit(c, c.pfLine)) { c.busy = true; c.left = this.opts.missLatency; c.line = c.pfLine; c.demand = false; this.stats.prefetches = (this.stats.prefetches || 0) + 1; if (c === this.dcache) this.stats.dprefetches = (this.stats.dprefetches || 0) + 1; } }
+      else if (streamLine !== undefined && !this.cacheHit(c, streamLine)) { c.busy = true; c.left = this.opts.missLatency; c.line = streamLine; c.demand = false; this.stats.prefetches = (this.stats.prefetches || 0) + 1; this.stats.streamPrefetches = (this.stats.streamPrefetches || 0) + 1; }
     } else if (c.left === 1) {
       if (storing) return false; // DataCache: a store this cycle goes first, the line installs next cycle
       c.busy = false; this.install(c);
@@ -432,7 +465,7 @@ export class Core {
       case CSR.STATUS: return this.csr.status;
       case CSR.CYCLE: return this.csr.cycle;
       case CSR.INSTRET: return this.csr.instret;
-      case 0xC03: case 0xC04: case 0xC05: case 0xC06: case 0xC07: case 0xC08: case 0xC09: return this.hpm[HPM[addr]];
+      case 0xC03: case 0xC04: case 0xC05: case 0xC06: case 0xC07: case 0xC08: case 0xC09: case 0xC0A: return this.hpm[HPM[addr]];
       case CSR.MIE: return this.csr.mie;
       case CSR.MIP: return (this.mip.timer ? 0x80n : 0n) | (this.mip.external ? 0x800n : 0n);
       case CSR.MSTATUS: return this.csr.mstatus;
@@ -470,10 +503,17 @@ export class Core {
       if (m.memRead) ev.memAccess = { kind: 'load', addr: m.result, value: loadData, dword: m.dcData, funct3: m.funct3 };
     }
 
+    // LATE_BRANCH_RESOLVE (src/Riscv64.sv): a branch / JALR guessed wrong flushes one cycle later, from MEMORY,
+    // and takes the instruction now in EXECUTE with it (that one does nothing at all this cycle)
+    const LATE = !!(this.opts.lateBranch && m.valid && m.redirect);
+
     // ================= EXECUTE =================
     let FLUSH = false, adjust = 0, fwdE = 0n, exNext = null, storeOp = null, csrWrite = null, bpTrain = null, restoreGhr = null, btbWrite = null, MDU_STALL = false, mduSteps = 0;
-    let dReq = false, dHit = true, dAddr = 0n, D_STALL = false, trap = null, mret = false, dStoreSlot = -1;
-    if (e.valid && e.isInterrupt) { // the interrupt pseudo-instruction: trap to mtvec, retire nothing (src/Riscv64.sv)
+    let dReq = false, dHit = true, dAddr = 0n, D_STALL = false, trap = null, mret = false, fenceI = false, dStoreSlot = -1, rasRestore = null;
+    if (LATE) {
+      FLUSH = true; adjust = m.adjust; restoreGhr = m.restoreGhr; rasRestore = m.rasRestore;
+      if (e.valid) { ev.stages.EXECUTE = { id: e.id, pc: e.pc }; ev.late = true; } // hpmcounter10 (B)
+    } else if (e.valid && e.isInterrupt) { // the interrupt pseudo-instruction: trap to mtvec, retire nothing (src/Riscv64.sv)
       FLUSH = true; adjust = Number(this.csr.mtvec & 0xfffffffcn);
       trap = { pc: e.pc, cause: e.external ? CAUSE_EXTERNAL_INTERRUPT : CAUSE_TIMER_INTERRUPT };
       ev.trap = { kind: e.external ? 'external interrupt' : 'timer interrupt', to: adjust }; ev.interrupt = true;
@@ -501,12 +541,21 @@ export class Core {
         ev.resolve = { kind: 'jalr', predicted: !!e.returnPredicted, actual: true, mispredict: !right, target: adjust };
         if (right) this.stats.returnsPredicted++;
       }
+      let late = null; // LATE_BRANCH_RESOLVE: the branch's outcome goes to MEMORY instead of flushing now
+      if (this.opts.lateBranch) {
+        late = { redirect: FLUSH, adjust, restoreGhr: FLUSH ? (e.isBranch ? ((e.ckpt << 1) | (taken ? 1 : 0)) & this.bp.mask : e.ckpt) : 0,
+          rasRestore: (e.rasCkpt + (e.isCall ? 1 : 0) - (e.isReturn ? 1 : 0) + 8) & 7, flushKind: e.isJalr ? 'jalr' : 'branch',
+          bpTrain: e.isBranch ? { idx: e.idx, taken, pc: e.pc, g: e.gTaken, b: e.bTaken } : null, btbWrite: null };
+        FLUSH = false; bpTrain = null;
+      }
       if (e.isEcall || e.isEbreak) { FLUSH = true; adjust = Number(this.csr.mtvec & 0xfffffffcn); trap = { pc: e.pc, cause: e.isEbreak ? 3n : 11n }; ev.trap = { kind: e.isEbreak ? 'ebreak' : 'ecall', to: adjust }; }
       else if (e.isMret) { FLUSH = true; adjust = Number(this.csr.mepc & 0xffffffffn); mret = true; ev.trap = { kind: 'mret', to: adjust }; }
+      else if (e.isFenceI && this.opts.zifencei) { FLUSH = true; adjust = Number(pc4 & 0xffffffffn); fenceI = true; ev.fenceI = true; } // ZIFENCEI: refetch everything younger
       if (FLUSH) restoreGhr = e.isBranch ? ((e.ckpt << 1) | (taken ? 1 : 0)) & this.bp.mask : e.ckpt;
       if (this.opts.btb && ((e.isBranch && taken) || e.isJal)) btbWrite = { idx: (e.pc >>> 2) & 15, tag: (e.pc >>> 6) & 0x3ffffff, target: e.target >>> 0, isJal: !!e.isJal };
+      if (late) { late.btbWrite = btbWrite; btbWrite = null; }
       if (e.memRead && this.opts.caches) { dReq = true; dHit = this.cacheHit(this.dcache, result); dAddr = result; D_STALL = !dHit; ev.dcacheAccess = { addr: Number(result & 0xffffffffn), hit: dHit }; }
-      if (e.isMulDiv && this.opts.iterativeMdu) { MDU_STALL = this.mdu.state !== 'DONE'; mduSteps = multiplyDivideSteps(e.aluOp, !!e.isWord, e.rs1v); }
+      if (e.isMulDiv && this.opts.iterativeMdu) { MDU_STALL = this.mdu.state !== 'DONE' && !(this.opts.fastMdu && this.mdu.state === 'SIGN'); mduSteps = multiplyDivideSteps(e.aluOp, !!e.isWord, e.rs1v, this.opts.fastMdu, e.rs2v); }
       const csrData = this.csrRead(e.csrAddr);
       fwdE = [result, 0n, pc4, csrData][e.wbSel];
       if (e.csrWrite) {
@@ -517,7 +566,7 @@ export class Core {
       }
       if (e.memWrite) { const s = storeControl(e.funct3, result, e.rs2v); storeOp = { addr: result, ...s }; if (this.opts.caches) dStoreSlot = this.cacheSlot(this.dcache, result); ev.memAccess = { kind: 'store', addr: result, value: e.rs2v, mask: s.mask, funct3: e.funct3 }; }
       exNext = { valid: true, id: e.id, pc: e.pc, rd: e.rd, regWrite: e.regWrite, memRead: e.memRead, funct3: e.funct3, result, pc4, csrData,
-        wbSel: e.wbSel, dcData: this.readDouble(result), writesTohost: !!(e.csrWrite && e.csrAddr === CSR.TOHOST), custom: e.aluOp === 'CUSTOM' };
+        wbSel: e.wbSel, dcData: this.readDouble(result), writesTohost: !!(e.csrWrite && e.csrAddr === CSR.TOHOST), custom: e.aluOp === 'CUSTOM', ...(late || {}) };
       ev.stages.EXECUTE = { id: e.id, pc: e.pc };
       ev.alu = { a: A, b: B, result, op: e.aluOp, unit: e.isMulDiv ? 'MDU' : e.aluOp === 'CUSTOM' ? 'CUSTOM' : 'ALU', word: !!e.isWord };
     }
@@ -536,9 +585,12 @@ export class Core {
     // Zbs bset / bclr / binv whose bit number comes from EXECUTE wait one cycle (src/Riscv64.sv SINGLE_BIT_HAZARD)
     const ctlD = d.valid ? control(dw) : null;
     const SINGLE_BIT_STALL = !!(d.valid && e.valid && ctlD.oneB && !ctlD.bIsImm && e.regWrite && !e.memRead && !e.late && e.rd !== 0 && e.rd === rs2f);
+    // FAST_ALU: a Zba shNadd / .uw whose rs1 comes from EXECUTE waits one cycle too (src/Riscv64.sv PREPARED_OPERAND_HAZARD)
+    const PREPARED_STALL = !!(this.opts.fastAlu && d.valid && e.valid && (ctlD.aZext || ctlD.aShift) && !ctlD.aIsPC && e.regWrite && !e.memRead && !e.late && e.rd !== 0 && e.rd === rs1f);
     // a custom result (src/Custom_Unit.sv) is computed in MEMORY and ready only in WRITEBACK: wait while it is in MEMORY too
     const CUSTOM_STALL = !!(d.valid && m.valid && m.custom && m.regWrite && m.rd !== 0 && ((m.rd === rs1f && (!exact || useD.rs1)) || (m.rd === rs2f && (!exact || useD.rs2))));
-    const LOAD_STALL = (d.valid && e.valid && (!!e.memRead || !!e.late) && e.rd !== 0 && ((e.rd === rs1f && (!exact || useD.rs1)) || (e.rd === rs2f && (!exact || useD.rs2)))) || SINGLE_BIT_STALL || CUSTOM_STALL;
+    // an M instruction still iterating in EXECUTE wins: a load stall would bubble EXECUTE and lose it (src/Riscv64.sv LOAD_STALL)
+    const LOAD_STALL = !MDU_STALL && ((d.valid && e.valid && (!!e.memRead || !!e.late) && e.rd !== 0 && ((e.rd === rs1f && (!exact || useD.rs1)) || (e.rd === rs2f && (!exact || useD.rs2)))) || SINGLE_BIT_STALL || PREPARED_STALL || CUSTOM_STALL);
     let deNext = null;
     if (d.valid) {
       ev.stages.DECODE = { id: d.id, pc: d.pc };
@@ -546,7 +598,7 @@ export class Core {
       const [v1, s1] = forward(rs1f), [v2, s2] = forward(rs2f);
       const use = usesRegs(decode(d.word));
       ev.fwd = { a: use.rs1 ? s1 : null, b: use.rs2 ? s2 : null, rs1: rs1f, rs2: rs2f };
-      deNext = { valid: true, id: d.id, pc: d.pc, word: d.word, ...c, rs1v: v1, rs2v: v2, imm: immediate(d.word, c.immType), rd: rdf,
+      deNext = { valid: true, id: d.id, pc: d.pc, word: d.word, ...c, late: c.late || (this.opts.fastMdu && c.isMulDiv ? 1 : 0) || (this.opts.fastAlu && (c.aluOp === 'CLZ' || c.aluOp === 'CTZ') ? 1 : 0), rs1v: v1, rs2v: v2, imm: immediate(d.word, c.immType), rd: rdf,
         funct3: bits(d.word, 14, 12), csrAddr: bits(d.word, 31, 20), pred: d.pred, idx: d.idx, ckpt: d.ckpt, target: d.target,
         returnPredicted: d.returnPredicted, isCall: d.isCall, isReturn: d.isReturn, rasCkpt: d.rasCkpt, gTaken: d.gTaken, bTaken: d.bTaken };
       if (LOAD_STALL) ev.loadStallReal = SINGLE_BIT_STALL || (useD.rs1 && e.rd === rs1f) || (useD.rs2 && e.rd === rs2f)
@@ -592,7 +644,7 @@ export class Core {
     ev.predict = pred;
 
     const ADVANCE = !FLUSH && !D_STALL && !LOAD_STALL && !MDU_STALL;
-    const TAKE_INTERRUPT = INTERRUPT_REQUEST && d.valid && ADVANCE && !(e.valid && (e.csrWrite || e.isEcall || e.isEbreak || e.isMret || e.isInterrupt));
+    const TAKE_INTERRUPT = INTERRUPT_REQUEST && d.valid && ADVANCE && !(e.valid && (e.csrWrite || e.isEcall || e.isEbreak || e.isMret || e.isInterrupt || (e.isFenceI && this.opts.zifencei)));
     ev.stall = LOAD_STALL && !FLUSH && !D_STALL;
     ev.busy = MDU_STALL && !FLUSH;
     ev.dmiss = D_STALL && !FLUSH;
@@ -634,7 +686,8 @@ export class Core {
     }
     this.csr.cycle++; if (w.valid) this.csr.instret++;
     if (ev.interrupt) ev.intr = true;
-    for (const k of ['stall', 'flush', 'redirect', 'busy', 'imiss', 'dmiss', 'intr']) if (ev[k]) this.hpm[k]++; // performance counters (CSRFile EventCounter)
+    for (const k of ['stall', 'flush', 'redirect', 'busy', 'imiss', 'dmiss', 'intr', 'late']) if (ev[k]) this.hpm[k]++; // performance counters (CSRFile EventCounter)
+    if (this.opts.lateBranch) { bpTrain = m.valid ? m.bpTrain : null; btbWrite = m.valid ? m.btbWrite : null; } // trained from MEMORY
     if (bpTrain) {
       ev.bpUpdate = { ...this.bp.train(bpTrain.idx, bpTrain.taken), taken: bpTrain.taken }; this.stats.branches++;
       if (this.opts.tournament) {
@@ -653,17 +706,21 @@ export class Core {
     }
     const rasTopBefore = this.ras.top; // DECODE_RAS_CHECKPOINT: the pointer BEFORE this cycle's push or pop
     if (btbWrite) Object.assign(this.btb[btbWrite.idx], { valid: true, tag: btbWrite.tag, target: btbWrite.target, isJal: btbWrite.isJal });
+    if (fenceI) { // FENCE.I: the BTB and the instruction cache take their reset at this clock edge (it wins over this cycle's updates)
+      for (const b of this.btb) { b.valid = false; b.isJal = false; }
+      Object.assign(this.icache, { valid: new Uint8Array(2 * this.icache.sets), lru: new Uint8Array(this.icache.sets), busy: false, left: 0, line: 0, demand: false, pf: false, pfLine: 0, nextLine: undefined });
+    }
     if (this.opts.ras) {
-      if (FLUSH) this.ras.top = (e.rasCkpt + (e.isCall ? 1 : 0) - (e.isReturn ? 1 : 0) + 8) & 7;
+      if (FLUSH) this.ras.top = LATE ? rasRestore : (e.rasCkpt + (e.isCall ? 1 : 0) - (e.isReturn ? 1 : 0) + 8) & 7;
       else if (ADVANCE && f2.valid && f2Call) { this.ras.top = (this.ras.top + 1) & 7; this.ras.stack[this.ras.top] = BigInt((f2.pc + 4) >>> 0); }
       else if (ADVANCE && f2.valid && f2Return) this.ras.top = (this.ras.top + 7) & 7;
     }
     if (this.opts.iterativeMdu) {
       const m = this.mdu;
-      if (m.state === 'IDLE') { if (e.valid && e.isMulDiv) { m.state = 'PREPARE'; m.left = mduSteps; } }
+      if (m.state === 'IDLE') { if (e.valid && e.isMulDiv && !LATE) { m.state = this.opts.fastMdu ? 'BUSY' : 'PREPARE'; m.left = mduSteps; } }
       else if (m.state === 'PREPARE') m.state = 'BUSY';
       else if (m.state === 'BUSY') { if (m.left === 1) m.state = 'SIGN'; m.left--; }
-      else if (m.state === 'SIGN') m.state = 'DONE';
+      else if (m.state === 'SIGN') m.state = this.opts.fastMdu ? 'IDLE' : 'DONE';
       else m.state = 'IDLE';
     }
     if (FLUSH) { this.bp.ghr = restoreGhr; ev.ghrRestore = restoreGhr; }
@@ -671,7 +728,8 @@ export class Core {
 
     // statistics
     if (ev.stall) { this.stats.loadStalls++; if (!ev.loadStallReal) this.stats.falseLoadStalls++; }
-    if (FLUSH) { this.stats.flushes++; if (e.isJalr) this.stats.jalrFlushes++; else if (!(e.isEcall || e.isEbreak || e.isMret || e.isInterrupt)) this.stats.mispredicts++; }
+    if (FLUSH && LATE) { this.stats.flushes++; if (m.flushKind === 'jalr') this.stats.jalrFlushes++; else this.stats.mispredicts++; }
+    else if (FLUSH) { this.stats.flushes++; if (e.isJalr) this.stats.jalrFlushes++; else if (!(e.isEcall || e.isEbreak || e.isMret || e.isInterrupt || fenceI)) this.stats.mispredicts++; }
     if (ev.interrupt) this.stats.interrupts++;
     if (ev.redirect) this.stats.redirects++;
     if (ev.busy) this.stats.multiplyDivideBusy++;
@@ -679,8 +737,9 @@ export class Core {
 
     // pipeline registers
     this.w = m.valid ? { valid: true, id: m.id, pc: m.pc, rd: m.rd, regWrite: m.regWrite, data: fwdM, writesTohost: m.writesTohost } : BUBBLE(m.cause);
-    this.m = exNext || BUBBLE(e.cause);
+    this.m = exNext || (LATE && e.valid ? BUBBLE('late') : BUBBLE(e.cause)); // a late flush removes EXECUTE's instruction too
     const squash = (id) => { const i = this.instrs[id]; if (i && !i.squashed) { i.squashed = true; ev.squashed.push(id); } };
+    if (LATE && e.valid) squash(e.id);
     if (FLUSH) {
       this.e = BUBBLE('flush');
       if (d.valid) squash(d.id);

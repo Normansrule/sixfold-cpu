@@ -24,7 +24,7 @@ formats sits in the same instruction bit (e.g. imm[10:5] is always bits 30:25 an
 always bit 31). That makes the immediate generator in `src/Immediate_Generator.sv` a set of simple wires,
 not a big multiplexer. Branch/jump offsets are always even, so bit 0 is not stored at all.
 
-## All 126 instructions
+## All 127 instructions
 
 Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` immediate,
 `h` shift amount, `c` CSR address, `z` CSR immediate.
@@ -153,6 +153,7 @@ Letters in the pattern are the variable fields: `d` rd, `s` rs1, `t` rs2, `i` im
 | instruction | format | 32-bit pattern (bit 31 … bit 0) | meaning |
 |---|---|---|---|
 | [`fence`](RV64I/fence.md) | FENCE | `mmmmppp puuuu 00000 000 00000 0001111` | `order memory accesses (a no-op on this in-order core)` |
+| [`fence.i`](Zifencei/fence.i.md) | FENCE | `0000000 00000 00000 001 00000 0001111` | `later instruction fetches see every earlier store: flushes the younger instructions and empties the instruction cache and the BTB` |
 | [`ecall`](RV64I/ecall.md) | SYS | `0000000 00000 00000 000 00000 1110011` | `trap: mepc = pc, mcause = 11, jump to mtvec (a system call)` |
 | [`ebreak`](RV64I/ebreak.md) | SYS | `0000000 00001 00000 000 00000 1110011` | `trap: mepc = pc, mcause = 3, jump to mtvec (a breakpoint)` |
 | [`mret`](Priv/mret.md) | SYS | `0000000 00000 00000 000 00000 1110011` | `return from a trap: pc = mepc, mstatus.MIE = mstatus.MPIE` |

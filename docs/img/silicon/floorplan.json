@@ -1,0 +1,316 @@
+{
+ "assumptions": {
+  "utilization": 0.65,
+  "macro_halo_um": 10.0,
+  "control_split": "core minus its measured blocks, in four equal parts"
+ },
+ "areas_um2": {
+  "register_file": 109476,
+  "alu": 37426,
+  "multiply_divide": 133458,
+  "custom_unit": 14319,
+  "csr_file": 49232,
+  "gshare": 7923,
+  "tournament": 27274,
+  "btb": 37531,
+  "return_stack": 19953,
+  "core": 522155,
+  "icache_control": 21237,
+  "dcache_control": 17728,
+  "pipeline_control": 85563
+ },
+ "sram_macros": {
+  "sram22_256x32m4w8_um": [
+   150.4,
+   225.26
+  ],
+  "sram22_64x32m4w8_um": [
+   150.4,
+   85.26
+  ],
+  "icache": {
+   "data": 4,
+   "tag": 2
+  },
+  "dcache": {
+   "data": 4,
+   "tag": 2
+  }
+ },
+ "plan_die_um": [
+  1065,
+  1192
+ ],
+ "prototype_die_um": [
+  3000,
+  3000
+ ],
+ "distances_um": {
+  "prototype": {
+   "icache": {
+    "core_to_tag_um": 2151,
+    "core_to_controller_um": 1383,
+    "controller_to_farthest_macro_um": 768
+   },
+   "dcache": {
+    "core_to_tag_um": 1996,
+    "core_to_controller_um": 1069,
+    "controller_to_farthest_macro_um": 926
+   }
+  },
+  "plan": {
+   "icache": {
+    "core_to_tag_um": 364,
+    "core_to_controller_um": 188,
+    "controller_to_farthest_macro_um": 650
+   },
+   "dcache": {
+    "core_to_tag_um": 377,
+    "core_to_controller_um": 179,
+    "controller_to_farthest_macro_um": 672
+   }
+  }
+ },
+ "wire_delay_ps": {
+  "icache_core_to_tag": {
+   "prototype": 655,
+   "plan": 184
+  },
+  "icache_controller_to_farthest_macro": {
+   "prototype": 283,
+   "plan": 254
+  },
+  "dcache_core_to_tag": {
+   "prototype": 611,
+   "plan": 187
+  },
+  "dcache_controller_to_farthest_macro": {
+   "prototype": 323,
+   "plan": 259
+  }
+ },
+ "wire_delay_model": "sky130_fd_sc_hd__buf_8 (liberty table, 80 ps input slew) driving the wire on met3, plus 0.38 R C of the wire (setRC.tcl)",
+ "blocks": [
+  {
+   "name": "I-cache controller",
+   "stage": "FETCH",
+   "x": 170.4,
+   "y": 506.2,
+   "w": 174.7,
+   "h": 187.0,
+   "area_um2": 21237
+  },
+  {
+   "name": "btb",
+   "stage": "FETCH",
+   "x": 170.4,
+   "y": 175.7,
+   "w": 174.7,
+   "h": 330.5,
+   "area_um2": 37531
+  },
+  {
+   "name": "return stack",
+   "stage": "FETCH",
+   "x": 170.4,
+   "y": -0.0,
+   "w": 174.7,
+   "h": 175.7,
+   "area_um2": 19953
+  },
+  {
+   "name": "fetch control",
+   "stage": "FETCH",
+   "x": 170.4,
+   "y": 693.2,
+   "w": 174.7,
+   "h": 188.4,
+   "area_um2": 21391
+  },
+  {
+   "name": "gshare + tournament",
+   "stage": "FETCH",
+   "x": 170.4,
+   "y": 881.6,
+   "w": 174.7,
+   "h": 309.9,
+   "area_um2": 35196
+  },
+  {
+   "name": "register file",
+   "stage": "DECODE",
+   "x": 345.1,
+   "y": 0,
+   "w": 169.0,
+   "h": 996.8,
+   "area_um2": 109476
+  },
+  {
+   "name": "decode + forwarding",
+   "stage": "DECODE",
+   "x": 345.1,
+   "y": 996.8,
+   "w": 169.0,
+   "h": 194.8,
+   "area_um2": 21391
+  },
+  {
+   "name": "multiply / divide",
+   "stage": "M UNIT",
+   "x": 514.1,
+   "y": 0,
+   "w": 172.3,
+   "h": 1191.6,
+   "area_um2": 133458
+  },
+  {
+   "name": "ALU",
+   "stage": "EXECUTE",
+   "x": 686.4,
+   "y": 235.9,
+   "w": 139.5,
+   "h": 412.7,
+   "area_um2": 37426
+  },
+  {
+   "name": "execute control",
+   "stage": "EXECUTE",
+   "x": 686.4,
+   "y": 0.0,
+   "w": 139.5,
+   "h": 235.9,
+   "area_um2": 21391
+  },
+  {
+   "name": "CSR file",
+   "stage": "EXECUTE",
+   "x": 686.4,
+   "y": 648.6,
+   "w": 139.5,
+   "h": 542.9,
+   "area_um2": 49232
+  },
+  {
+   "name": "D-cache controller",
+   "stage": "MEMORY",
+   "x": 825.9,
+   "y": 319.3,
+   "w": 69.0,
+   "h": 395.3,
+   "area_um2": 17728
+  },
+  {
+   "name": "custom unit",
+   "stage": "MEMORY",
+   "x": 825.9,
+   "y": 0.0,
+   "w": 69.0,
+   "h": 319.3,
+   "area_um2": 14319
+  },
+  {
+   "name": "memory control",
+   "stage": "MEMORY",
+   "x": 825.9,
+   "y": 714.6,
+   "w": 69.0,
+   "h": 238.5,
+   "area_um2": 10695
+  },
+  {
+   "name": "writeback control",
+   "stage": "MEMORY",
+   "x": 825.9,
+   "y": 953.1,
+   "w": 69.0,
+   "h": 238.5,
+   "area_um2": 10695
+  }
+ ],
+ "macros": [
+  {
+   "name": "I-cache data 0",
+   "x": 10.0,
+   "y": 10.0,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "I-cache data 1",
+   "x": 10.0,
+   "y": 255.3,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "I-cache tag 0",
+   "x": 10.0,
+   "y": 500.5,
+   "w": 150.4,
+   "h": 85.3
+  },
+  {
+   "name": "I-cache tag 1",
+   "x": 10.0,
+   "y": 605.8,
+   "w": 150.4,
+   "h": 85.3
+  },
+  {
+   "name": "I-cache data 2",
+   "x": 10.0,
+   "y": 711.0,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "I-cache data 3",
+   "x": 10.0,
+   "y": 956.3,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "D-cache data 0",
+   "x": 904.9,
+   "y": 10.0,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "D-cache data 1",
+   "x": 904.9,
+   "y": 255.3,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "D-cache tag 0",
+   "x": 904.9,
+   "y": 500.5,
+   "w": 150.4,
+   "h": 85.3
+  },
+  {
+   "name": "D-cache tag 1",
+   "x": 904.9,
+   "y": 605.8,
+   "w": 150.4,
+   "h": 85.3
+  },
+  {
+   "name": "D-cache data 2",
+   "x": 904.9,
+   "y": 711.0,
+   "w": 150.4,
+   "h": 225.3
+  },
+  {
+   "name": "D-cache data 3",
+   "x": 904.9,
+   "y": 956.3,
+   "w": 150.4,
+   "h": 225.3
+  }
+ ]
+}

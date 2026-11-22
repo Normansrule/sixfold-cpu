@@ -112,7 +112,7 @@
     <section class="card stats">
       <h2>Performance</h2>
       <dl id="stats" class="statlist"></dl>
-      <p class="hint">cycles = N + 5 + L + 3F + R + K + I + D + X: instructions, 5 to fill the pipeline, 1 per load stall, 3 per flush, 1 per surviving FETCH2 redirect, the multiply/divide busy cycles, the instruction and data cache miss cycles, and 1 per interrupt. The page checks this identity when the program halts (docs/MATH.md).</p>
+      <p class="hint">cycles = N + 5 + L + 3F + R + K + I + D + X + B: instructions, 5 to fill the pipeline, 1 per load stall, 3 per flush, 1 per surviving FETCH2 redirect, the multiply/divide busy cycles, the instruction and data cache miss cycles, 1 per interrupt, and (turbo build only) 1 per instruction a late branch flush removes from EXECUTE. The page checks this identity when the program halts (docs/MATH.md).</p>
     </section>
   </div>
 </main>

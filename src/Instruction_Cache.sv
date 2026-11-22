@@ -1,19 +1,24 @@
 `default_nettype none
 
 // =====================================================================================================
-// Instruction Cache: 4 KiB, 2-way set-associative, 32-byte lines (8 instructions), 64 sets x 2 ways.
+// Instruction Cache: 2-way set-associative, 32-byte lines (8 instructions), SETS sets x 2 ways (4 KiB at 64 sets).
 //
-//   address bits:  [31:11] tag   [10:5] set index   [4:2] word in the line   [1:0] always 00
+//   address bits:  [31:SET_BITS+5] tag   [SET_BITS+4:5] set index   [4:2] word in the line   [1:0] always 00
 //
 // Each set holds two lines ("ways"), so two pieces of code that land in the same set can both stay.
 // A hit in either way returns the instruction the same cycle. On a miss FETCH1 waits while the refill
 // engine fetches the line from main memory (MISS_LATENCY cycles; MISS_LATENCY + 1 in total).
 // Replacement: an empty way first, otherwise the LEAST RECENTLY USED way of the set (1 LRU bit per set).
 // Next-line prefetch: after a demand miss fills line X, line X + 1 is fetched in the background.
-// Instruction memory is never written by the program (no self-modifying code), so no invalidation.
+// STREAM_PREFETCH (the turbo edition): also, whenever the engine is idle and the line after the one FETCH1 is
+// in is missing, fetch it: straight-line code then finds every next line on its way instead of missing every
+// other line. NEXT_LINE_ADDRESS is registered from the fetch address, so the tag check reads only registers.
+// Code that rewrites instructions must run fence.i: with ZIFENCEI, Riscv64 pulses this cache's reset (icache_invalidate).
 // =====================================================================================================
 module InstructionCache #(
-    parameter int MISS_LATENCY = 10
+    parameter int MISS_LATENCY = 10,
+    parameter int SETS = 64, // sets per way, a power of two >= 2: 64 is 4 KiB (every timing figure here), 16 is 1 KiB
+    parameter bit STREAM_PREFETCH = 1'b0 // 1: keep the next line of the fetch stream in the cache (above)
 ) (
     input  logic clk,
     input  logic reset,
@@ -26,18 +31,21 @@ module InstructionCache #(
     input  logic [255:0] REFILL_LINE // The 32 bytes at REFILL_ADDRESS (main memory answers after MISS_LATENCY cycles)
 );
 
-    logic [63:0] WAY0_VALID, WAY1_VALID;
-    logic [20:0] WAY0_TAG [0:63];
-    logic [20:0] WAY1_TAG [0:63];
-    logic [255:0] WAY0_DATA [0:63];
-    logic [255:0] WAY1_DATA [0:63];
-    logic [63:0] LEAST_RECENTLY_USED; // per set: which way to replace next (0 or 1)
+    localparam int SET_BITS = $clog2(SETS);
+    localparam int TAG_BITS = 27 - SET_BITS; // address bits [31:5+SET_BITS]
 
-    logic [5:0] FETCH_SET;
+    logic [SETS-1:0] WAY0_VALID, WAY1_VALID;
+    logic [TAG_BITS-1:0] WAY0_TAG [0:SETS-1];
+    logic [TAG_BITS-1:0] WAY1_TAG [0:SETS-1];
+    logic [255:0] WAY0_DATA [0:SETS-1];
+    logic [255:0] WAY1_DATA [0:SETS-1];
+    logic [SETS-1:0] LEAST_RECENTLY_USED; // per set: which way to replace next (0 or 1)
+
+    logic [SET_BITS-1:0] FETCH_SET;
     logic HIT_WAY0, HIT_WAY1;
-    assign FETCH_SET = FETCH_ADDRESS[10:5];
-    assign HIT_WAY0 = WAY0_VALID[FETCH_SET] && (WAY0_TAG[FETCH_SET] == FETCH_ADDRESS[31:11]) && (FETCH_ADDRESS[63:32] == 32'd0);
-    assign HIT_WAY1 = WAY1_VALID[FETCH_SET] && (WAY1_TAG[FETCH_SET] == FETCH_ADDRESS[31:11]) && (FETCH_ADDRESS[63:32] == 32'd0);
+    assign FETCH_SET = FETCH_ADDRESS[SET_BITS+4:5];
+    assign HIT_WAY0 = WAY0_VALID[FETCH_SET] && (WAY0_TAG[FETCH_SET] == FETCH_ADDRESS[31:SET_BITS+5]) && (FETCH_ADDRESS[63:32] == 32'd0);
+    assign HIT_WAY1 = WAY1_VALID[FETCH_SET] && (WAY1_TAG[FETCH_SET] == FETCH_ADDRESS[31:SET_BITS+5]) && (FETCH_ADDRESS[63:32] == 32'd0);
     assign HIT = HIT_WAY0 || HIT_WAY1;
     assign INSTRUCTION = HIT_WAY1 ? WAY1_DATA[FETCH_SET][32*FETCH_ADDRESS[4:2] +: 32] : WAY0_DATA[FETCH_SET][32*FETCH_ADDRESS[4:2] +: 32];
 
@@ -49,15 +57,23 @@ module InstructionCache #(
     logic PREFETCH_PENDING; // Line X + 1 should be fetched when the engine is free
     logic [63:0] PREFETCH_LINE_ADDRESS;
     logic PREFETCH_PRESENT; // ... but it may already be in the cache
-    logic [5:0] REFILL_SET, PREFETCH_SET;
+    logic [SET_BITS-1:0] REFILL_SET, PREFETCH_SET;
     logic REFILL_VICTIM_WAY; // Empty way first, else the least recently used one
     logic INSTALL; // The line arrives this cycle
-    assign REFILL_SET = REFILL_LINE_ADDRESS[10:5];
-    assign PREFETCH_SET = PREFETCH_LINE_ADDRESS[10:5];
-    assign PREFETCH_PRESENT = (WAY0_VALID[PREFETCH_SET] && (WAY0_TAG[PREFETCH_SET] == PREFETCH_LINE_ADDRESS[31:11]))
-                           || (WAY1_VALID[PREFETCH_SET] && (WAY1_TAG[PREFETCH_SET] == PREFETCH_LINE_ADDRESS[31:11]));
+    assign REFILL_SET = REFILL_LINE_ADDRESS[SET_BITS+4:5];
+    assign PREFETCH_SET = PREFETCH_LINE_ADDRESS[SET_BITS+4:5];
+    assign PREFETCH_PRESENT = (WAY0_VALID[PREFETCH_SET] && (WAY0_TAG[PREFETCH_SET] == PREFETCH_LINE_ADDRESS[31:SET_BITS+5]))
+                           || (WAY1_VALID[PREFETCH_SET] && (WAY1_TAG[PREFETCH_SET] == PREFETCH_LINE_ADDRESS[31:SET_BITS+5]));
     assign REFILL_VICTIM_WAY = !WAY0_VALID[REFILL_SET] ? 1'b0 : !WAY1_VALID[REFILL_SET] ? 1'b1 : LEAST_RECENTLY_USED[REFILL_SET];
     assign INSTALL = REFILL_BUSY && (REFILL_CYCLES_LEFT == 6'd1);
+
+    // STREAM_PREFETCH: the line after the one FETCH1 was in last cycle
+    logic [63:0] NEXT_LINE_ADDRESS;
+    logic NEXT_LINE_VALID, NEXT_LINE_PRESENT;
+    logic [SET_BITS-1:0] NEXT_SET;
+    assign NEXT_SET = NEXT_LINE_ADDRESS[SET_BITS+4:5];
+    assign NEXT_LINE_PRESENT = (WAY0_VALID[NEXT_SET] && (WAY0_TAG[NEXT_SET] == NEXT_LINE_ADDRESS[31:SET_BITS+5]))
+                            || (WAY1_VALID[NEXT_SET] && (WAY1_TAG[NEXT_SET] == NEXT_LINE_ADDRESS[31:SET_BITS+5]));
     assign REFILL_ADDRESS = REFILL_LINE_ADDRESS;
 
     always_ff @(posedge clk) begin
@@ -71,7 +87,13 @@ module InstructionCache #(
             REFILL_IS_DEMAND <= 1'b0;
             PREFETCH_PENDING <= 1'b0;
             PREFETCH_LINE_ADDRESS <= 64'd0;
+            NEXT_LINE_ADDRESS <= 64'd0;
+            NEXT_LINE_VALID <= 1'b0;
         end else if (!FREEZE) begin
+            if (STREAM_PREFETCH) begin
+                NEXT_LINE_ADDRESS <= {FETCH_ADDRESS[63:5], 5'b00000} + 64'd32;
+                NEXT_LINE_VALID <= 1'b1;
+            end
             if (HIT) LEAST_RECENTLY_USED[FETCH_SET] <= HIT_WAY0; // the OTHER way is now the least recently used
             if (!REFILL_BUSY) begin
                 if (!HIT) begin // Start fetching the missing line (demand first)
@@ -87,6 +109,11 @@ module InstructionCache #(
                         REFILL_LINE_ADDRESS <= PREFETCH_LINE_ADDRESS;
                         REFILL_IS_DEMAND <= 1'b0;
                     end
+                end else if (STREAM_PREFETCH && NEXT_LINE_VALID && !NEXT_LINE_PRESENT) begin // keep the stream one line ahead
+                    REFILL_BUSY <= 1'b1;
+                    REFILL_CYCLES_LEFT <= MISS_LATENCY[5:0];
+                    REFILL_LINE_ADDRESS <= NEXT_LINE_ADDRESS;
+                    REFILL_IS_DEMAND <= 1'b0;
                 end
             end else if (INSTALL) begin // Main memory delivers the line: install it in the victim way
                 REFILL_BUSY <= 1'b0;
@@ -105,10 +132,10 @@ module InstructionCache #(
     always_ff @(posedge clk) begin
         if (!reset && !FREEZE && INSTALL) begin
             if (REFILL_VICTIM_WAY) begin
-                WAY1_TAG[REFILL_SET] <= REFILL_LINE_ADDRESS[31:11];
+                WAY1_TAG[REFILL_SET] <= REFILL_LINE_ADDRESS[31:SET_BITS+5];
                 WAY1_DATA[REFILL_SET] <= REFILL_LINE;
             end else begin
-                WAY0_TAG[REFILL_SET] <= REFILL_LINE_ADDRESS[31:11];
+                WAY0_TAG[REFILL_SET] <= REFILL_LINE_ADDRESS[31:SET_BITS+5];
                 WAY0_DATA[REFILL_SET] <= REFILL_LINE;
             end
         end

@@ -228,7 +228,7 @@ RVA23 requires the whole B extension).
 
 **[51]** A. Yasin, "A Top-Down Method for Performance Analysis and Counters Architecture," *IEEE
 International Symposium on Performance Analysis of Systems and Software (ISPASS)*, 2014. How Intel
-cores break cycles down into categories from hardware counters (the idea behind hpmcounter3..9 here).
+cores break cycles down into categories from hardware counters (the idea behind hpmcounter3..10 here).
 
 **[52]** RISC-V International, *The RISC-V Instruction Set Manual, Volume II: Privileged Architecture*,
 and the *RISC-V Platform Specification* drafts, https://github.com/riscv/riscv-isa-manual . Reset vectors,

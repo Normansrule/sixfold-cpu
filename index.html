@@ -40,7 +40,7 @@
       <div class="navpanel">
         <div><h3>See it work</h3><a href="#decode">Decode an instruction</a><a href="#watch">Watch it move</a><a href="#race">Branch prediction race</a><a href="#arena">Five predictors</a><a href="#caches">Inside the caches</a><a href="#bits">Bit tricks</a><a href="#multiply">The multiplier</a></div>
         <div><h3>Compare and extend</h3><a href="#isa">RISC-V, MIPS, x86-64</a><a href="#workshop">Invent an instruction</a><a href="#fpga">The FPGA computer</a><a href="#os">A tiny operating system</a><a href="#silicon">The chip</a><a href="#numbers">The numbers</a><a href="#faster">Making it faster</a></div>
-        <div><h3>Use it</h3><a href="#learn">Twelve chapters</a><a href="#download">Desktop app</a><a href="#commands">Run it yourself</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three-architecture lab</a><a href="web/custom.html">Instruction workshop</a><a data-repo-link href="#">Source on GitHub</a></div>
+        <div><h3>Use it</h3><a href="#learn">Fourteen chapters</a><a href="#download">Desktop app</a><a href="#commands">Run it yourself</a><a href="web/index.html">Pipeline lab</a><a href="web/isa.html">Three-architecture lab</a><a href="web/custom.html">Instruction workshop</a><a data-repo-link href="#">Source on GitHub</a></div>
       </div>
     </details>
     <a href="web/index.html" class="lab">Open the lab</a>
@@ -415,8 +415,9 @@
       <div><strong>1.03</strong><span>cycles per instruction on the branch-pattern program, caches included (baseline 1.38)</span></div>
     </div>
     <figure class="cp"><img src="docs/img/charts/performance.svg" alt="Cycles per instruction per program, original design versus performance edition" loading="lazy"></figure>
-    <figure class="cp fig"><img src="docs/img/diagrams/clock_roadmap.svg" alt="Clock roadmap: measured clock periods from 133 ns to 513 ps against the 400 ps and 200 ps needed for 2.5 and 5 GHz" loading="lazy"><figcaption>From 7.5 MHz to 1.95 GHz, one measured step at a time, and what 2.5 GHz and 5 GHz would take.</figcaption></figure>
-    <p class="small">Why not higher? In 130 nm one carry step of an adder takes about 330 ps; in 7 nm the whole core's longest path is 513 ps; 2.5 GHz needs 400 ps and 5 GHz 200 ps. Smaller processes are faster, but a process node is chosen by the foundry, not written in RTL. <a data-repo-doc="docs/PERFORMANCE.md" href="docs/PERFORMANCE.md">How every number was measured</a>.</p>
+    <figure class="cp fig"><img src="docs/img/diagrams/clock_roadmap.svg" alt="Clock roadmap: measured clock periods from 133 ns to 402 ps against the 400 ps and 200 ps needed for 2.5 and 5 GHz" loading="lazy"><figcaption>From 7.5 MHz to 2.49 GHz of logic delay (the 14-stage deep-pipeline edition), one measured step at a time, and what 2.5 GHz and 5 GHz would take.</figcaption></figure>
+    <figure class="cp fig"><a href="docs/img/diagrams/deep_pipeline.svg" target="_blank" rel="noopener"><img src="docs/img/diagrams/deep_pipeline.svg" alt="The deep-pipeline edition: 14 stages from F1 to W, the instruction cache beside F1 to F4, the data cache beside X4 to M2, and the three paths back to F1" loading="lazy"></a><figcaption>The deep-pipeline edition: 14 stages, 2.15 GHz measured at 7 nm, but 53% more cycles per instruction than the turbo build.</figcaption></figure>
+    <p class="small">Why not higher? In 130 nm one carry step of an adder takes about 330 ps; in 7 nm the whole core's longest path is 513 ps; 2.5 GHz needs 400 ps and 5 GHz 200 ps. The 14-stage deep-pipeline edition brings the longest path down to 402 ps (2.15 GHz with the flip-flops), but needs 53% more cycles per instruction to do it. Smaller processes are faster, but a process node is chosen by the foundry, not written in RTL. <a data-repo-doc="docs/PERFORMANCE.md" href="docs/PERFORMANCE.md">How every number was measured</a>, and <a data-repo-doc="docs/DEEP_PIPELINE.md" href="docs/DEEP_PIPELINE.md">the deep edition</a>.</p>
   </div>
 </section>
 
@@ -424,7 +425,7 @@
 <section class="band" id="learn">
   <div class="wrap">
     <div class="copy narrow">
-      <h2>Learn it in twelve short chapters.</h2>
+      <h2>Learn it in fourteen short chapters.</h2>
       <p>Each chapter explains one idea, shows the picture that goes with it, points at the lines of SystemVerilog that do it, and gives you a program to run.</p>
     </div>
     <ol class="chapters" id="chapters"></ol>

@@ -32,7 +32,15 @@ module Riscv64 #(
   parameter bit RAS_ENABLE = 1'b1, // Return Address Stack: returns redirect in FETCH2 (1 bubble instead of a 3 bubble flush)
   parameter bit PRECISE_LOAD_STALL = 1'b1, // LOAD_STALL only for registers an instruction really reads
   parameter bit ITERATIVE_MULTIPLY_DIVIDE = 1'b1, // Multi-cycle M extension (short clock) instead of a single huge cycle
-  parameter bit TOURNAMENT_PREDICTOR = 1'b1 // Per-branch history table + chooser alongside GShare
+  parameter bit TOURNAMENT_PREDICTOR = 1'b1, // Per-branch history table + chooser alongside GShare
+  // ===== Turbo edition features (all 0 = the performance edition, unchanged) =====
+  parameter bit FAST_MULTIPLY_DIVIDE = 1'b0, // M unit: no PREPARE cycle, radix-4 divide, result leaves in SIGN as a late result
+  parameter bit FAST_ALU = 1'b0, // DECODE predecodes the ALU result select (one-hot); clz / ctz / min / max become late results
+  parameter bit FAST_FETCH_TARGET = 1'b0, // FETCH2 adds both immediates at once and picks a sum (no immediate mux in front of the adder)
+  parameter bit FAST_STALL = 1'b0, // the DECODE hazard checks come from flip-flops: decoded and compared one cycle ahead
+  parameter bit FAST_LOAD_ALIGN = 1'b0, // a load's byte lanes are decoded in EXECUTE: MEMORY only ANDs and ORs the data
+  parameter bit LATE_BRANCH_RESOLVE = 1'b0, // branches and JALR redirect from MEMORY, one cycle later: no compare -> flush path in EXECUTE
+  parameter bit ZIFENCEI = 1'b0 // FENCE.I (Zifencei): flushes from EXECUTE like a trap, empties the BTB and (icache_invalidate) the instruction cache
 ) (
   input  logic        clk,
   input  logic        reset,
@@ -52,6 +60,7 @@ module Riscv64 #(
   input  logic [63:0] dcache_dout,
   input  logic [31:0] icache_dout,
   input  logic        icache_hit, // 0: the instruction cache is fetching FETCH1's line from main memory
+  output logic        icache_invalidate, // FENCE.I in EXECUTE (ZIFENCEI): the instruction cache takes its reset at this clock edge
   output logic        dcache_re, // A load is in Execute
   input  logic        dcache_hit, // 0: that load must wait for its line
   output logic [63:0] csr, // TOHOST: 1 = PASS, anything else odd = FAIL test (csr >> 1)
@@ -68,11 +77,21 @@ module Riscv64 #(
 
   logic LOAD_STALL; // Load Hazard: Instead of a full stall only hold the Fetch and Decode, send a NOP to Execute, and advance the load logic for the Memory and Writeback
   logic FLUSH_FETCH1_FETCH2_DECODE; // Control Hazard: Fetch1 & Fetch2 & Decode FLUSH for mispredicted branching
+  // LATE_BRANCH_RESOLVE: a branch or JALR only REGISTERS its outcome in EXECUTE. One cycle later, from MEMORY,
+  // a wrong guess flushes FETCH1, FETCH2, DECODE and also EXECUTE (the instruction that followed it there),
+  // 4 bubbles instead of 3. The comparator then drives one flip-flop instead of every pipeline enable, the
+  // predictor tables and the return address stack. Traps, mret and interrupts still flush from EXECUTE.
+  logic LATE_FLUSH; // the branch in MEMORY was guessed wrong: flush everything younger, EXECUTE included
+  logic EXECUTE_LIVE; // EXECUTE_VALID, unless LATE_FLUSH is removing that instruction right now
+  logic MEMORY_REDIRECT, MEMORY_BRANCH_UPDATE, MEMORY_BRANCH_TAKEN, MEMORY_BTB_UPDATE, MEMORY_IS_A_JAL;
+  logic MEMORY_GSHARE_PREDICTED_TAKEN, MEMORY_BHT_PREDICTED_TAKEN;
+  logic [63:0] MEMORY_REDIRECT_PC, MEMORY_PC_TARGET;
   logic INTERRUPT_REQUEST, INTERRUPT_IS_EXTERNAL; // from the CSR file: an enabled interrupt is pending
   logic DECODE_TAKES_INTERRUPT; // the instruction in DECODE is replaced by the interrupt (see below)
   logic ADVANCE_FRONT_END; // Fetch1, Fetch2 and Decode move forward this cycle (no flush and no stall)
   logic FRONT_END_NOT_STALLED; // No stall (a flush may still be happening): enough for anything a flush overrides anyway
   logic MULTIPLY_DIVIDE_STALL; // An M instruction in Execute is still iterating: hold Fetch1 to Execute, bubble into Memory
+  localparam bit FAST_M_UNIT = ITERATIVE_MULTIPLY_DIVIDE && FAST_MULTIPLY_DIVIDE; // the turbo edition's M unit (FastMultiplyDivideUnit)
   logic DATA_CACHE_STALL; // The load in Execute missed in the data cache: hold Fetch1 to Execute, bubble into Memory
   logic HALT_NOW; // The TOHOST writing instruction is in Writeback this cycle: it finishes, everything else freezes
   logic FREEZE; // No side effects this cycle (halting now, or already halted)
@@ -99,6 +118,7 @@ module Riscv64 #(
   logic [GSHARE_HISTORY_BITS-1:0] EXECUTE_GSHARE_INDEX; // Save the Branch History Table Index that was used for solid book keeping
   logic [GSHARE_HISTORY_BITS-1:0] EXECUTE_GLOBAL_HISTORY_CHECKPOINT; // Global History as it was before this instruction's own speculative update
   logic [GSHARE_HISTORY_BITS-1:0] EXECUTE_RESTORED_GLOBAL_HISTORY; // Correct history to rewind to on a flush
+  logic [GSHARE_HISTORY_BITS-1:0] MEMORY_RESTORED_GLOBAL_HISTORY, MEMORY_GSHARE_INDEX; // LATE_BRANCH_RESOLVE: the same, one stage later
   logic EXECUTE_IS_A_BRANCH_INSTRUCTION; // Is Branch Instruction? at the Execute Stage
 
   // Branch Target Buffer: a taken branch or JAL seen before redirects straight from FETCH1 (no bubble)
@@ -115,15 +135,15 @@ module Riscv64 #(
 
   BranchTargetBuffer #(.ENTRIES(16)) branch_target_buffer (
     .clk (clk),
-    .reset (reset),
+    .reset (reset || icache_invalidate), // FENCE.I empties the BTB too: no jump is taken from a target the old code taught it
     .FETCH_PC (FETCH1_PC),
     .HIT (BTB_HIT),
     .HIT_IS_JAL (BTB_HIT_IS_JAL),
     .PREDICTED_TARGET (BTB_PREDICTED_TARGET),
-    .UPDATE (EXECUTE_BTB_UPDATE),
-    .UPDATE_PC (EXECUTE_PC),
-    .UPDATE_TARGET (EXECUTE_PC_TARGET),
-    .UPDATE_IS_JAL (EXECUTE_IS_A_JAL_INSTRUCTION)
+    .UPDATE (LATE_BRANCH_RESOLVE ? (!FREEZE && MEMORY_BTB_UPDATE) : EXECUTE_BTB_UPDATE),
+    .UPDATE_PC (LATE_BRANCH_RESOLVE ? MEMORY_PC : EXECUTE_PC),
+    .UPDATE_TARGET (LATE_BRANCH_RESOLVE ? MEMORY_PC_TARGET : EXECUTE_PC_TARGET),
+    .UPDATE_IS_JAL (LATE_BRANCH_RESOLVE ? MEMORY_IS_A_JAL : EXECUTE_IS_A_JAL_INSTRUCTION)
   );
   assign FETCH1_BTB_REDIRECT = BTB_ENABLE && icache_hit && BTB_HIT && (BTB_HIT_IS_JAL || FETCH1_PREDICTED_BRANCH_TAKEN);
   // An instruction cache miss: stay on this PC until the line arrives
@@ -154,13 +174,25 @@ module Riscv64 #(
   assign FETCH2_JAL_IMMEDIATE = {{43{FETCH2_INSTRUCTION[31]}}, FETCH2_INSTRUCTION[31], FETCH2_INSTRUCTION[19:12], FETCH2_INSTRUCTION[20], FETCH2_INSTRUCTION[30:21], 1'b0}; // J-type uses Immediate bits 31, 19-12, 20, 30-21, and the 0th bit
   assign FETCH2_IMMEDIATE = FETCH2_IS_A_JAL_INSTRUCTION ? FETCH2_JAL_IMMEDIATE : FETCH2_BRANCH_IMMEDIATE;
   logic FETCH2_TARGET_CARRY_UNUSED; // Addresses wrap: the carry out of the target add is not needed
+  logic [63:0] FETCH2_SELECTED_SUM;
   ParallelPrefixAdder #(.WIDTH(64)) fetch2_target_adder ( // Compute the Target Address to use (prefix adder: this add is on the next-PC path)
     .A (FETCH2_PC),
-    .B (FETCH2_IMMEDIATE),
+    .B (FAST_FETCH_TARGET ? FETCH2_BRANCH_IMMEDIATE : FETCH2_IMMEDIATE),
     .CARRY_IN (1'b0),
-    .SUM (FETCH2_PC_TARGET),
+    .SUM (FETCH2_SELECTED_SUM),
     .CARRY_OUT (FETCH2_TARGET_CARRY_UNUSED)
   );
+  // FAST_FETCH_TARGET: a second adder for the JAL immediate, so the opcode decode picks between two finished
+  // sums instead of steering 64 adder inputs (the same target, one multiplexer level shorter)
+  generate
+    if (FAST_FETCH_TARGET) begin : jal_target
+      logic [63:0] JAL_SUM; logic JAL_CARRY_UNUSED;
+      ParallelPrefixAdder #(.WIDTH(64)) fetch2_jal_target_adder (.A (FETCH2_PC), .B (FETCH2_JAL_IMMEDIATE), .CARRY_IN (1'b0), .SUM (JAL_SUM), .CARRY_OUT (JAL_CARRY_UNUSED));
+      assign FETCH2_PC_TARGET = FETCH2_IS_A_JAL_INSTRUCTION ? JAL_SUM : FETCH2_SELECTED_SUM;
+    end else begin : one_target
+      assign FETCH2_PC_TARGET = FETCH2_SELECTED_SUM;
+    end
+  endgenerate
 
   // Return Address Stack: calls push PC + 4, returns (jalr x0, 0(ra)) pop and redirect here in FETCH2
   logic FETCH2_IS_A_JALR_INSTRUCTION;
@@ -172,6 +204,8 @@ module Riscv64 #(
   logic [RAS_POINTER_BITS-1:0] RETURN_ADDRESS_STACK_POINTER;
   logic [RAS_POINTER_BITS-1:0] EXECUTE_RAS_CHECKPOINT;
   logic EXECUTE_IS_A_CALL, EXECUTE_IS_A_RETURN;
+  logic [RAS_POINTER_BITS-1:0] EXECUTE_RAS_RESTORE_POINTER, MEMORY_RAS_RESTORE_POINTER; // the pointer as it should be after this instruction
+  assign EXECUTE_RAS_RESTORE_POINTER = EXECUTE_RAS_CHECKPOINT + {{(RAS_POINTER_BITS-1){1'b0}}, EXECUTE_IS_A_CALL} - {{(RAS_POINTER_BITS-1){1'b0}}, EXECUTE_IS_A_RETURN};
   assign FETCH2_IS_A_JALR_INSTRUCTION = (FETCH2_OPCODE == OPC_JALR);
   assign FETCH2_IS_A_CALL = (FETCH2_IS_A_JAL_INSTRUCTION || FETCH2_IS_A_JALR_INSTRUCTION) && ((FETCH2_INSTRUCTION[11:7] == 5'd1) || (FETCH2_INSTRUCTION[11:7] == 5'd5));
   assign FETCH2_IS_A_RETURN = FETCH2_IS_A_JALR_INSTRUCTION && (FETCH2_INSTRUCTION[11:7] == 5'd0) && ((FETCH2_INSTRUCTION[19:15] == 5'd1) || (FETCH2_INSTRUCTION[19:15] == 5'd5)) && (FETCH2_INSTRUCTION[31:20] == 12'd0);
@@ -187,7 +221,7 @@ module Riscv64 #(
     .POP (RAS_ENABLE && !FREEZE && FRONT_END_NOT_STALLED && FETCH2_VALID && FETCH2_IS_A_RETURN),
     .PUSH_ADDRESS (FETCH2_PC_ADD_4),
     .RESTORE (RAS_ENABLE && !FREEZE && FLUSH_FETCH1_FETCH2_DECODE),
-    .RESTORE_POINTER (EXECUTE_RAS_CHECKPOINT + {{(RAS_POINTER_BITS-1){1'b0}}, EXECUTE_IS_A_CALL} - {{(RAS_POINTER_BITS-1){1'b0}}, EXECUTE_IS_A_RETURN})
+    .RESTORE_POINTER (LATE_FLUSH ? MEMORY_RAS_RESTORE_POINTER : EXECUTE_RAS_RESTORE_POINTER)
   );
 
   // Target will either become the address that will get branched or jumped to, or will continue like normal adding 4 each time
@@ -214,11 +248,11 @@ module Riscv64 #(
     .FETCH_PC (FETCH1_PC),
     .BHT_PREDICTED_TAKEN (FETCH1_BHT_PREDICTED_TAKEN),
     .CHOOSE_GSHARE (FETCH1_CHOOSE_GSHARE),
-    .UPDATE (TOURNAMENT_PREDICTOR && !FREEZE && EXECUTE_VALID && EXECUTE_UPDATE_BRANCH_PREDICTOR),
-    .UPDATE_PC (EXECUTE_PC),
-    .ACTUAL_BRANCH_TAKEN (EXECUTE_BRANCH_WAS_ACTUALLY_TAKEN),
-    .BHT_WAS_TAKEN (EXECUTE_BHT_PREDICTED_TAKEN),
-    .GSHARE_WAS_TAKEN (EXECUTE_GSHARE_PREDICTED_TAKEN)
+    .UPDATE (TOURNAMENT_PREDICTOR && !FREEZE && (LATE_BRANCH_RESOLVE ? MEMORY_BRANCH_UPDATE : (EXECUTE_LIVE && EXECUTE_UPDATE_BRANCH_PREDICTOR))),
+    .UPDATE_PC (LATE_BRANCH_RESOLVE ? MEMORY_PC : EXECUTE_PC),
+    .ACTUAL_BRANCH_TAKEN (LATE_BRANCH_RESOLVE ? MEMORY_BRANCH_TAKEN : EXECUTE_BRANCH_WAS_ACTUALLY_TAKEN),
+    .BHT_WAS_TAKEN (LATE_BRANCH_RESOLVE ? MEMORY_BHT_PREDICTED_TAKEN : EXECUTE_BHT_PREDICTED_TAKEN),
+    .GSHARE_WAS_TAKEN (LATE_BRANCH_RESOLVE ? MEMORY_GSHARE_PREDICTED_TAKEN : EXECUTE_GSHARE_PREDICTED_TAKEN)
   );
   assign FETCH1_PREDICTED_BRANCH_TAKEN = TOURNAMENT_PREDICTOR ? (FETCH1_CHOOSE_GSHARE ? FETCH1_GSHARE_PREDICTED_TAKEN : FETCH1_BHT_PREDICTED_TAKEN) : FETCH1_GSHARE_PREDICTED_TAKEN;
 
@@ -234,11 +268,11 @@ module Riscv64 #(
     .GLOBAL_HISTORY (GLOBAL_HISTORY),
     .SPECULATIVE_UPDATE (!FREEZE && FRONT_END_NOT_STALLED && FETCH2_VALID && FETCH2_IS_A_BRANCH_INSTRUCTION), // Fetch 2 branch moving to Decode
     .SPECULATIVE_TAKEN (FETCH2_PREDICTED_BRANCH_TAKEN),
-    .UPDATE_PREDICTION (!FREEZE && EXECUTE_VALID && EXECUTE_UPDATE_BRANCH_PREDICTOR),
-    .UPDATE_PREDICTION_INDEX (EXECUTE_GSHARE_INDEX),
-    .ACTUAL_BRANCH_TAKEN (EXECUTE_BRANCH_WAS_ACTUALLY_TAKEN),
+    .UPDATE_PREDICTION (!FREEZE && (LATE_BRANCH_RESOLVE ? MEMORY_BRANCH_UPDATE : (EXECUTE_LIVE && EXECUTE_UPDATE_BRANCH_PREDICTOR))),
+    .UPDATE_PREDICTION_INDEX (LATE_BRANCH_RESOLVE ? MEMORY_GSHARE_INDEX : EXECUTE_GSHARE_INDEX),
+    .ACTUAL_BRANCH_TAKEN (LATE_BRANCH_RESOLVE ? MEMORY_BRANCH_TAKEN : EXECUTE_BRANCH_WAS_ACTUALLY_TAKEN),
     .RESTORE_HISTORY (!FREEZE && FLUSH_FETCH1_FETCH2_DECODE), // Main idea here is to make sure the Global History Register stores only what actually happens
-    .RESTORE_HISTORY_VALUE (EXECUTE_RESTORED_GLOBAL_HISTORY)
+    .RESTORE_HISTORY_VALUE (LATE_FLUSH ? MEMORY_RESTORED_GLOBAL_HISTORY : EXECUTE_RESTORED_GLOBAL_HISTORY)
   );
 
   // ========== Decode Stage Signals: ==========
@@ -254,6 +288,7 @@ module Riscv64 #(
   logic [RAS_POINTER_BITS-1:0] DECODE_RAS_CHECKPOINT;
   logic DECODE_USES_REGISTER1, DECODE_USES_REGISTER2;
   logic DECODE_IS_AN_ECALL, DECODE_IS_AN_EBREAK, DECODE_IS_AN_MRET; // Traps (machine mode)
+  logic DECODE_IS_A_FENCE_I; // FENCE.I (Zifencei, only with ZIFENCEI)
   logic [4:0] DECODE_REGISTER1_ADDRESS; // register file read port 1 (rs1)
   logic [4:0] DECODE_REGISTER2_ADDRESS; // register file read port 2 (rs2)
   logic [4:0] DECODE_DESTINATION_REGISTER_ADDRESS; // destination register (rd)
@@ -288,6 +323,7 @@ module Riscv64 #(
   assign DECODE_REGISTER2_ADDRESS = DECODE_INSTRUCTION[24:20]; // Register 2 Address (rs2) is always the 5 bits at 24-20
   assign DECODE_DESTINATION_REGISTER_ADDRESS = DECODE_INSTRUCTION[11:7]; // Destination Register's Address (rd) is always the 5 bits at 11-7
   assign DECODE_FUNCT3 = DECODE_INSTRUCTION[14:12]; // Funct3 is always the 3 bits at 14-12
+  assign DECODE_IS_A_FENCE_I = ZIFENCEI && (DECODE_INSTRUCTION[6:0] == OPC_FENCE) && (DECODE_INSTRUCTION[14:12] == FNC_FENCE_I);
   assign DECODE_CSR_ADDRESS = DECODE_INSTRUCTION[31:20]; // Control Status Register Address (CSR) is always the top 12 bits at 31-20
 
   // Forwarding Signals from Execute:
@@ -354,19 +390,83 @@ module Riscv64 #(
 
   logic LOAD_HAZARD_REGISTER1; // Determine if Decode is reading register1 as Execute Load is writing to same place
   logic LOAD_HAZARD_REGISTER2; // Determine if Decode is reading register2 as Execute Load is writing to same place
+  logic PREPARED_OPERAND_HAZARD; // FAST_ALU: shNadd / .uw whose rs1 is the value EXECUTE is computing right now
   logic SINGLE_BIT_HAZARD; // Zbs bset / bclr / binv whose bit number is the value EXECUTE is computing right now
+
+  // What the hazard checks need to know about the DECODE instruction. Normally decoded from DECODE_INSTRUCTION
+  // this cycle. FAST_STALL decodes the FETCH2 instruction one cycle ahead and also compares its register numbers
+  // with the destination of the instruction that will be in EXECUTE then, so LOAD_STALL (which holds the whole
+  // front end: hundreds of flip-flop enables) is a few gates on flip-flop outputs instead of decode -> compare.
+  logic HAZARD_USES_REGISTER1, HAZARD_USES_REGISTER2; // the instruction really reads rs1 / rs2
+  logic HAZARD_SINGLE_BIT_FROM_REGISTER2; // Zbs bset / bclr / binv with the bit number in rs2
+  logic HAZARD_PREPARED_REGISTER1; // Zba shNadd / .uw: operand A is rs1, shifted or zero-extended
+  logic REGISTER1_MATCHES_EXECUTE, REGISTER2_MATCHES_EXECUTE; // EXECUTE's rd is not x0 and equals rs1 / rs2
+  generate
+    if (FAST_STALL) begin : early_hazard
+      logic F2_USES1, F2_USES2, F2_B_IMMEDIATE, F2_SINGLE_BIT, F2_A_IS_PC, F2_ZERO_EXTEND;
+      logic [1:0] F2_SHIFT;
+      logic [13:0] UNUSED; immediate_type_select_t UNUSED_IMMEDIATE_TYPE; writeback_select_t UNUSED_WRITEBACK_SELECT; alu_op_t UNUSED_OPERATION; // only the hazard-related outputs are needed
+      ControlUnit fetch2_control_unit (
+        .INSTRUCTION (FETCH2_INSTRUCTION),
+        .REGISTER_WRITE_ENABLE (UNUSED[0]), .MEMORY_READ_ENABLE (UNUSED[1]), .MEMORY_WRITE_ENABLE (UNUSED[2]),
+        .CSR_WRITE_USING_IMMEDIATE (UNUSED[3]), .CSR_WRITE_ENABLE (UNUSED[4]),
+        .ALU_INPUT_A_IS_PC (F2_A_IS_PC), .ALU_INPUT_B_IS_IMMEDIATE (F2_B_IMMEDIATE), .ALU_IS_WORD_OPERATION (UNUSED[5]),
+        .IS_A_MULTIPLY_DIVIDE_INSTRUCTION (UNUSED[6]), .IS_A_BRANCH_INSTRUCTION (UNUSED[7]), .IS_A_JAL_INSTRUCTION (UNUSED[8]),
+        .IS_A_JALR_INSTRUCTION (UNUSED[9]), .IS_AN_ECALL (UNUSED[10]), .IS_AN_EBREAK (UNUSED[11]), .IS_AN_MRET (UNUSED[12]),
+        .USES_REGISTER1 (F2_USES1), .USES_REGISTER2 (F2_USES2),
+        .IMMEDIATE_TYPE_SELECT (UNUSED_IMMEDIATE_TYPE), .WRITEBACK_SELECT (UNUSED_WRITEBACK_SELECT), .ALU_OPERATION (UNUSED_OPERATION),
+        .ALU_OPERAND_A_ZERO_EXTEND (F2_ZERO_EXTEND), .ALU_OPERAND_A_SHIFT (F2_SHIFT), .ALU_OPERAND_B_INVERT (UNUSED[13]),
+        .ALU_OPERAND_B_SINGLE_BIT (F2_SINGLE_BIT)
+      );
+      function automatic logic same_register(input logic [4:0] source, input logic [4:0] destination);
+        return (destination != 5'd0) && (destination == source);
+      endfunction
+      logic USES1, USES2, SINGLE_BIT, PREPARED, MATCH1, MATCH2;
+      always_ff @(posedge clk) begin
+        if (reset) {USES1, USES2, SINGLE_BIT, PREPARED, MATCH1, MATCH2} <= 6'd0;
+        else if (!FREEZE) begin
+          if (FRONT_END_NOT_STALLED) begin // DECODE_INSTRUCTION <= FETCH2_INSTRUCTION, below
+            USES1 <= F2_USES1;
+            USES2 <= F2_USES2;
+            SINGLE_BIT <= F2_SINGLE_BIT && !F2_B_IMMEDIATE;
+            PREPARED <= (F2_ZERO_EXTEND || (F2_SHIFT != 2'd0)) && !F2_A_IS_PC;
+          end
+          // next DECODE instruction (FETCH2's, or the same one when the front end holds) against next EXECUTE's rd
+          // (DECODE's when EXECUTE's operand registers load, else the same one); all four compares run in parallel
+          MATCH1 <= FRONT_END_NOT_STALLED ? same_register(FETCH2_INSTRUCTION[19:15], DECODE_DESTINATION_REGISTER_ADDRESS)
+                  : (!DATA_CACHE_STALL && !MULTIPLY_DIVIDE_STALL) ? same_register(DECODE_REGISTER1_ADDRESS, DECODE_DESTINATION_REGISTER_ADDRESS)
+                  : same_register(DECODE_REGISTER1_ADDRESS, EXECUTE_DESTINATION_REGISTER_ADDRESS);
+          MATCH2 <= FRONT_END_NOT_STALLED ? same_register(FETCH2_INSTRUCTION[24:20], DECODE_DESTINATION_REGISTER_ADDRESS)
+                  : (!DATA_CACHE_STALL && !MULTIPLY_DIVIDE_STALL) ? same_register(DECODE_REGISTER2_ADDRESS, DECODE_DESTINATION_REGISTER_ADDRESS)
+                  : same_register(DECODE_REGISTER2_ADDRESS, EXECUTE_DESTINATION_REGISTER_ADDRESS);
+        end
+      end
+      assign {HAZARD_USES_REGISTER1, HAZARD_USES_REGISTER2, HAZARD_SINGLE_BIT_FROM_REGISTER2, HAZARD_PREPARED_REGISTER1} = {USES1, USES2, SINGLE_BIT, PREPARED};
+      assign {REGISTER1_MATCHES_EXECUTE, REGISTER2_MATCHES_EXECUTE} = {MATCH1, MATCH2};
+    end else begin : decoded_hazard
+      assign HAZARD_USES_REGISTER1 = DECODE_USES_REGISTER1;
+      assign HAZARD_USES_REGISTER2 = DECODE_USES_REGISTER2;
+      assign HAZARD_SINGLE_BIT_FROM_REGISTER2 = DECODE_ALU_OPERAND_B_SINGLE_BIT && !DECODE_ALU_INPUT_B_IS_IMMEDIATE;
+      assign HAZARD_PREPARED_REGISTER1 = (DECODE_ALU_OPERAND_A_ZERO_EXTEND || (DECODE_ALU_OPERAND_A_SHIFT != 2'd0)) && !DECODE_ALU_INPUT_A_IS_PC;
+      assign REGISTER1_MATCHES_EXECUTE = (EXECUTE_DESTINATION_REGISTER_ADDRESS != 5'd0) && (EXECUTE_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER1_ADDRESS);
+      assign REGISTER2_MATCHES_EXECUTE = (EXECUTE_DESTINATION_REGISTER_ADDRESS != 5'd0) && (EXECUTE_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER2_ADDRESS);
+    end
+  endgenerate
 
   // If the Execute Destination Address during a Load is the same as the Decode's register 1 that is being read a load hazard exists
   // (the rs1/rs2 FIELDS are compared even when an instruction does not use them: simple and safe, sometimes stalls for nothing, see Lab 5)
-  assign LOAD_HAZARD_REGISTER1 = EXECUTE_VALID && (EXECUTE_MEMORY_READ_ENABLE || EXECUTE_LATE_RESULT) && (EXECUTE_DESTINATION_REGISTER_ADDRESS != 5'd0) && (EXECUTE_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER1_ADDRESS) && (!PRECISE_LOAD_STALL || DECODE_USES_REGISTER1);
+  assign LOAD_HAZARD_REGISTER1 = EXECUTE_VALID && (EXECUTE_MEMORY_READ_ENABLE || EXECUTE_LATE_RESULT) && REGISTER1_MATCHES_EXECUTE && (!PRECISE_LOAD_STALL || HAZARD_USES_REGISTER1);
   // If the Execute Destination Address during a Load is the same as the Decode's register 2 that is being read a load hazard exists
-  assign LOAD_HAZARD_REGISTER2 = EXECUTE_VALID && (EXECUTE_MEMORY_READ_ENABLE || EXECUTE_LATE_RESULT) && (EXECUTE_DESTINATION_REGISTER_ADDRESS != 5'd0) && (EXECUTE_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER2_ADDRESS) && (!PRECISE_LOAD_STALL || DECODE_USES_REGISTER2);
+  assign LOAD_HAZARD_REGISTER2 = EXECUTE_VALID && (EXECUTE_MEMORY_READ_ENABLE || EXECUTE_LATE_RESULT) && REGISTER2_MATCHES_EXECUTE && (!PRECISE_LOAD_STALL || HAZARD_USES_REGISTER2);
   // A custom result is ready only in WRITEBACK: also wait while it is in MEMORY (EXECUTE is covered above,
   // because a custom instruction counts as a late result there)
   logic CUSTOM_HAZARD_REGISTER1, CUSTOM_HAZARD_REGISTER2;
-  assign CUSTOM_HAZARD_REGISTER1 = MEMORY_VALID && MEMORY_IS_A_CUSTOM_INSTRUCTION && (MEMORY_DESTINATION_REGISTER_ADDRESS != 5'd0) && (MEMORY_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER1_ADDRESS) && (!PRECISE_LOAD_STALL || DECODE_USES_REGISTER1);
-  assign CUSTOM_HAZARD_REGISTER2 = MEMORY_VALID && MEMORY_IS_A_CUSTOM_INSTRUCTION && (MEMORY_DESTINATION_REGISTER_ADDRESS != 5'd0) && (MEMORY_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER2_ADDRESS) && (!PRECISE_LOAD_STALL || DECODE_USES_REGISTER2);
-  assign LOAD_STALL = DECODE_VALID && (LOAD_HAZARD_REGISTER1 || LOAD_HAZARD_REGISTER2 || SINGLE_BIT_HAZARD || CUSTOM_HAZARD_REGISTER1 || CUSTOM_HAZARD_REGISTER2); // Load Hazard Exists and thus enable the load stall
+  assign CUSTOM_HAZARD_REGISTER1 = MEMORY_VALID && MEMORY_IS_A_CUSTOM_INSTRUCTION && (MEMORY_DESTINATION_REGISTER_ADDRESS != 5'd0) && (MEMORY_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER1_ADDRESS) && (!PRECISE_LOAD_STALL || HAZARD_USES_REGISTER1);
+  assign CUSTOM_HAZARD_REGISTER2 = MEMORY_VALID && MEMORY_IS_A_CUSTOM_INSTRUCTION && (MEMORY_DESTINATION_REGISTER_ADDRESS != 5'd0) && (MEMORY_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER2_ADDRESS) && (!PRECISE_LOAD_STALL || HAZARD_USES_REGISTER2);
+  // An M instruction still iterating in EXECUTE wins over every DECODE hazard: a load stall would put a bubble
+  // into EXECUTE and push the unfinished M instruction on to MEMORY with a stale result (a `bset` or a custom
+  // instruction's hazard right behind a `mul` did exactly that). DECODE simply waits until the result is there.
+  assign LOAD_STALL = DECODE_VALID && !MULTIPLY_DIVIDE_STALL && (LOAD_HAZARD_REGISTER1 || LOAD_HAZARD_REGISTER2 || SINGLE_BIT_HAZARD || PREPARED_OPERAND_HAZARD || CUSTOM_HAZARD_REGISTER1 || CUSTOM_HAZARD_REGISTER2); // Load Hazard Exists and thus enable the load stall
 
   ControlUnit control_unit (
     .INSTRUCTION (DECODE_INSTRUCTION),
@@ -405,8 +505,8 @@ module Riscv64 #(
   // and a final 2:1 picks the late one when rs1 / rs2 is being forwarded from EXECUTE. Same values as
   // DECODE_FORWARDED_*, but the ALU -> forwarding -> ALU loop only passes through two small multiplexers.
   logic DECODE_REGISTER1_FROM_EXECUTE, DECODE_REGISTER2_FROM_EXECUTE;
-  assign DECODE_REGISTER1_FROM_EXECUTE = (DECODE_REGISTER1_ADDRESS != 5'd0) && EXECUTE_VALID && EXECUTE_REGISTER_WRITE_ENABLE && !EXECUTE_MEMORY_READ_ENABLE && !EXECUTE_LATE_RESULT && (EXECUTE_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER1_ADDRESS);
-  assign DECODE_REGISTER2_FROM_EXECUTE = (DECODE_REGISTER2_ADDRESS != 5'd0) && EXECUTE_VALID && EXECUTE_REGISTER_WRITE_ENABLE && !EXECUTE_MEMORY_READ_ENABLE && !EXECUTE_LATE_RESULT && (EXECUTE_DESTINATION_REGISTER_ADDRESS == DECODE_REGISTER2_ADDRESS);
+  assign DECODE_REGISTER1_FROM_EXECUTE = REGISTER1_MATCHES_EXECUTE && EXECUTE_VALID && EXECUTE_REGISTER_WRITE_ENABLE && !EXECUTE_MEMORY_READ_ENABLE && !EXECUTE_LATE_RESULT;
+  assign DECODE_REGISTER2_FROM_EXECUTE = REGISTER2_MATCHES_EXECUTE && EXECUTE_VALID && EXECUTE_REGISTER_WRITE_ENABLE && !EXECUTE_MEMORY_READ_ENABLE && !EXECUTE_LATE_RESULT;
   logic [63:0] DECODE_EARLY_REGISTER1_DATA, DECODE_EARLY_REGISTER2_DATA; // the forwarding choice without EXECUTE
   always_comb begin
     if (DECODE_REGISTER1_ADDRESS == 5'd0) DECODE_EARLY_REGISTER1_DATA = 64'd0;
@@ -433,12 +533,15 @@ module Riscv64 #(
   logic [63:0] DECODE_ALU_INPUT_A, DECODE_ALU_INPUT_B;
   assign DECODE_EARLY_ALU_INPUT_A = DECODE_ALU_INPUT_A_IS_PC ? DECODE_PC : prepare_operand_a(DECODE_EARLY_REGISTER1_DATA, DECODE_ALU_OPERAND_A_ZERO_EXTEND, DECODE_ALU_OPERAND_A_SHIFT);
   assign DECODE_EARLY_ALU_INPUT_B = prepare_operand_b(DECODE_ALU_INPUT_B_IS_IMMEDIATE ? DECODE_IMMEDIATE : DECODE_EARLY_REGISTER2_DATA, DECODE_ALU_OPERAND_B_INVERT, DECODE_ALU_OPERAND_B_SINGLE_BIT);
-  assign DECODE_LATE_ALU_INPUT_A = prepare_operand_a(EXECUTE_FORWARD_DATA, DECODE_ALU_OPERAND_A_ZERO_EXTEND, DECODE_ALU_OPERAND_A_SHIFT);
+  // FAST_ALU: the late path does not prepare operand A either (the zero-extend and shift multiplexers would sit in
+  // the loop): a Zba shNadd / .uw whose rs1 EXECUTE is computing right now waits one cycle (PREPARED_OPERAND_HAZARD).
+  assign DECODE_LATE_ALU_INPUT_A = FAST_ALU ? EXECUTE_FORWARD_DATA : prepare_operand_a(EXECUTE_FORWARD_DATA, DECODE_ALU_OPERAND_A_ZERO_EXTEND, DECODE_ALU_OPERAND_A_SHIFT);
+  assign PREPARED_OPERAND_HAZARD = FAST_ALU && HAZARD_PREPARED_REGISTER1 && DECODE_REGISTER1_FROM_EXECUTE;
   // The late (EXECUTE-forwarded) path only inverts: the 6-to-64 single-bit decoder would sit in the ALU's
   // one-cycle loop (measured: 485 ps -> 571 ps at 7 nm). A bset / bclr / binv whose bit number EXECUTE is
   // computing right now waits one cycle instead (SINGLE_BIT_HAZARD) and takes it from MEMORY, early.
   assign DECODE_LATE_ALU_INPUT_B = DECODE_ALU_OPERAND_B_INVERT ? ~EXECUTE_FORWARD_DATA : EXECUTE_FORWARD_DATA;
-  assign SINGLE_BIT_HAZARD = DECODE_ALU_OPERAND_B_SINGLE_BIT && !DECODE_ALU_INPUT_B_IS_IMMEDIATE && DECODE_REGISTER2_FROM_EXECUTE;
+  assign SINGLE_BIT_HAZARD = HAZARD_SINGLE_BIT_FROM_REGISTER2 && DECODE_REGISTER2_FROM_EXECUTE;
   assign DECODE_ALU_INPUT_A = (DECODE_REGISTER1_FROM_EXECUTE && !DECODE_ALU_INPUT_A_IS_PC) ? DECODE_LATE_ALU_INPUT_A : DECODE_EARLY_ALU_INPUT_A;
   assign DECODE_ALU_INPUT_B = (DECODE_REGISTER2_FROM_EXECUTE && !DECODE_ALU_INPUT_B_IS_IMMEDIATE) ? DECODE_LATE_ALU_INPUT_B : DECODE_EARLY_ALU_INPUT_B;
 
@@ -475,6 +578,7 @@ module Riscv64 #(
   logic EXECUTE_PREDICTED_BRANCH_TAKEN; // Store Fetch prediction at the Execute Stage
   logic EXECUTE_RETURN_PREDICTED; // FETCH2 redirected this return using the Return Address Stack
   logic EXECUTE_IS_AN_ECALL, EXECUTE_IS_AN_EBREAK, EXECUTE_IS_AN_MRET;
+  logic EXECUTE_IS_A_FENCE_I; // flushes like a trap and restarts FETCH1 at PC + 4
   logic EXECUTE_IS_AN_INTERRUPT, EXECUTE_INTERRUPT_IS_EXTERNAL; // an interrupt travelling as a pseudo-instruction
   logic EXECUTE_TAKES_TRAP; // ecall or ebreak: jump to mtvec
   logic EXECUTE_RETURNS_FROM_TRAP; // mret: jump to mepc
@@ -490,6 +594,7 @@ module Riscv64 #(
   logic [63:0] EXECUTE_ALU_INPUT_B; // ALU input B (register): rs2 or the immediate, chosen in DECODE
   logic [63:0] EXECUTE_ALU_OUTPUT; // Raw ALU Output (every operation: goes to MEMORY)
   logic [63:0] EXECUTE_ALU_FAST_OUTPUT; // Every operation except the late ones: what forwarding, addresses and JALR use
+  logic [63:0] EXECUTE_ALU_SELECT; // FAST_ALU: the ALU operation, one-hot, plus two group lines (src/ALU.sv)
   logic EXECUTE_LATE_RESULT; // cpop(w), min(u), max(u): result only from MEMORY on (too deep to sit in front of forwarding)
   logic [63:0] EXECUTE_FAST_RESULT; // ALU fast output or the M unit
   logic [63:0] EXECUTE_MULTIPLY_DIVIDE_OUTPUT; // Raw Multiply Divide Unit Output
@@ -507,7 +612,20 @@ module Riscv64 #(
   // The ALU inputs are chosen in DECODE (DECODE_ALU_INPUT_A/B) and arrive from flip-flops: no multiplexer, and no
   // select signal fanning out to 128 bits, in front of the adder.
 
-  ALU alu (
+  // FAST_ALU: the ALU operation decoded in DECODE, where it is ready early, instead of in EXECUTE, where the
+  // comparisons would sit in front of every result bit. Bit k is (operation == k); bit 56 marks the operations
+  // whose result is the adder's (ADD SUB JALR SLT SLTU); bit 57 marks a word (W) operation that uses the adder.
+  function automatic logic [63:0] alu_select(input alu_op_t operation);
+    logic [63:0] select;
+    select = 64'd1 << operation;
+    select[56] = (operation == ALU_ADD) || (operation == ALU_SUB) || (operation == ALU_JALR) || (operation == ALU_SLT) || (operation == ALU_SLTU);
+    select[57] = !((operation == ALU_SLL) || (operation == ALU_SRL) || (operation == ALU_SRA) || (operation == ALU_ROL)
+                || (operation == ALU_ROR) || (operation == ALU_CLZ) || (operation == ALU_CTZ) || (operation == ALU_CPOP));
+    return select;
+  endfunction
+
+  ALU #(.FAST_ALU (FAST_ALU)) alu (
+    .OP_SELECT (EXECUTE_ALU_SELECT),
     .A (EXECUTE_ALU_INPUT_A),
     .B (EXECUTE_ALU_INPUT_B),
     .ALUop (EXECUTE_ALU_OPERATION),
@@ -519,13 +637,29 @@ module Riscv64 #(
   );
 
   logic MULTIPLY_DIVIDE_READY; // The M instruction in Execute has its result
+  logic [63:0] EXECUTE_MULTIPLY_DIVIDE_LATE_OUTPUT; // FAST_MULTIPLY_DIVIDE: the result in the SIGN cycle (to MEMORY only)
   generate
-    if (ITERATIVE_MULTIPLY_DIVIDE) begin : iterative_m_extension
+    if (FAST_M_UNIT) begin : fast_m_extension
+      FastMultiplyDivideUnit multiply_divide_unit (
+        .clk (clk),
+        .reset (reset),
+        .FREEZE (FREEZE),
+        .REQUEST (EXECUTE_LIVE && EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION),
+        .A (EXECUTE_REGISTER1_DATA),
+        .B (EXECUTE_REGISTER2_DATA),
+        .MULTIPLY_DIVIDE_OPERATION (EXECUTE_ALU_OPERATION),
+        .IS_WORD_OPERATION (EXECUTE_ALU_IS_WORD_OPERATION),
+        .PREDECODED (EXECUTE_MULTIPLY_DIVIDE_PREDECODED),
+        .READY (MULTIPLY_DIVIDE_READY),
+        .LATE_RESULT (EXECUTE_MULTIPLY_DIVIDE_LATE_OUTPUT)
+      );
+      assign EXECUTE_MULTIPLY_DIVIDE_OUTPUT = 64'd0; // never forwarded: every M instruction is a late result here
+    end else if (ITERATIVE_MULTIPLY_DIVIDE) begin : iterative_m_extension
       IterativeMultiplyDivideUnit multiply_divide_unit (
         .clk (clk),
         .reset (reset),
         .FREEZE (FREEZE),
-        .REQUEST (EXECUTE_VALID && EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION),
+        .REQUEST (EXECUTE_LIVE && EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION),
         .A (EXECUTE_REGISTER1_DATA),
         .B (EXECUTE_REGISTER2_DATA),
         .MULTIPLY_DIVIDE_OPERATION (EXECUTE_ALU_OPERATION),
@@ -534,7 +668,9 @@ module Riscv64 #(
         .READY (MULTIPLY_DIVIDE_READY),
         .MULTIPLY_DIVIDE_RESULT (EXECUTE_MULTIPLY_DIVIDE_OUTPUT)
       );
+      assign EXECUTE_MULTIPLY_DIVIDE_LATE_OUTPUT = EXECUTE_MULTIPLY_DIVIDE_OUTPUT;
     end else begin : single_cycle_m_extension
+      assign EXECUTE_MULTIPLY_DIVIDE_LATE_OUTPUT = EXECUTE_MULTIPLY_DIVIDE_OUTPUT;
       MultiplyDivideUnit multiply_divide_unit (
         .A (EXECUTE_REGISTER1_DATA),
         .B (EXECUTE_REGISTER2_DATA),
@@ -545,13 +681,24 @@ module Riscv64 #(
       assign MULTIPLY_DIVIDE_READY = 1'b1;
     end
   endgenerate
-  assign MULTIPLY_DIVIDE_STALL = EXECUTE_VALID && EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION && !MULTIPLY_DIVIDE_READY;
+  assign MULTIPLY_DIVIDE_STALL = EXECUTE_LIVE && EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION && !MULTIPLY_DIVIDE_READY;
 
   // Your own instructions (custom-0) do not use the ALU's result: their operands go on to MEMORY, where
   // CustomUnit has a whole cycle to itself (see the MEMORY stage below).
   logic EXECUTE_IS_A_CUSTOM_INSTRUCTION;
   assign EXECUTE_IS_A_CUSTOM_INSTRUCTION = (EXECUTE_ALU_OPERATION == ALU_CUSTOM);
-  assign EXECUTE_ALU_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? EXECUTE_MULTIPLY_DIVIDE_OUTPUT : EXECUTE_ALU_OUTPUT;
+  // The first half of every popcount in a custom instruction runs here, on the registered operands, and
+  // travels to MEMORY with them (CustomPrepare in src/Custom_Unit.sv): a 64-bit count did not fit next to
+  // everything else in MEMORY's one cycle.
+  logic [63:0] EXECUTE_CUSTOM_PREPARED, MEMORY_CUSTOM_PREPARED;
+  CustomPrepare custom_prepare (
+    .A (EXECUTE_ALU_INPUT_A),
+    .B (EXECUTE_ALU_INPUT_B),
+    .PREPARED (EXECUTE_CUSTOM_PREPARED)
+  );
+  // EXECUTE_ALU_RESULT feeds only the MEMORY pipeline register, so the turbo edition's unregistered M result may
+  // use it; forwarding and the data-cache address take EXECUTE_FAST_RESULT, which never sees it.
+  assign EXECUTE_ALU_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? (FAST_M_UNIT ? EXECUTE_MULTIPLY_DIVIDE_LATE_OUTPUT : EXECUTE_MULTIPLY_DIVIDE_OUTPUT) : EXECUTE_ALU_OUTPUT;
   assign EXECUTE_FAST_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? EXECUTE_MULTIPLY_DIVIDE_OUTPUT : EXECUTE_ALU_FAST_OUTPUT;
   assign EXECUTE_JALR_TARGET = {EXECUTE_ALU_FAST_OUTPUT[63:1], 1'b0}; // JALR requires even addresses (Least Significant Bit forced to 0 to maintain halfword alignment)
 
@@ -585,10 +732,19 @@ module Riscv64 #(
   );
 
   // Traps: ecall / ebreak jump to mtvec, mret jumps back to mepc. Both flush like a mispredicted branch.
-  assign EXECUTE_TAKES_TRAP = EXECUTE_VALID && (EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_INTERRUPT);
-  assign EXECUTE_RETURNS_FROM_TRAP = EXECUTE_VALID && EXECUTE_IS_AN_MRET;
-  assign EXECUTE_REDIRECT_PC = EXECUTE_TAKES_TRAP ? TRAP_VECTOR : EXECUTE_RETURNS_FROM_TRAP ? EXCEPTION_PC : EXECUTE_ADJUST_NEXT_PC;
-  assign FLUSH_FETCH1_FETCH2_DECODE = EXECUTE_VALID && (EXECUTE_FLUSH || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT); // Control Hazard: misprediction, JALR, or a trap
+  assign LATE_FLUSH = LATE_BRANCH_RESOLVE && MEMORY_REDIRECT;
+  assign EXECUTE_LIVE = EXECUTE_VALID && !LATE_FLUSH;
+  assign EXECUTE_TAKES_TRAP = EXECUTE_LIVE && (EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_INTERRUPT);
+  assign EXECUTE_RETURNS_FROM_TRAP = EXECUTE_LIVE && EXECUTE_IS_AN_MRET;
+  // (LATE_BRANCH_RESOLVE: EXECUTE itself flushes only for a trap or mret, so the branch outcome never reaches FETCH1 from here)
+  assign EXECUTE_REDIRECT_PC = LATE_FLUSH ? MEMORY_REDIRECT_PC : EXECUTE_TAKES_TRAP ? TRAP_VECTOR
+                             // FENCE.I: BranchControl already gives PC + 4 for it; only the late-resolve build needs its own case
+                             : (LATE_BRANCH_RESOLVE && EXECUTE_IS_A_FENCE_I) ? EXECUTE_PC_ADD_4
+                             : (EXECUTE_RETURNS_FROM_TRAP || LATE_BRANCH_RESOLVE) ? EXCEPTION_PC : EXECUTE_ADJUST_NEXT_PC;
+  assign FLUSH_FETCH1_FETCH2_DECODE = LATE_FLUSH || (EXECUTE_LIVE && ((!LATE_BRANCH_RESOLVE && EXECUTE_FLUSH) || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT || EXECUTE_IS_A_FENCE_I)); // Control Hazard: misprediction, JALR, a trap or FENCE.I
+  // FENCE.I: the data cache writes through, so main memory already holds every older store; emptying the
+  // instruction cache and the BTB at this edge makes FETCH1 read the new code from PC + 4 on
+  assign icache_invalidate = ZIFENCEI && !FREEZE && EXECUTE_LIVE && EXECUTE_IS_A_FENCE_I;
 
   // ========== Interrupts: precise, by replacing the instruction in DECODE ==========
   // When an enabled interrupt is pending, the instruction in DECODE does not go on to EXECUTE. A
@@ -601,12 +757,12 @@ module Riscv64 #(
   // The pseudo-instruction never retires: MEMORY gets a bubble, so an interrupt costs 4 bubbles (the flush's
   // 3, plus its own slot): the X term of the equation.
   assign DECODE_TAKES_INTERRUPT = INTERRUPT_REQUEST && DECODE_VALID
-    && !(EXECUTE_VALID && (EXECUTE_CSR_WRITE_ENABLE || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT));
-  assign dcache_re = EXECUTE_VALID && EXECUTE_MEMORY_READ_ENABLE;
+    && !(EXECUTE_VALID && (EXECUTE_CSR_WRITE_ENABLE || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT || EXECUTE_IS_A_FENCE_I));
+  assign dcache_re = EXECUTE_LIVE && EXECUTE_MEMORY_READ_ENABLE;
   assign DATA_CACHE_STALL = dcache_re && !dcache_hit;
   assign FRONT_END_NOT_STALLED = !DATA_CACHE_STALL && !LOAD_STALL && !MULTIPLY_DIVIDE_STALL;
   assign ADVANCE_FRONT_END = !FLUSH_FETCH1_FETCH2_DECODE && FRONT_END_NOT_STALLED; // The front of the pipeline moves only when nothing is being flushed or stalled
-  assign EXECUTE_BTB_UPDATE = BTB_ENABLE && !FREEZE && EXECUTE_VALID && ((EXECUTE_IS_A_BRANCH_INSTRUCTION && EXECUTE_BRANCH_TAKEN) || EXECUTE_IS_A_JAL_INSTRUCTION);
+  assign EXECUTE_BTB_UPDATE = BTB_ENABLE && !FREEZE && EXECUTE_LIVE && ((EXECUTE_IS_A_BRANCH_INSTRUCTION && EXECUTE_BRANCH_TAKEN) || EXECUTE_IS_A_JAL_INSTRUCTION);
 
   // Rewind the Global History on a flush: the checkpoint, plus the real direction if the flushing instruction is itself a branch
   assign EXECUTE_RESTORED_GLOBAL_HISTORY = EXECUTE_IS_A_BRANCH_INSTRUCTION ?
@@ -632,12 +788,12 @@ module Riscv64 #(
   CSRFile control_status_register_file (
     .clk (clk),
     .reset (reset),
-    .CSR_WRITE_ENABLE (!FREEZE && EXECUTE_CSR_WRITE_ENABLE && EXECUTE_VALID),
+    .CSR_WRITE_ENABLE (!FREEZE && EXECUTE_CSR_WRITE_ENABLE && EXECUTE_LIVE),
     .CSR_ADDRESS (EXECUTE_CSR_ADDRESS),
     .CSR_OPERATION (EXECUTE_FUNCT3),
     .CSR_WRITE_DATA (EXECUTE_CSR_WRITE_DATA),
     .INSTRUCTION_RETIRED (WRITEBACK_VALID),
-    .PERFORMANCE_EVENTS ({EXECUTE_VALID && EXECUTE_IS_AN_INTERRUPT, TRACE_DATA_MISS, TRACE_INSTRUCTION_MISS, TRACE_MULTIPLY_DIVIDE_STALL, TRACE_REDIRECT, TRACE_FLUSH, TRACE_LOAD_STALL}),
+    .PERFORMANCE_EVENTS ({LATE_FLUSH && EXECUTE_VALID, EXECUTE_LIVE && EXECUTE_IS_AN_INTERRUPT, TRACE_DATA_MISS, TRACE_INSTRUCTION_MISS, TRACE_MULTIPLY_DIVIDE_STALL, TRACE_REDIRECT, TRACE_FLUSH, TRACE_LOAD_STALL}),
     .TAKE_TRAP (!FREEZE && EXECUTE_TAKES_TRAP),
     .TRAP_PC (EXECUTE_PC),
     .TRAP_CAUSE (EXECUTE_IS_AN_INTERRUPT ? (EXECUTE_INTERRUPT_IS_EXTERNAL ? CAUSE_MACHINE_EXTERNAL_INTERRUPT : CAUSE_MACHINE_TIMER_INTERRUPT)
@@ -666,7 +822,7 @@ module Riscv64 #(
 
   assign dcache_addr = EXECUTE_FAST_RESULT; // Feed Data Memory the calculated Target Address
   assign dcache_din = EXECUTE_STORE_DATA; // Feed Data Memory Data from Store Instruction
-  assign dcache_we = (!FREEZE && EXECUTE_VALID && EXECUTE_MEMORY_WRITE_ENABLE) ? EXECUTE_STORE_MASK : 8'b0000_0000; // Place Write Mask If the Execute Stage is Valid and a Write
+  assign dcache_we = (!FREEZE && EXECUTE_LIVE && EXECUTE_MEMORY_WRITE_ENABLE) ? EXECUTE_STORE_MASK : 8'b0000_0000; // Place Write Mask If the Execute Stage is Valid and a Write
 
   // ========== Memory Stage Signals: ==========
   logic [63:0] MEMORY_PC; // Keep track of Program Counter at the Memory Stage
@@ -680,6 +836,8 @@ module Riscv64 #(
   logic MEMORY_WRITES_TOHOST; // Program finishing instruction in the Memory Stage
   logic MEMORY_REGISTER_WRITE_ENABLE_OUT; // Write enable after the Writeback MUX (same value, kept for the WriteControl interface)
   logic MEMORY_IS_POPULATION_COUNT, MEMORY_POPULATION_COUNT_WORD; // cpop / cpopw: finish the count here
+  logic [63:0] MEMORY_CUSTOM_A, MEMORY_CUSTOM_B; // EXECUTE's ALU inputs, one stage later (custom unit, FAST_ALU min / max)
+  logic MEMORY_IS_MIN_MAX; // FAST_ALU: min / max finish here (EXECUTE sent only the comparison, in bit 0)
   logic [6:0] MEMORY_POPULATION; // the finished count
   logic [63:0] MEMORY_RESULT; // the ALU result, with cpop's last addition done
 
@@ -690,13 +848,41 @@ module Riscv64 #(
     .WORD (MEMORY_POPULATION_COUNT_WORD),
     .COUNT (MEMORY_POPULATION)
   );
-  assign MEMORY_RESULT = MEMORY_IS_POPULATION_COUNT ? {57'd0, MEMORY_POPULATION} : MEMORY_ALU_RESULT;
+  assign MEMORY_RESULT = MEMORY_IS_POPULATION_COUNT ? {57'd0, MEMORY_POPULATION}
+                       : MEMORY_IS_MIN_MAX ? (MEMORY_ALU_RESULT[0] ? MEMORY_CUSTOM_A : MEMORY_CUSTOM_B) : MEMORY_ALU_RESULT;
 
-  LoadControl load_control (
-    .LOAD_FUNCT3 (MEMORY_FUNCT3), // Determines Load Alignment
-    .MEMORY_ADDRESS (MEMORY_ALU_RESULT), // Address to Determine byte, halfword, word, doubleword lane
-    .MEMORY_INFO (MEMORY_DATA_CACHE_DATA), // The 64 data bits from the Data Memory
-    .DATA_TO_LOAD (MEMORY_LOAD_DATA)
+  // FAST_LOAD_ALIGN: which source byte lands in each result byte, and which bytes are sign or zero fill, is
+  // decided in EXECUTE from funct3 and the 3-bit address offset (both early there) and registered, so the
+  // loaded data reaches the forwarding multiplexers through one AND-OR instead of offset compares and a
+  // sign bit that fans out to 56 bits behind a chain of selections. Same values as LoadControl.
+  logic [63:0] MEMORY_LOAD_SOURCE; // byte j of the result is byte k of the doubleword: bit 8j + k
+  logic [7:0] MEMORY_LOAD_FILL, MEMORY_LOAD_SIGN_SOURCE; // result bytes that are fill; the byte whose bit 7 is the sign
+  generate
+    if (FAST_LOAD_ALIGN) begin : fast_load_align
+      FastLoadControl load_control (
+        .SOURCE (MEMORY_LOAD_SOURCE),
+        .FILL (MEMORY_LOAD_FILL),
+        .SIGN_SOURCE (MEMORY_LOAD_SIGN_SOURCE),
+        .MEMORY_INFO (MEMORY_DATA_CACHE_DATA),
+        .DATA_TO_LOAD (MEMORY_LOAD_DATA)
+      );
+    end else begin : load_align
+      LoadControl load_control (
+        .LOAD_FUNCT3 (MEMORY_FUNCT3), // Determines Load Alignment
+        .MEMORY_ADDRESS (MEMORY_ALU_RESULT), // Address to Determine byte, halfword, word, doubleword lane
+        .MEMORY_INFO (MEMORY_DATA_CACHE_DATA), // The 64 data bits from the Data Memory
+        .DATA_TO_LOAD (MEMORY_LOAD_DATA)
+      );
+    end
+  endgenerate
+  logic [63:0] EXECUTE_LOAD_SOURCE;
+  logic [7:0] EXECUTE_LOAD_FILL, EXECUTE_LOAD_SIGN_SOURCE;
+  LoadLanes load_lanes (
+    .LOAD_FUNCT3 (EXECUTE_FUNCT3),
+    .OFFSET (EXECUTE_STORE_BYTE_OFFSET), // the address's low 3 bits, from a 3-bit add (the data cache uses it too)
+    .SOURCE (EXECUTE_LOAD_SOURCE),
+    .FILL (EXECUTE_LOAD_FILL),
+    .SIGN_SOURCE (EXECUTE_LOAD_SIGN_SOURCE)
   );
 
   // Memory Forwarding MUX (the same value is written back one stage later)
@@ -718,10 +904,11 @@ module Riscv64 #(
   // two cycles right behind it, one cycle with one instruction in between, none after that.
   logic MEMORY_IS_A_CUSTOM_INSTRUCTION;
   logic [31:0] MEMORY_CUSTOM_SELECT;
-  logic [63:0] MEMORY_CUSTOM_A, MEMORY_CUSTOM_B, MEMORY_CUSTOM_OUTPUT;
+  logic [63:0] MEMORY_CUSTOM_OUTPUT;
   CustomUnit custom_unit (
     .A (MEMORY_CUSTOM_A),
     .B (MEMORY_CUSTOM_B),
+    .PREPARED (MEMORY_CUSTOM_PREPARED),
     .SELECT (MEMORY_CUSTOM_SELECT),
     .RESULT (MEMORY_CUSTOM_OUTPUT)
   );
@@ -796,6 +983,7 @@ module Riscv64 #(
       EXECUTE_ALU_OPERATION <= ALU_XXX;
       EXECUTE_ALU_SUBTRACT <= 1'b0;
       EXECUTE_LATE_RESULT <= 1'b0;
+      EXECUTE_ALU_SELECT <= 64'd0;
       EXECUTE_CUSTOM_SELECT <= 32'd0;
       EXECUTE_MULTIPLY_DIVIDE_PREDECODED <= 3'b000;
       EXECUTE_PC_TARGET <= 64'd0;
@@ -807,19 +995,28 @@ module Riscv64 #(
       EXECUTE_IS_AN_ECALL <= 1'b0;
       EXECUTE_IS_AN_EBREAK <= 1'b0;
       EXECUTE_IS_AN_MRET <= 1'b0;
+      EXECUTE_IS_A_FENCE_I <= 1'b0;
       EXECUTE_IS_AN_INTERRUPT <= 1'b0;
       EXECUTE_INTERRUPT_IS_EXTERNAL <= 1'b0;
       // ========== Memory ==========
       MEMORY_VALID <= 1'b0;
+      MEMORY_REDIRECT <= 1'b0;
+      MEMORY_BRANCH_UPDATE <= 1'b0;
+      MEMORY_BTB_UPDATE <= 1'b0;
       MEMORY_PC <= 64'd0;
       MEMORY_DESTINATION_REGISTER_ADDRESS <= 5'd0;
       MEMORY_FUNCT3 <= 3'd0;
+      MEMORY_LOAD_SOURCE <= 64'd0;
+      MEMORY_LOAD_FILL <= 8'd0;
+      MEMORY_LOAD_SIGN_SOURCE <= 8'd0;
       MEMORY_ALU_RESULT <= 64'd0;
       MEMORY_IS_A_CUSTOM_INSTRUCTION <= 1'b0;
       MEMORY_CUSTOM_SELECT <= 32'd0;
       MEMORY_CUSTOM_A <= 64'd0;
       MEMORY_CUSTOM_B <= 64'd0;
+      MEMORY_CUSTOM_PREPARED <= 64'd0;
       MEMORY_IS_POPULATION_COUNT <= 1'b0;
+      MEMORY_IS_MIN_MAX <= 1'b0;
       MEMORY_POPULATION_COUNT_WORD <= 1'b0;
       MEMORY_PC_ADD_4 <= 64'd0;
       MEMORY_CSR_READ_DATA <= 64'd0;
@@ -843,23 +1040,41 @@ module Riscv64 #(
     end
     else begin
       // Advance Execute to Memory (always: the Execute instruction is never flushed, even when it causes a flush)
-      MEMORY_VALID <= EXECUTE_VALID && !EXECUTE_IS_AN_INTERRUPT; // the interrupt pseudo-instruction never retires
+      MEMORY_VALID <= EXECUTE_LIVE && !EXECUTE_IS_AN_INTERRUPT; // the interrupt pseudo-instruction never retires
+      // LATE_BRANCH_RESOLVE: what the branch / JALR found out, acted on next cycle from MEMORY
+      MEMORY_REDIRECT <= LATE_BRANCH_RESOLVE && EXECUTE_LIVE && EXECUTE_FLUSH;
+      MEMORY_REDIRECT_PC <= EXECUTE_ADJUST_NEXT_PC;
+      MEMORY_RESTORED_GLOBAL_HISTORY <= EXECUTE_RESTORED_GLOBAL_HISTORY;
+      MEMORY_RAS_RESTORE_POINTER <= EXECUTE_RAS_RESTORE_POINTER;
+      MEMORY_BRANCH_UPDATE <= LATE_BRANCH_RESOLVE && EXECUTE_LIVE && EXECUTE_UPDATE_BRANCH_PREDICTOR;
+      MEMORY_BRANCH_TAKEN <= EXECUTE_BRANCH_WAS_ACTUALLY_TAKEN;
+      MEMORY_GSHARE_INDEX <= EXECUTE_GSHARE_INDEX;
+      MEMORY_GSHARE_PREDICTED_TAKEN <= EXECUTE_GSHARE_PREDICTED_TAKEN;
+      MEMORY_BHT_PREDICTED_TAKEN <= EXECUTE_BHT_PREDICTED_TAKEN;
+      MEMORY_BTB_UPDATE <= LATE_BRANCH_RESOLVE && BTB_ENABLE && EXECUTE_LIVE && ((EXECUTE_IS_A_BRANCH_INSTRUCTION && EXECUTE_BRANCH_TAKEN) || EXECUTE_IS_A_JAL_INSTRUCTION);
+      MEMORY_PC_TARGET <= EXECUTE_PC_TARGET;
+      MEMORY_IS_A_JAL <= EXECUTE_IS_A_JAL_INSTRUCTION;
       MEMORY_PC <= EXECUTE_PC; // Update Memory Program Counter
       MEMORY_DESTINATION_REGISTER_ADDRESS <= EXECUTE_DESTINATION_REGISTER_ADDRESS; // Update Memory Destination Register Address
       MEMORY_FUNCT3 <= EXECUTE_FUNCT3; // Update Memory Funct3
+      MEMORY_LOAD_SOURCE <= FAST_LOAD_ALIGN ? EXECUTE_LOAD_SOURCE : 64'd0;
+      MEMORY_LOAD_FILL <= FAST_LOAD_ALIGN ? EXECUTE_LOAD_FILL : 8'd0;
+      MEMORY_LOAD_SIGN_SOURCE <= FAST_LOAD_ALIGN ? EXECUTE_LOAD_SIGN_SOURCE : 8'd0;
       MEMORY_ALU_RESULT <= EXECUTE_ALU_RESULT; // Update Memory ALU Result
-      MEMORY_IS_A_CUSTOM_INSTRUCTION <= EXECUTE_VALID && !EXECUTE_IS_AN_INTERRUPT && EXECUTE_IS_A_CUSTOM_INSTRUCTION;
+      MEMORY_IS_A_CUSTOM_INSTRUCTION <= EXECUTE_LIVE && !EXECUTE_IS_AN_INTERRUPT && EXECUTE_IS_A_CUSTOM_INSTRUCTION;
       MEMORY_CUSTOM_SELECT <= EXECUTE_CUSTOM_SELECT;
       MEMORY_CUSTOM_A <= EXECUTE_ALU_INPUT_A;
       MEMORY_CUSTOM_B <= EXECUTE_ALU_INPUT_B;
+      MEMORY_CUSTOM_PREPARED <= EXECUTE_CUSTOM_PREPARED;
       MEMORY_IS_POPULATION_COUNT <= !EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION && (EXECUTE_ALU_OPERATION == ALU_CPOP);
+      MEMORY_IS_MIN_MAX <= FAST_ALU && ((EXECUTE_ALU_OPERATION == ALU_MIN) || (EXECUTE_ALU_OPERATION == ALU_MINU) || (EXECUTE_ALU_OPERATION == ALU_MAX) || (EXECUTE_ALU_OPERATION == ALU_MAXU));
       MEMORY_POPULATION_COUNT_WORD <= EXECUTE_ALU_IS_WORD_OPERATION;
       MEMORY_PC_ADD_4 <= EXECUTE_PC_ADD_4; // Update Memory Program Counter + 4
       MEMORY_CSR_READ_DATA <= EXECUTE_CSR_READ_DATA; // Update Control Status Register Read Data
       MEMORY_REGISTER_WRITE_ENABLE <= EXECUTE_REGISTER_WRITE_ENABLE; // Update Register Write Enable Signal
       MEMORY_WRITEBACK_SELECT <= EXECUTE_WRITEBACK_SELECT; // Update Memory Writeback Select MUX Output Selection
       MEMORY_DATA_CACHE_DATA <= dcache_dout; // Capture Data Memory's response data for Load Control
-      MEMORY_WRITES_TOHOST <= EXECUTE_VALID && EXECUTE_WRITES_TOHOST;
+      MEMORY_WRITES_TOHOST <= EXECUTE_LIVE && EXECUTE_WRITES_TOHOST;
 
       // Advance Memory to Writeback
       WRITEBACK_VALID <= MEMORY_VALID;
@@ -893,9 +1108,11 @@ module Riscv64 #(
           EXECUTE_GLOBAL_HISTORY_CHECKPOINT <= DECODE_GLOBAL_HISTORY_CHECKPOINT;
           EXECUTE_WRITEBACK_SELECT <= DECODE_WRITEBACK_SELECT;
           EXECUTE_ALU_OPERATION <= DECODE_ALU_OPERATION;
+          EXECUTE_ALU_SELECT <= FAST_ALU ? alu_select(DECODE_ALU_OPERATION) : 64'd0;
           EXECUTE_CUSTOM_SELECT <= (DECODE_ALU_OPERATION == ALU_CUSTOM) ? DECODE_CUSTOM_SELECT : 32'd0;
           EXECUTE_LATE_RESULT <= !DECODE_TAKES_INTERRUPT && ((DECODE_ALU_OPERATION == ALU_CPOP) || (DECODE_ALU_OPERATION == ALU_MIN) || (DECODE_ALU_OPERATION == ALU_MINU)
-            || (DECODE_ALU_OPERATION == ALU_MAX) || (DECODE_ALU_OPERATION == ALU_MAXU) || (DECODE_ALU_OPERATION == ALU_CUSTOM));
+            || (DECODE_ALU_OPERATION == ALU_MAX) || (DECODE_ALU_OPERATION == ALU_MAXU) || (DECODE_ALU_OPERATION == ALU_CUSTOM)
+            || (FAST_M_UNIT && DECODE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION) || (FAST_ALU && ((DECODE_ALU_OPERATION == ALU_CLZ) || (DECODE_ALU_OPERATION == ALU_CTZ))));
           EXECUTE_ALU_SUBTRACT <= (DECODE_ALU_OPERATION == ALU_SUB) || (DECODE_ALU_OPERATION == ALU_SLT) || (DECODE_ALU_OPERATION == ALU_SLTU)
             || (DECODE_ALU_OPERATION == ALU_MIN) || (DECODE_ALU_OPERATION == ALU_MINU) || (DECODE_ALU_OPERATION == ALU_MAX) || (DECODE_ALU_OPERATION == ALU_MAXU);
           EXECUTE_MULTIPLY_DIVIDE_PREDECODED <= {
@@ -948,6 +1165,7 @@ module Riscv64 #(
         EXECUTE_IS_AN_ECALL <= 1'b0;
         EXECUTE_IS_AN_EBREAK <= 1'b0;
         EXECUTE_IS_AN_MRET <= 1'b0;
+        EXECUTE_IS_A_FENCE_I <= 1'b0;
         EXECUTE_IS_AN_INTERRUPT <= 1'b0;
         // Fetch 2 transition to Decode: the Decode instruction was on the wrong path
         DECODE_VALID <= 1'b0;
@@ -976,6 +1194,7 @@ module Riscv64 #(
         EXECUTE_IS_AN_ECALL <= 1'b0;
         EXECUTE_IS_AN_EBREAK <= 1'b0;
         EXECUTE_IS_AN_MRET <= 1'b0;
+        EXECUTE_IS_A_FENCE_I <= 1'b0;
         EXECUTE_IS_AN_INTERRUPT <= 1'b0;
       end
       else if (MULTIPLY_DIVIDE_STALL) begin // The M instruction in Execute needs more cycles:
@@ -1002,6 +1221,7 @@ module Riscv64 #(
         EXECUTE_IS_AN_ECALL <= DECODE_IS_AN_ECALL;
         EXECUTE_IS_AN_EBREAK <= DECODE_IS_AN_EBREAK;
         EXECUTE_IS_AN_MRET <= DECODE_IS_AN_MRET;
+        EXECUTE_IS_A_FENCE_I <= DECODE_IS_A_FENCE_I;
         EXECUTE_IS_AN_INTERRUPT <= 1'b0;
         EXECUTE_INTERRUPT_IS_EXTERNAL <= INTERRUPT_IS_EXTERNAL;
         if (DECODE_TAKES_INTERRUPT) begin // the DECODE instruction stays behind; the interrupt goes in its place
@@ -1019,6 +1239,7 @@ module Riscv64 #(
           EXECUTE_IS_AN_ECALL <= 1'b0;
           EXECUTE_IS_AN_EBREAK <= 1'b0;
           EXECUTE_IS_AN_MRET <= 1'b0;
+          EXECUTE_IS_A_FENCE_I <= 1'b0;
           EXECUTE_IS_AN_INTERRUPT <= 1'b1;
         end
 

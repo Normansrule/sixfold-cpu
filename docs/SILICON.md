@@ -32,6 +32,62 @@ green (horizontal), met4 orange (vertical, also over the SRAMs), met5 red (power
 These pictures are drawn by `tools/render_def.py` from the placed-and-routed DEF file: every
 rectangle is one standard cell at its real position.
 
+## Where the caches go: a planned floorplan for the 64-bit core
+
+In the prototype above the ten SRAM macros sit together in the lower-left corner and the logic that uses them
+sits near the middle of the die. Measured from its DEF file (`tools/floorplan.py`, Manhattan distance, because
+wires run horizontally and vertically), the centre of the core's cells is about **2 mm** from each cache's tag
+array:
+
+| prototype (placed and routed), distance | instruction cache | data cache |
+|---|---:|---:|
+| core cells' centre to the tag array | 2,151 um | 1,996 um |
+| cache controller's cells to its farthest SRAM | 768 um | 926 um |
+
+The tag array is the one that matters most: every cycle, the address goes to the tags, the tags come back to
+be compared, and the hit decides whether the pipeline stalls. A wire that long is slow even with a strong
+driver. One `sky130_fd_sc_hd__buf_8` driving 2,151 um of metal 3 (its delay from the cell library at that
+wire's capacitance, plus the wire's own resistance and capacitance from OpenROAD's sky130 values) takes
+**655 ps** one way, before any logic. At the prototype's 26 ns clock that did not matter; at a few hundred
+picoseconds it would be most of the cycle.
+
+![planned floorplan](img/silicon/floorplan.svg)
+
+`make floorplan` draws a plan for this repository's 64-bit turbo core on the same process, with the caches
+beside the stages that use them:
+
+* **Measured:** every block's cell area (`tools/floorplan_areas.sh` synthesizes each one onto sky130 cells:
+  register file 109,476 um2, multiply/divide unit 133,458, ALU 37,426, branch target buffer 37,531, and so
+  on; the whole core 522,155), and the SRAM macros, which are the prototype's own `sram22` macros with their
+  real sizes (150.4 x 225.26 um for 256 x 32 bits, 150.4 x 85.26 um for 64 x 32). Each cache's arrays come
+  out at 32,768 data bits (4 macros) and 2,688 tag bits (one 64-entry macro per way, 2).
+* **Assumed:** 65% of each logic region filled with cells (the rest is routing room), a 10 um keep-out around
+  each macro, and the core's remaining logic (pipeline registers, forwarding, hazard and branch control,
+  85,563 um2) spread over the stage columns in equal parts.
+* **Arranged:** the stages left to right in pipeline order, the instruction cache's macros in a column on the
+  FETCH side and the data cache's on the MEMORY side. The tag macros sit in the middle of each column, level
+  with the block that sends them an address (the fetch logic and the ALU), with the data macros above and
+  below. The multiply/divide unit, the largest block and not part of the one-cycle ALU loop, gets a column of
+  its own, away from the data cache.
+
+| planned (not placed), distance | instruction cache | data cache |
+|---|---:|---:|
+| address source (fetch logic, ALU) to the tag arrays | 364 um | 377 um |
+| cache controller to its farthest SRAM | 650 um | 672 um |
+| buf_8 + wire delay, address source to tags (prototype: 655 / 611 ps) | **184 ps** | **187 ps** |
+
+The plan is 1,065 x 1,192 um of core area. It is a plan, not a layout: no placer or router has run on it
+(that is the next step, with OpenROAD; see "Tools and flows" below), the distances are between block
+centres, and the wire delays use one buffer and no repeaters. What it does show, with measured inputs, is the
+principle: put each cache's tags next to the logic that addresses them, keep the large off-loop blocks out of
+the way, and the address-to-tag distance shrinks 5 to 6 times and its delay about 3.5 times. Two consequences for a real chip:
+
+* The cache RTL writes a whole 256-bit line in one cycle; a 32-bit-wide SRAM macro takes eight writes. A real
+  refill streams the line in over eight cycles, which the bus delivers piece by piece anyway.
+* On the 7 nm-class library the same core's logic is about 94 times smaller (4,022 um2 against 378,259 um2
+  from `tools/timing.sh turbo`, both measured), so every distance shrinks by about the square root, 9.7 times.
+  Wires get slower per micrometre at small nodes, so the arrangement matters more there, not less.
+
 ## Timing and area of the original chip
 
 ![critical path](img/silicon/critical_path.svg)

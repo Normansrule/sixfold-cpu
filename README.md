@@ -13,7 +13,7 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 
 | | |
 |---|---|
-| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr + **Zknh** (SHA-2: `sha256sig0`, `sha512sum1`, ..., added by hand in [chapter 12](docs/learn/12_adding_instructions.md)): **121 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (five built in: `absdiff`, `avgu`, `hamming`, `clampi`, and `hsec.cteq` for constant-time equality) |
+| **Instruction set** | RV64I + M (multiply/divide) + **B = Zba + Zbb + Zbs** (address generation, bit manipulation, single bits: `sh3add`, `clz`, `cpop`, `rev8`, `orc.b`, `min`/`max`, rotates, `bset`/`bclr`/`binv`/`bext`, ...) + Zicsr + Zifencei (`fence.i`, so new code can run) + **Zknh** (SHA-2: `sha256sig0`, `sha512sum1`, ..., added by hand in [chapter 12](docs/learn/12_adding_instructions.md)): **122 instructions**, every one documented [in binary](binary/README.md), **plus your own** on the `custom-0` opcode (five built in: `absdiff`, `avgu`, `hamming`, `clampi`, and `hsec.cteq` for constant-time equality) |
 | **Pipeline** | FETCH1 → FETCH2 → DECODE → EXECUTE → MEMORY → WRITEBACK, in order, one instruction per cycle |
 | **Hazards** | forwarding into DECODE from EXECUTE / MEMORY / WRITEBACK (the late EXECUTE value takes its own short path), 1-cycle `LOAD_STALL` for loads and the 2-cycle Zbb results (`cpop`, which finishes its count in MEMORY, and `min`, `max`) |
 | **Branch prediction** | tournament: a per-branch Branch History Table and `GSharePredictor` (PC xor global history, checkpoint repair) with a chooser; a 16-entry Branch Target Buffer (known taken branches cost 0 cycles); an 8-entry Return Address Stack |
@@ -29,8 +29,8 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 | **Your own instructions** | write what an instruction computes as one expression in the [instruction workshop](web/custom.html); it gets an encoding, the assembler and the model learn it, and `make custom` generates the SystemVerilog ([`src/Custom_Unit.sv`](src/Custom_Unit.sv)). The RTL is checked against the model on every cycle, and on 60 random instructions using every operator (`make custom-check`): [CUSTOM_INSTRUCTIONS.md](docs/CUSTOM_INSTRUCTIONS.md) |
 | **Desktop app** | the site and all three labs as an app for **Windows, macOS and Linux**, built by GitHub Actions for every release ([`desktop/`](desktop/README.md)) |
 | **Three architectures** | the same seven programs written for **RISC-V, MIPS and x86-64**, assembled to real machine code and run cycle by cycle on a pipeline model for each (Sixfold; the classic 5 stages with a delay slot; an in-order core with micro-ops), side by side in the [three-architecture lab](web/isa.html). Encodings match the GNU assembler, runs match the Unicorn emulator (`make isa-check`): [ISA_COMPARISON.md](docs/ISA_COMPARISON.md) |
-| **Two builds** | the performance edition (default) and a simple baseline pipeline (`-DBASELINE`), both in the same RTL behind parameters |
-| **Verified** | 24 programs, a 1,630-case self-checking test (expected values from an independent Python model), a 388-interrupt stress test and a custom-instruction pipeline test, predictor on and off, **both builds**: the RTL matches a software twin on **every clock cycle** (108 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
+| **Five builds** | the performance edition (default), a simple baseline pipeline (`-DBASELINE`), the compact build (`-DCOMPACT`: the performance edition with 1 KiB caches, `CACHE_SETS = 16`, the size HYDRA-130 puts on SkyWater 130) and the turbo edition (`-DTURBO`: radix-4 divide, 4-cycle multiply, stream instruction prefetch, [PERFORMANCE.md](docs/PERFORMANCE.md#the-turbo-edition-cycles-back-from-the-multiplydivide-unit-and-the-instruction-cache)), all in the same RTL behind parameters; and the deep-pipeline edition in its own files ([`src/deep/`](src/deep): 14 stages, a staggered ALU, 2.15 GHz measured at 7 nm against turbo's 1.87, at a higher CPI, [DEEP_PIPELINE.md](docs/DEEP_PIPELINE.md); `make compare` shows which build suits which work) |
+| **Verified** | 24 programs, a 1,630-case self-checking test (expected values from an independent Python model), a 388-interrupt stress test and a custom-instruction pipeline test, predictor on and off, **all five builds** (baseline, performance, compact, turbo, deep): the RTL matches a software twin on **every clock cycle** (340 runs). The FPGA system, booted and fed over its simulated UART, reports the same cycle counts (`make fpga-sim`), the board calculator is driven by simulated buttons and switches, and the board loader runs against a virtual board (`make fpga-load-test`). The RTL also compiles in Icarus Verilog, and every documentation link resolves (`make check-links`) |
 | **Silicon** | the original design's real sky130 layout, timing and area, plus sky130 synthesis of this RTL |
 | **Runs on** | Icarus Verilog, Verilator, Yosys, nextpnr, Vivado, an FPGA board, any web browser |
 
@@ -99,7 +99,7 @@ last, and the two Zbb operations too deep for the loop (`cpop`, `min`/`max`) get
 
 ![Performance counters](docs/img/diagrams/performance_counters.svg)
 
-### 7. The clock: from 7.5 MHz to 1.95 GHz, and what 2.5 GHz and 5 GHz take
+### 7. The clock: from 7.5 MHz to 2.15 GHz, and what 2.5 GHz and 5 GHz take
 
 ![Clock roadmap](docs/img/diagrams/clock_roadmap.svg)
 
@@ -108,6 +108,12 @@ with `tools/timing.sh` and verified cycle by cycle against the model; the "next"
 commercial 2.5 to 5 GHz cores get there (deeper pipelines, pipelined caches, out-of-order execution,
 custom circuits), each with its price in cycles or area: [PERFORMANCE.md](docs/PERFORMANCE.md).
 All these figures are drawn by `make diagrams` from the same parameters as the RTL.
+
+![The deep-pipeline edition: 14 stages](docs/img/diagrams/deep_pipeline.svg)
+
+The last measured step is the deep-pipeline edition: 14 stages, a staggered ALU and a back end that never
+stalls. Its clock is 15% faster than the turbo build's, but its CPI is 53% higher, so each instruction takes
+about a third longer ([DEEP_PIPELINE.md](docs/DEEP_PIPELINE.md)).
 
 ### 8. How the caches connect the pipeline, main memory and the devices
 
@@ -234,7 +240,7 @@ stage the instruction is in. Rings are forwarded operands, hatched boxes are hel
 grey crossed-out rows were fetched down a wrong path and squashed. Above: a `jal` squashes one
 instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 
-## Learn it: twelve chapters
+## Learn it: fourteen chapters
 
 | | chapter | picture you will be able to read |
 |---|---|---|
@@ -250,6 +256,8 @@ instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 | 10 | [Three architectures: RISC-V, MIPS and x86-64](docs/learn/10_three_architectures.md) | the same program in three encodings and three pipelines |
 | 11 | [Your own instructions](docs/learn/11_custom_instructions.md) | an instruction you design, from expression to hardware |
 | 12 | [Adding a standard extension: SHA-2 in hardware](docs/learn/12_adding_instructions.md) | an instruction's bit pattern, through all five layers |
+| 13 | [Trading cycles for clock, and where the caches go](docs/learn/13_clock_and_floorplan.md) | the slowest path, the turbo build's clock changes, and a planned floorplan |
+| 14 | [A deeper pipeline: more stages, a faster clock, and what it costs](docs/learn/14_deep_pipeline.md) | the 14 stages, a staggered adder, and the clock-against-CPI trade |
 
 ## Instructions in binary
 
@@ -276,7 +284,7 @@ the same RTL on a 7 nm-class library.
 cycles), and what 2.5 GHz and 5 GHz would take.
 
 ```bash
-make test                                   # both builds, every cycle compared with the RTL
+make test                                   # all five builds, every cycle compared with the RTL
 make run PROG=09_primes_sieve               # performance edition
 make run PROG=09_primes_sieve CONFIG=baseline   # the original design
 make timing                                 # sky130 logic-only clock estimate of both
@@ -294,7 +302,7 @@ shows the price: the predictor's area grows about 4x for every 2 extra bits.
 
 ![CPI stack](docs/img/charts/cpi_stack.svg)
 
-The model tags every bubble with its cause, so `cycles = N + 5 + L + 3F + R + K + I + D + X` holds **exactly** for
+The model tags every bubble with its cause, so `cycles = N + 5 + L + 3F + R + K + I + D + X + B` holds **exactly** for
 every program and both builds ([MATH.md](docs/MATH.md), checked by `make math`). Numbers below are the
 performance edition.
 
@@ -399,7 +407,7 @@ faster FPGA clock, interrupt latency with vectored interrupts, a yield system ca
 ## Every command
 
 ```text
-make test / test-model / math        verification (both builds)
+make test / test-model / math        verification (all five builds)
 make timing                          sky130 logic-only clock estimate (tools/timing.sh performance asap7: 7 nm)
 make run / pipe / cycle / bp         explore a program     (PROG=..., BP=0, HIST=6, CONFIG=baseline)
 make rtl / vsim / wave               run on Icarus, Verilator, or open GTKWave

@@ -2,6 +2,8 @@
 
 The complete description of `Riscv64` ([`src/Riscv64.sv`](../src/Riscv64.sv)). For a gentler
 introduction read the [learning path](learn/README.md) first.
+The 14-stage deep-pipeline edition is a separate design in [`src/deep/`](../src/deep), described in
+[DEEP_PIPELINE.md](DEEP_PIPELINE.md).
 
 ![block diagram](img/cpu_block_diagram.svg)
 
@@ -9,13 +11,13 @@ introduction read the [learning path](learn/README.md) first.
 
 | property | value |
 |---|---|
-| instruction set | RV64I + M (multiply/divide) + B (Zba address generation, Zbb bit manipulation, Zbs single-bit) + Zicsr (CSR instructions) + Zknh (SHA-2 hash functions; [chapter 12](learn/12_adding_instructions.md)) + your own instructions on custom-0 ([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md)) + machine-mode traps and interrupts (`ecall`, `ebreak`, `mret`, `wfi`): 122 instructions, see [`binary/`](../binary/README.md) |
+| instruction set | RV64I + M (multiply/divide) + B (Zba address generation, Zbb bit manipulation, Zbs single-bit) + Zicsr (CSR instructions) + Zifencei (`fence.i`) + Zknh (SHA-2 hash functions; [chapter 12](learn/12_adding_instructions.md)) + your own instructions on custom-0 ([CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md)) + machine-mode traps and interrupts (`ecall`, `ebreak`, `mret`, `wfi`): 122 instructions, see [`binary/`](../binary/README.md) |
 | traps | `ecall` / `ebreak` save the PC in `mepc` and the cause in `mcause` (11 / 3) and jump to `mtvec`; `mret` returns to `mepc`; `mstatus` MIE/MPIE are saved and restored |
 | pipeline | 6 stages, in order, single issue: FETCH1, FETCH2, DECODE, EXECUTE, MEMORY, WRITEBACK |
 | data hazards | forwarding **into DECODE** from EXECUTE, MEMORY, WRITEBACK; 1-cycle `LOAD_STALL` |
 | branch prediction | tournament: `TournamentChooser` (128-entry per-branch history table + 128-entry chooser) with `GSharePredictor` (2^`GSHARE_HISTORY_BITS` counters, default 6 bits = 64), speculative global history with checkpoint repair; a 16-entry `BranchTargetBuffer` in FETCH1; an 8-entry `ReturnAddressStack` in FETCH2 |
 | branch penalties | taken branch or JAL found in the BTB: 0 bubbles; otherwise a FETCH2 redirect: 1; predicted return: 1; wrong guess or unpredicted JALR: 3 (flush) |
-| multiply / divide | `IterativeMultiplyDivideUnit`: 64 x 16-bit Wallace-tree steps into a carry-save accumulator ([`Carry_Save_Multiplier.sv`](../src/Carry_Save_Multiplier.sv)), a leading-zero-counter skip for divides, a registered result: multiply 8 cycles, divide 5 + significant bits of the dividend (baseline build: single cycle) |
+| multiply / divide | `IterativeMultiplyDivideUnit`: 64 x 16-bit Wallace-tree steps into a carry-save accumulator ([`Carry_Save_Multiplier.sv`](../src/Carry_Save_Multiplier.sv)), a leading-zero-counter skip for divides, a registered result: multiply 8 cycles, divide 5 + significant bits of the dividend (baseline build: single cycle; turbo build: `FastMultiplyDivideUnit`, multiply 4 with 64 x 32-bit steps, radix-4 divide 3 + half the bits, see [PERFORMANCE.md](PERFORMANCE.md#fastmultiplydivide-a-separate-unit-fastmultiplydivideunit)) |
 | clock (logic only) | sky130 130 nm: 4.09 ns, about 244 MHz; ASAP7 7 nm: 0.513 ns, about 1.95 GHz (0.521 ns, 1.92 GHz with the four example custom instructions); see [PERFORMANCE.md](PERFORMANCE.md) |
 | FPGA | the same core in a small computer (block RAM memory, UART, LEDs, buttons, boot firmware): see [FPGA.md](FPGA.md) |
 | builds | performance (default) and baseline (`-DBASELINE`, the plain pipeline); `make test` checks both |
@@ -184,7 +186,7 @@ result: `tohost = 1` is PASS, `(n << 1) | 1` is FAIL in test n (the riscv-tests 
 | CSR `0x342` `mcause` | 3 = breakpoint, 11 = environment call; with bit 63 set: 7 = machine timer interrupt, 11 = machine external interrupt |
 | CSR `0x304` `mie` | interrupt enables: bit 7 MTIE (timer), bit 11 MEIE (external) |
 | CSR `0x344` `mip` | interrupts pending (read-only): bit 7 MTIP, bit 11 MEIP, the interrupt lines registered once per cycle |
-| CSR `0xC03`..`0xC09` `hpmcounter3..9` | performance counters (read-only): load-stall cycles (L), flushes (F), FETCH2 redirects (R), multiply/divide busy cycles (K), instruction-cache miss cycles (I), data-cache miss cycles (D), interrupts taken (X) |
+| CSR `0xC03`..`0xC0A` `hpmcounter3..10` | performance counters (read-only): load-stall cycles (L), flushes (F), FETCH2 redirects (R), multiply/divide busy cycles (K), instruction-cache miss cycles (I), data-cache miss cycles (D), interrupts taken (X), instructions a late branch flush removed from EXECUTE (B, turbo build only, else 0) |
 | device `0x1000_0058` `MTIME`, `0x1000_0060` `MTIMECMP` | the machine timer: MTIME counts cycles; the timer interrupt line is up while MTIME >= MTIMECMP (reset: all ones, never) |
 
 ## Interrupts
@@ -214,10 +216,10 @@ the example, [`tests/interrupt_stress.s`](../tests/interrupt_stress.s) the stres
 | `LOAD_STALL` (a load, or a 2-cycle Zbb result: `cpop`, `cpopw`, `min`, `minu`, `max`, `maxu`, needed right away; or a Zbs `bset` / `bclr` / `binv` whose bit number the instruction just before computes) | 1 |
 | FETCH2 redirect (predicted-taken branch or JAL not in the BTB, predicted return) | 1 (0 if a flush squashes the redirecting instruction) |
 | taken branch or JAL found in the BTB | 0 |
-| flush (wrong branch guess, JALR not predicted or predicted wrong, `ecall`, `ebreak`, `mret`) | 3 |
+| flush (wrong branch guess, JALR not predicted or predicted wrong, `ecall`, `ebreak`, `mret`, `fence.i`) | 3 (`fence.i` also empties the instruction cache, so the next line costs a miss) |
 | interrupt (a flush, plus the pseudo-instruction's own slot) | 4 |
 | M instruction (performance build) | multiply 7, divide 4 + significant bits of the dividend (EXECUTE held, bubbles into MEMORY) |
 | instruction-cache miss | 11 (bubbles into FETCH2; a prefetched line costs 0) |
 | data-cache miss (loads) | 11 (the load waits in EXECUTE; stores never wait) |
 
-`cycles = N + 5 + L + 3F + R + K + I + D + X` holds exactly for both builds; see [MATH.md](MATH.md).
+`cycles = N + 5 + L + 3F + R + K + I + D + X + B` holds exactly for all five builds; see [MATH.md](MATH.md).

@@ -11,7 +11,7 @@ module CSRFile (
     input logic [2:0] CSR_OPERATION, // funct3: CSRRW(I) write, CSRRS(I) set bits, CSRRC(I) clear bits
     input logic [63:0] CSR_WRITE_DATA, // rs1 value or the 5-bit zero extended immediate
     input logic INSTRUCTION_RETIRED, // An instruction finished in Writeback this cycle (counts instret)
-    input logic [6:0] PERFORMANCE_EVENTS, // {interrupt, D miss, I miss, M busy, redirect, flush, load stall}: the TRACE_* signals of this cycle
+    input logic [7:0] PERFORMANCE_EVENTS, // {late kill, interrupt, D miss, I miss, M busy, redirect, flush, load stall}: the TRACE_* signals of this cycle
     input logic TAKE_TRAP, // ecall / ebreak / an interrupt in Execute: record the trap
     input logic [63:0] TRAP_PC, // ... the address of that instruction (for an interrupt: the one it replaced)
     input logic [63:0] TRAP_CAUSE, // ... and why (11, 3, or bit 63 + 7 / 11 for interrupts)
@@ -40,10 +40,10 @@ module CSRFile (
     logic [63:0] CSR_NEW_VALUE; // Value after applying the read-modify-write operation
 
     // Performance counters hpmcounter3..8: the cycle equation, counted by the hardware itself
-    logic [63:0] EVENT_COUNT [0:6];
+    logic [63:0] EVENT_COUNT [0:7];
     genvar EVENT;
     generate
-        for (EVENT = 0; EVENT < 7; EVENT = EVENT + 1) begin : performance_counter
+        for (EVENT = 0; EVENT < 8; EVENT = EVENT + 1) begin : performance_counter
             EventCounter counter (.clk (clk), .reset (reset), .INCREMENT (PERFORMANCE_EVENTS[EVENT]), .COUNT (EVENT_COUNT[EVENT]));
         end
     endgenerate
@@ -141,6 +141,7 @@ module CSRFile (
             CSR_HPMCOUNTER7: CSR_READ_DATA = EVENT_COUNT[4]; // I
             CSR_HPMCOUNTER8: CSR_READ_DATA = EVENT_COUNT[5]; // D
             CSR_HPMCOUNTER9: CSR_READ_DATA = EVENT_COUNT[6]; // X
+            CSR_HPMCOUNTER10: CSR_READ_DATA = EVENT_COUNT[7]; // B
             default: CSR_READ_DATA = 64'd0;
         endcase
     end

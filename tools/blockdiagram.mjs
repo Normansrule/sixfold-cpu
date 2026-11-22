@@ -49,7 +49,7 @@ export function blockDiagramSVG() {
   add(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`);
   add(`<defs>${markers}</defs>`);
   add(`<rect width="100%" height="100%" rx="12" fill="${COL.paper}" stroke="#D5DBD0"/>`);
-  text(20, 28, 'Sixfold (src/Riscv64.sv): 6-stage RV64IM + B (Zba Zbb Zbs) + Zicsr pipeline with caches, BTB + tournament prediction, RAS, forwarding into DECODE, traps and interrupts', { size: 17, weight: 600 });
+  text(20, 28, 'Sixfold (src/Riscv64.sv): 6-stage RV64IM + B (Zba Zbb Zbs) + Zicsr + Zifencei pipeline with caches, BTB + tournament prediction, RAS, forwarding into DECODE, traps and interrupts', { size: 17, weight: 600 });
 
   // ---------------------------------------------------------------- stage bands
   const stages = [
@@ -163,7 +163,7 @@ export function blockDiagramSVG() {
   lbl(940, 108, 'EXECUTE_FORWARD_DATA (not loads)', 'fwdE');
   // flush + restore
   wire([[1198, 604], [1198, 740], [8, 740], [8, 262], [34, 262]], 'flush', { width: 2.6 });
-  lbl(620, 752, 'FLUSH_FETCH1_FETCH2_DECODE + EXECUTE_ADJUST_NEXT_PC (3 bubbles)', 'flush');
+  lbl(620, 752, 'FLUSH_FETCH1_FETCH2_DECODE + EXECUTE_ADJUST_NEXT_PC (3 bubbles; fence.i also clears the I-cache and BTB)', 'flush');
   wire([[1250, 604], [1250, 726], [84, 726], [84, 648]], 'pred', { dash: '5 4' });
   lbl(620, 722, 'train PHT counter, restore GLOBAL_HISTORY from checkpoint', 'pred');
 
@@ -198,8 +198,8 @@ export function blockDiagramSVG() {
     'Every clock edge, each thick bar captures the results of the stage to its left: 6 instructions are in flight at once.',
     'Data hazards are fixed by forwarding INTO DECODE: the newest value of rs1/rs2 is latched into EXECUTE with the instruction.',
     'Branches are guessed twice: FETCH1 reads the BTB and a tournament of BHT + gshare, FETCH2 redirects the rest (and returns via the RAS); EXECUTE checks.',
-    'Numbers to remember: fill 5, load stall 1, FETCH2 redirect 1, wrong guess 3, cache miss 11. Exact: cycles = N + 5 + L + 3F + R + K + I + D (docs/MATH.md).',
-    'Detailed figures: docs/img/diagrams/branch_prediction.svg (front end), cache.svg (one cache lookup), memory_hierarchy.svg, clock_roadmap.svg.',
+    'Numbers to remember: fill 5, load stall 1, FETCH2 redirect 1, wrong guess 3, cache miss 11. Exact: cycles = N + 5 + L + 3F + R + K + I + D + X + B (docs/MATH.md).',
+    'Detailed figures: docs/img/diagrams/branch_prediction.svg (front end), cache.svg (one cache lookup), cache_interfaces.svg, memory_hierarchy.svg, clock_roadmap.svg, deep_pipeline.svg (the 14-stage edition).',
   ];
   notes.forEach((s, i) => text(36, ly + 86 + i * 20, s, { size: 11.5, fill: COL.sub }));
   add('</svg>');

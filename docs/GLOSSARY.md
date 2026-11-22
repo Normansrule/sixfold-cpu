@@ -58,6 +58,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | RV64I | RISC-V 64-bit base Integer instruction set | the 64-bit base every RISC-V processor of this size implements | [`binary/`](../binary/README.md) |
 | SDM | Software Developer's Manual (Intel) | the reference for x86-64 encodings | [REFERENCES.md](REFERENCES.md) |
 | sky130 | SkyWater 130 nm | an open, manufacturable process design kit | [SILICON.md](SILICON.md) |
+| SRAM | Static Random-Access Memory | fast on-chip memory built from flip-flop-like cells; the cache arrays, made by a memory compiler rather than from logic cells | [DEEP_PIPELINE.md](DEEP_PIPELINE.md) |
 | stall | | holding an instruction in place for a cycle because something it needs is not ready | [chapter 4](learn/04_data_hazards.md) |
 | SV | SystemVerilog | the hardware description language of `src/` | [`src/`](../src) |
 | TAGE | TAgged GEometric history length predictor | a family of branch predictors with several history lengths, used in modern high-end cores | [MODERN_CPUS.md](MODERN_CPUS.md) |
@@ -67,3 +68,4 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | XOR | exclusive OR | 1 when exactly one of two bits is 1 | |
 | Zicond | Integer conditional operations extension | RISC-V's `czero.eqz` and `czero.nez`, branch-free selects; one of the workshop's ideas | [CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md) |
 | Zicsr | Control and Status Register instructions extension | `csrrw`, `csrrs`, `csrrc` and their immediate forms | [`model/isa.js`](../model/isa.js) |
+| Zifencei | Instruction-Fetch Fence extension | one instruction, `fence.i`: instructions fetched after it see every store before it (Sixfold flushes, then empties the instruction cache and the BTB) | [`binary/Zifencei/fence.i.md`](../binary/Zifencei/fence.i.md) |

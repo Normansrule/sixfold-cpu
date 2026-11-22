@@ -123,7 +123,33 @@ limit.
 | the same, popcount and leading zeros as trees | 4,390 ps | the custom logic |
 | now: all four in MEMORY, without `hamming` | 3,899 ps | the core |
 | now: all four in MEMORY, popcount as a 16-operand sum | 4,219 ps | the custom logic (popcount) |
-| **now: all four in MEMORY, popcount as a carry-save tree** | **4,045 ps (247 MHz)** | the custom logic, within the run-to-run spread |
+| now: all four in MEMORY, popcount as a carry-save tree | 4,045 ps (247 MHz) | the custom logic, within the run-to-run spread |
+| **now: `+`, `-`, comparisons, `min` / `max` on prefix adders; `max(x, 0)` as a sign test** | **3,832 ps (261 MHz)** | the custom logic (`hamming`), level with the core without custom instructions |
+
+The last row is a change to the generator, not to the instructions. Written as a plain `x + y`, Yosys
+builds a 64-bit ripple-carry adder (every bit waits for the carry from the bit below it). The generator now
+writes `+`, `-`, `<`, `>` (and `min`, `max`, `minu`, `maxu`, `slt`, `sltu`, `abs`, which are built on them) as a
+prefix adder: the carries are combined in pairs, then fours, then eights, 6 levels for 64 bits. A signed
+`min`, `max` or `slt` against the constant 0 needs no adder at all, only the sign bit, so `clampi` now has one
+comparison instead of two. Measured on the custom unit alone with the same flow (inputs to output, no
+registers):
+
+| custom unit alone | SkyWater 130 nm | ASAP7 7 nm-class |
+|---|---:|---:|
+| before (plain `+`, `-`, `>`, `$signed(x) < $signed(y)`) | 4,066 ps | 540 ps |
+| after (prefix adders, sign test against 0) | 3,521 ps | 484 ps |
+
+`avgu` alone went from 2,355 ps to 1,651 ps at 130 nm. What was left was `hamming`: 3,504 ps alone, and three
+other ways of writing a 64-bit popcount (a sum of 64 bits, four 16-bit quarter sums, a tree of pairwise sums)
+all measured 3,577 ps to 3,901 ps, so the carry-save tree was already the fastest of the four. A popcount is
+mostly XOR gates, and no way of writing it fits in one cycle beside everything else.
+
+So the generator now splits it across two stages, as the ALU does for `cpop` (`src/Population_Count.sv`).
+`CustomPrepare`, in EXECUTE, computes the argument of each `popcount` (the first 3 in the set) from the
+registered operands and counts its ones in four 16-bit quarters; the counts travel to MEMORY with the operands
+(`MEMORY_CUSTOM_PREPARED` in `src/Riscv64.sv`), where `CustomUnit` only adds the four. No cycle changes.
+Measured on ASAP7, inputs to output: `CustomUnit` 484 ps before, 357 ps after; `CustomPrepare` 249 ps.
+`make custom-check` runs random instruction sets through both halves against the model.
 
 Three lessons, the same ones every processor designer meets:
 

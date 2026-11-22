@@ -35,7 +35,7 @@
 <text x="690" y="170.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">hit: the instruction in the same cycle</text>
 <text x="690" y="184" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">miss: refill engine, 11 cycles</text>
 <text x="690" y="197.5" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">then prefetch the next line</text>
-<text x="690" y="211" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">reset clears every valid bit</text>
+<text x="690" y="211" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="middle">reset or FENCE.I clears every valid bit</text>
 <rect x="540" y="430" width="300" height="250" rx="6" fill="#FFFFFF" stroke="#27AE60" stroke-width="1.5"/>
 <text x="690" y="449" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#17251D" text-anchor="middle">Data cache</text>
 <text x="690" y="462" font-family="'IBM Plex Mono',Consolas,monospace" font-size="9" font-weight="400" fill="#8A968E" text-anchor="middle">src/Data_Cache.sv</text>
@@ -70,6 +70,8 @@
 <text x="395" y="260" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="600" fill="#2E86C1" text-anchor="middle">INSTRUCTION [31:0]</text>
 <path d="M540,300 L505,300 L505,194 L290,194" fill="none" stroke="#C0392B" stroke-width="2" stroke-dasharray="5 3" stroke-linejoin="round" marker-end="url(#m-miss)"/>
 <text x="512" y="338" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="600" fill="#C0392B" text-anchor="start">HIT = 0: FETCH1 holds (an I-cache miss bubble)</text>
+<path d="M260,432 L260,423 L488,423 L488,250 L540,250" fill="none" stroke="#E08E0B" stroke-width="1.6" stroke-dasharray="2 3" stroke-linejoin="round" marker-end="url(#m-E)"/>
+<text x="534" y="244" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="600" fill="#E08E0B" text-anchor="end">icache_invalidate (FENCE.I)</text>
 <path d="M290,450 L540,450" fill="none" stroke="#E08E0B" stroke-width="2" stroke-linejoin="round" marker-end="url(#m-E)"/>
 <text x="395" y="444" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="600" fill="#E08E0B" text-anchor="middle">ADDRESS, LOAD_REQUEST</text>
 <path d="M290,474 L540,474" fill="none" stroke="#E08E0B" stroke-width="2" stroke-linejoin="round" marker-end="url(#m-E)"/>
@@ -100,7 +102,7 @@
 <text x="1016" y="424" font-family="'IBM Plex Mono',Consolas,monospace" font-size="10.5" font-weight="600" fill="#E08E0B" text-anchor="start">(write-through)</text>
 <rect x="540" y="790" width="880" height="54" rx="8" fill="#FFF" stroke="#D5DBD0" stroke-width="1.5"/>
 <text x="556" y="812" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">Timing: a hit costs nothing; a miss costs 11 cycles (10-cycle main memory + 1). The model counts them as the I and D terms</text>
-<text x="556" y="830" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">of cycles = N + 5 + L + 3F + R + K + I + D, and the FPGA system reports the same count: its memory answers in the same 10 cycles.</text>
+<text x="556" y="830" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="400" fill="#4A5A50" text-anchor="start">of cycles = N + 5 + L + 3F + R + K + I + D + X + B, and the FPGA system reports the same count: its memory answers in the same 10 cycles.</text>
 <text x="40" y="812" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">solid: every cycle</text>
 <text x="40" y="830" font-family="'IBM Plex Sans','Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#4A5A50" text-anchor="start">dashed: stall / store paths</text>
 </svg>
