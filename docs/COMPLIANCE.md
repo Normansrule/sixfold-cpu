@@ -94,7 +94,8 @@ and the order to close them in:
 1. **riscv-arch-test with RISCOF (RISC-V Compatibility Framework)**: the official architectural tests compare a memory *signature* written by
    the test against the Sail reference model, instead of trusting the test's own checks. Needs a signature
    dump in the testbench and a RISCOF plugin for Sixfold.
-2. **riscv-formal**: a RISC-V Formal Interface (RVFI) trace port on the core, then SymbiYosys proves each
-   instruction correct for *every* input, not just the tested ones.
+2. **riscv-formal**: in the repository now. A RISC-V Formal Interface (RVFI) trace port on the core (`make formal`,
+   [formal/README.md](../formal/README.md), [chapter 17](learn/17_formal_verification.md)) lets SymbiYosys prove each
+   instruction correct for *every* input up to a bounded depth. A full recorded run of every check is still to come.
 3. The gaps above, starting with the illegal-instruction exception, behind a parameter so HYDRA-130's build
    does not change.

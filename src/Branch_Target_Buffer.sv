@@ -48,18 +48,27 @@ module BranchTargetBuffer #(
     assign HIT_IS_JAL = ENTRY_IS_JAL[FETCH_INDEX];
     assign PREDICTED_TARGET = {32'd0, ENTRY_TARGET[FETCH_INDEX]};
 
+    // Only targets below 4 GiB fit an entry (ENTRY_TARGET keeps 32 bits). A jump to a target above that is
+    // simply not remembered: FETCH2 redirects it with one bubble instead. Before this guard the entry kept the
+    // low 32 bits and FETCH1 jumped to the wrong address with nothing to correct it (found by riscv-formal's
+    // pc_fwd check: a JAL from 0x8bfc0 back to 0xffff_ffff_ffff_b73c).
+    logic REMEMBER;
+    // The jump itself must also sit below 4 GiB: a lookup only compares PC[31:6] (and needs PC[63:32] = 0),
+    // so an entry written from 0xffff_ffff_ffff_fffc would otherwise hit at 0x0000_0000_ffff_fffc, a different
+    // instruction (found by pc_fwd too, right after the first fix).
+    assign REMEMBER = UPDATE && (UPDATE_TARGET[63:32] == 32'd0) && (UPDATE_PC[63:32] == 32'd0);
     always_ff @(posedge clk) begin
         if (reset) begin
             ENTRY_VALID <= '0; // Empty after reset: the first time any branch is taken it costs the FETCH2 redirect
             ENTRY_IS_JAL <= '0;
-        end else if (UPDATE) begin
+        end else if (REMEMBER) begin
             ENTRY_VALID[UPDATE_INDEX] <= 1'b1;
             ENTRY_IS_JAL[UPDATE_INDEX] <= UPDATE_IS_JAL;
         end
     end
 
     always_ff @(posedge clk) begin
-        if (!reset && UPDATE) begin
+        if (!reset && REMEMBER) begin
             ENTRY_TAG[UPDATE_INDEX] <= UPDATE_PC[31:TAG_LOW];
             ENTRY_TARGET[UPDATE_INDEX] <= UPDATE_TARGET[31:0];
         end
@@ -67,7 +76,7 @@ module BranchTargetBuffer #(
 
     /* verilator lint_off UNUSEDSIGNAL */
     logic UNUSED_BITS;
-    assign UNUSED_BITS = ^{UPDATE_PC[63:32], UPDATE_PC[1:0], UPDATE_TARGET[63:32], FETCH_PC[1:0]};
+    assign UNUSED_BITS = ^{UPDATE_PC[1:0], FETCH_PC[1:0]};
     /* verilator lint_on UNUSEDSIGNAL */
 
 endmodule

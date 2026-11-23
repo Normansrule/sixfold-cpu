@@ -16,7 +16,7 @@ BPFLAG = $(if $(filter 0,$(BP)),--bp=off) --history=$(HIST) --config=$(CONFIG)
 
 TBDEF = $(if $(filter baseline,$(CONFIG)),-DBASELINE)$(if $(filter turbo,$(CONFIG)),-DTURBO)
 FPGA_RTL = $(filter-out src/Scratchpad_Memory.sv src/Riscv64_top.sv,$(RTL)) $(shell cat fpga/sources.f)
-.PHONY: all-checks icarus-check fpga-synth-check docs-check riscv-tests compare asic-corner asic-planned asic-auto test-sram compute-bench deep-check floorplan clock-floor turbo-report a11y custom custom-check isa-check isa-compare check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
+.PHONY: formal formal-baseline formal-lint all-checks icarus-check fpga-synth-check docs-check riscv-tests compare asic-corner asic-planned asic-auto test-sram compute-bench deep-check floorplan clock-floor turbo-report a11y custom custom-check isa-check isa-compare check-links fpga-virtual fpga-load-test fpga-sim fpga-image fpga-ulx3s fpga-arty fpga-basys3 fpga-lint arena timing help deps test test-model math run pipe bp cycle rtl vsim wave lint docs charts diagram diagrams animations schematics synth serve clean
 
 help:            ## list targets
 	@grep -E '^[a-z0-9-]+:.*##' Makefile | sed 's/:.*##/\t/' | expand -t 14
@@ -168,6 +168,15 @@ docs-check:      ## regenerate every generated doc, chart and figure, then fail 
 	node tools/perf_report.mjs > /dev/null && node tools/readme_table.mjs --write
 	node tools/custom.mjs --check
 	git diff --exit-code -- binary docs/img/pipeline docs/img/instructions docs/img/formats docs/img/charts docs/img/diagrams docs/img/animations docs/img/cpu_block_diagram.svg web/programs.js README.md docs/PERFORMANCE.md
+
+formal-lint:     ## Verilator lint of the formal build (RVFI ports and ALTOPS switched on)
+	verilator --lint-only -Wall -DRISCV_FORMAL -DRISCV_FORMAL_ALTOPS -Wno-DECLFILENAME -Wno-IMPORTSTAR -Wno-UNUSEDPARAM -Wno-UNUSEDSIGNAL $(filter-out src/Scratchpad_Memory.sv src/Riscv64_top.sv,$(RTL)) --top-module Riscv64
+
+formal: build/sv2v formal-lint  ## riscv-formal: prove RV64I + M against the specification (SymbiYosys; ONLY='insn_add_*' for a subset)
+	./tools/formal.sh $(if $(ONLY),--only '$(ONLY)',)
+
+formal-baseline: build/sv2v  ## the same proofs on the baseline build
+	./tools/formal.sh --baseline $(if $(ONLY),--only '$(ONLY)',)
 
 riscv-tests:     ## the official riscv-tests (RV64I, M, Zba, Zbb, Zbs; 106 programs) on every build, RTL cycle-exact against the model (needs gcc-riscv64-unknown-elf)
 	node tools/riscv_tests.mjs

@@ -82,6 +82,23 @@ module Riscv64 #(
   output logic [63:0] TRACE_FETCH1_PC, TRACE_FETCH2_PC, TRACE_DECODE_PC, TRACE_EXECUTE_PC, TRACE_MEMORY_PC, TRACE_WRITEBACK_PC,
   output logic        TRACE_LOAD_STALL, TRACE_FLUSH, TRACE_REDIRECT, TRACE_MULTIPLY_DIVIDE_STALL,
   output logic        TRACE_INSTRUCTION_MISS, TRACE_DATA_MISS
+`ifdef RISCV_FORMAL
+  // RISC-V Formal Interface (RVFI): one retiring instruction per cycle, described in full (formal build only)
+  ,
+  output logic        rvfi_valid,
+  output logic [63:0] rvfi_order,
+  output logic [31:0] rvfi_insn,
+  output logic        rvfi_trap, rvfi_halt, rvfi_intr,
+  output logic [1:0]  rvfi_mode, rvfi_ixl,
+  output logic [4:0]  rvfi_rs1_addr, rvfi_rs2_addr,
+  output logic [63:0] rvfi_rs1_rdata, rvfi_rs2_rdata,
+  output logic [4:0]  rvfi_rd_addr,
+  output logic [63:0] rvfi_rd_wdata,
+  output logic [63:0] rvfi_pc_rdata, rvfi_pc_wdata,
+  output logic [63:0] rvfi_mem_addr,
+  output logic [7:0]  rvfi_mem_rmask, rvfi_mem_wmask,
+  output logic [63:0] rvfi_mem_rdata, rvfi_mem_wdata
+`endif
 );
 
   logic LOAD_STALL; // Load Hazard: Instead of a full stall only hold the Fetch and Decode, send a NOP to Execute, and advance the load logic for the Memory and Writeback
@@ -711,8 +728,35 @@ module Riscv64 #(
   );
   // EXECUTE_ALU_RESULT feeds only the MEMORY pipeline register, so the turbo edition's unregistered M result may
   // use it; forwarding and the data-cache address take EXECUTE_FAST_RESULT, which never sees it.
+`ifdef RISCV_FORMAL_ALTOPS
+  // Formal build only: a 64-bit multiplier or divider is too hard for a solver, so every M instruction's result is
+  // replaced by riscv-formal's "alternative operation" ((rs1 + rs2) or (rs1 - rs2), XOR a per-instruction constant).
+  // The M unit still runs and still decides how many cycles it takes: the stalls, the early-out divide and the
+  // forwarding of its result are all checked; only the arithmetic itself is not (the regression covers that).
+  logic [63:0] EXECUTE_ALTOPS_RESULT;
+  always_comb begin
+    logic [63:0] sum, difference;
+    sum = EXECUTE_REGISTER1_DATA + EXECUTE_REGISTER2_DATA;
+    difference = EXECUTE_REGISTER1_DATA - EXECUTE_REGISTER2_DATA;
+    unique case (EXECUTE_ALU_OPERATION)
+      ALU_MUL:    EXECUTE_ALTOPS_RESULT = sum ^ 64'h2cdf52a55876063e;
+      ALU_MULH:   EXECUTE_ALTOPS_RESULT = sum ^ 64'h15d01651f6583fb7;
+      ALU_MULHSU: EXECUTE_ALTOPS_RESULT = difference ^ 64'hea3969edecfbe137;
+      ALU_MULHU:  EXECUTE_ALTOPS_RESULT = sum ^ 64'hd13db50d949ce5e8;
+      ALU_DIV:    EXECUTE_ALTOPS_RESULT = difference ^ 64'h29bbf66f7f8529ec;
+      ALU_DIVU:   EXECUTE_ALTOPS_RESULT = difference ^ 64'h8c629acb10e8fd70;
+      ALU_REM:    EXECUTE_ALTOPS_RESULT = difference ^ 64'hf5b7d8538da68fa5;
+      ALU_REMU:   EXECUTE_ALTOPS_RESULT = difference ^ 64'hbc4402413138d0e1;
+      default:    EXECUTE_ALTOPS_RESULT = 64'd0;
+    endcase
+    if (EXECUTE_ALU_IS_WORD_OPERATION) EXECUTE_ALTOPS_RESULT = {{32{EXECUTE_ALTOPS_RESULT[31]}}, EXECUTE_ALTOPS_RESULT[31:0]};
+  end
+  assign EXECUTE_ALU_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? EXECUTE_ALTOPS_RESULT : EXECUTE_ALU_OUTPUT;
+  assign EXECUTE_FAST_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? EXECUTE_ALTOPS_RESULT : EXECUTE_ALU_FAST_OUTPUT;
+`else
   assign EXECUTE_ALU_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? (FAST_M_UNIT ? EXECUTE_MULTIPLY_DIVIDE_LATE_OUTPUT : EXECUTE_MULTIPLY_DIVIDE_OUTPUT) : EXECUTE_ALU_OUTPUT;
   assign EXECUTE_FAST_RESULT = EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION ? EXECUTE_MULTIPLY_DIVIDE_OUTPUT : EXECUTE_ALU_FAST_OUTPUT;
+`endif
   assign EXECUTE_JALR_TARGET = {EXECUTE_ALU_FAST_OUTPUT[63:1], 1'b0}; // JALR requires even addresses (Least Significant Bit forced to 0 to maintain halfword alignment)
 
   BranchComparator branch_comparator (
@@ -1271,6 +1315,138 @@ module Riscv64 #(
       end
     end
   end
+
+`ifdef RISCV_FORMAL
+  // ========== RISC-V Formal Interface (RVFI): the formal build's report of every retiring instruction ==========
+  // Only compiled with `define RISCV_FORMAL (make formal). The default build, the regression, the FPGA system and
+  // anything that instantiates this core see none of it. riscv-formal (formal/README.md) reads these signals and
+  // proves, for every possible program up to a bounded number of cycles, that each instruction did what the
+  // RISC-V specification says, given the register and memory values it saw.
+  //
+  // The pipeline does not carry everything RVFI needs to WRITEBACK (the instruction word, the source values,
+  // the memory access), so a shadow copy travels beside MEMORY and WRITEBACK here. Everything is captured in
+  // EXECUTE, where the instruction has its final operands, and moves on exactly when MEMORY and WRITEBACK do.
+
+  // Which source registers EXECUTE's instruction really reads. Instructions that do not read rs1 or rs2 report
+  // register 0: their rs1 / rs2 fields may be immediate bits, and the forwarding logic does not promise a value
+  // for a register nobody reads (PRECISE_LOAD_STALL skips the stall for it).
+  logic RVFI_EXECUTE_USES_REGISTER1, RVFI_EXECUTE_USES_REGISTER2;
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      RVFI_EXECUTE_USES_REGISTER1 <= 1'b0;
+      RVFI_EXECUTE_USES_REGISTER2 <= 1'b0;
+    end else if (!FREEZE && !DATA_CACHE_STALL && !MULTIPLY_DIVIDE_STALL) begin // the same enable as EXECUTE_PC
+      RVFI_EXECUTE_USES_REGISTER1 <= DECODE_USES_REGISTER1;
+      RVFI_EXECUTE_USES_REGISTER2 <= DECODE_USES_REGISTER2;
+    end
+  end
+
+  // What EXECUTE's instruction did, described the RVFI way
+  logic [4:0]  RVFI_EXECUTE_RS1_ADDR, RVFI_EXECUTE_RS2_ADDR;
+  logic [63:0] RVFI_EXECUTE_NEXT_PC;
+  logic [7:0]  RVFI_EXECUTE_READ_MASK;
+  logic        RVFI_EXECUTE_TRAP;
+  assign RVFI_EXECUTE_RS1_ADDR = RVFI_EXECUTE_USES_REGISTER1 ? EXECUTE_INSTRUCTION[19:15] : 5'd0;
+  assign RVFI_EXECUTE_RS2_ADDR = RVFI_EXECUTE_USES_REGISTER2 ? EXECUTE_INSTRUCTION[24:20] : 5'd0;
+  // The PC this instruction hands on, whatever the predictor guessed: a wrong guess is flushed, and riscv-formal's
+  // pc_fwd / pc_bwd checks prove the next instruction to retire really starts here
+  assign RVFI_EXECUTE_NEXT_PC =
+      EXECUTE_TAKES_TRAP ? TRAP_VECTOR :
+      EXECUTE_RETURNS_FROM_TRAP ? EXCEPTION_PC :
+      EXECUTE_IS_A_JALR_INSTRUCTION ? EXECUTE_JALR_TARGET :
+      (EXECUTE_IS_A_JAL_INSTRUCTION || (EXECUTE_IS_A_BRANCH_INSTRUCTION && EXECUTE_BRANCH_TAKEN)) ? EXECUTE_PC_TARGET :
+      EXECUTE_PC_ADD_4;
+  // A load reads 1, 2, 4 or 8 bytes of the aligned doubleword: those byte lanes
+  always_comb begin
+    unique case (EXECUTE_FUNCT3[1:0])
+      2'd0: RVFI_EXECUTE_READ_MASK = 8'h01 << dcache_addr[2:0];
+      2'd1: RVFI_EXECUTE_READ_MASK = 8'h03 << dcache_addr[2:0];
+      2'd2: RVFI_EXECUTE_READ_MASK = 8'h0f << dcache_addr[2:0];
+      default: RVFI_EXECUTE_READ_MASK = 8'hff;
+    endcase
+  end
+  assign RVFI_EXECUTE_TRAP = EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK; // the instruction itself traps (retires, writes nothing)
+
+  // The shadow pipeline: EXECUTE -> MEMORY -> WRITEBACK, moving exactly when MEMORY_* and WRITEBACK_* move
+  logic [31:0] RVFI_MEMORY_INSN, RVFI_WRITEBACK_INSN;
+  logic        RVFI_MEMORY_TRAP, RVFI_WRITEBACK_TRAP;
+  logic [4:0]  RVFI_MEMORY_RS1_ADDR, RVFI_MEMORY_RS2_ADDR, RVFI_WRITEBACK_RS1_ADDR, RVFI_WRITEBACK_RS2_ADDR;
+  logic [63:0] RVFI_MEMORY_RS1_DATA, RVFI_MEMORY_RS2_DATA, RVFI_WRITEBACK_RS1_DATA, RVFI_WRITEBACK_RS2_DATA;
+  logic [63:0] RVFI_MEMORY_NEXT_PC, RVFI_WRITEBACK_NEXT_PC;
+  logic [63:0] RVFI_MEMORY_ADDRESS, RVFI_WRITEBACK_ADDRESS;
+  logic [7:0]  RVFI_MEMORY_READ_MASK, RVFI_WRITEBACK_READ_MASK, RVFI_MEMORY_WRITE_MASK, RVFI_WRITEBACK_WRITE_MASK;
+  logic [63:0] RVFI_MEMORY_READ_DATA, RVFI_WRITEBACK_READ_DATA, RVFI_MEMORY_WRITE_DATA, RVFI_WRITEBACK_WRITE_DATA;
+  logic [63:0] RVFI_ORDER; // how many instructions have retired
+  logic        RVFI_NEXT_IS_HANDLER; // the next instruction to retire is the first one of a trap handler
+
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      {RVFI_MEMORY_INSN, RVFI_WRITEBACK_INSN} <= '0;
+      {RVFI_MEMORY_TRAP, RVFI_WRITEBACK_TRAP} <= '0;
+      {RVFI_MEMORY_RS1_ADDR, RVFI_MEMORY_RS2_ADDR, RVFI_WRITEBACK_RS1_ADDR, RVFI_WRITEBACK_RS2_ADDR} <= '0;
+      {RVFI_MEMORY_RS1_DATA, RVFI_MEMORY_RS2_DATA, RVFI_WRITEBACK_RS1_DATA, RVFI_WRITEBACK_RS2_DATA} <= '0;
+      {RVFI_MEMORY_NEXT_PC, RVFI_WRITEBACK_NEXT_PC, RVFI_MEMORY_ADDRESS, RVFI_WRITEBACK_ADDRESS} <= '0;
+      {RVFI_MEMORY_READ_MASK, RVFI_WRITEBACK_READ_MASK, RVFI_MEMORY_WRITE_MASK, RVFI_WRITEBACK_WRITE_MASK} <= '0;
+      {RVFI_MEMORY_READ_DATA, RVFI_WRITEBACK_READ_DATA, RVFI_MEMORY_WRITE_DATA, RVFI_WRITEBACK_WRITE_DATA} <= '0;
+      RVFI_ORDER <= 64'd0;
+      RVFI_NEXT_IS_HANDLER <= 1'b0;
+    end else if (!FREEZE) begin
+      // EXECUTE -> MEMORY (MEMORY_VALID decides whether this slot holds a real instruction)
+      RVFI_MEMORY_INSN <= EXECUTE_INSTRUCTION;
+      RVFI_MEMORY_TRAP <= RVFI_EXECUTE_TRAP;
+      RVFI_MEMORY_RS1_ADDR <= RVFI_EXECUTE_RS1_ADDR;
+      RVFI_MEMORY_RS2_ADDR <= RVFI_EXECUTE_RS2_ADDR;
+      RVFI_MEMORY_RS1_DATA <= (RVFI_EXECUTE_RS1_ADDR != 5'd0) ? EXECUTE_REGISTER1_DATA : 64'd0;
+      RVFI_MEMORY_RS2_DATA <= (RVFI_EXECUTE_RS2_ADDR != 5'd0) ? EXECUTE_REGISTER2_DATA : 64'd0;
+      RVFI_MEMORY_NEXT_PC <= RVFI_EXECUTE_NEXT_PC;
+      RVFI_MEMORY_ADDRESS <= (EXECUTE_MEMORY_READ_ENABLE || EXECUTE_MEMORY_WRITE_ENABLE) ? {dcache_addr[63:3], 3'b000} : 64'd0;
+      RVFI_MEMORY_READ_MASK <= EXECUTE_MEMORY_READ_ENABLE ? RVFI_EXECUTE_READ_MASK : 8'd0;
+      RVFI_MEMORY_WRITE_MASK <= EXECUTE_MEMORY_WRITE_ENABLE ? EXECUTE_STORE_MASK : 8'd0;
+      RVFI_MEMORY_READ_DATA <= EXECUTE_MEMORY_READ_ENABLE ? dcache_dout : 64'd0; // what MEMORY_DATA_CACHE_DATA captures
+      RVFI_MEMORY_WRITE_DATA <= EXECUTE_MEMORY_WRITE_ENABLE ? EXECUTE_STORE_DATA : 64'd0;
+      // MEMORY -> WRITEBACK
+      RVFI_WRITEBACK_INSN <= RVFI_MEMORY_INSN;
+      RVFI_WRITEBACK_TRAP <= RVFI_MEMORY_TRAP;
+      RVFI_WRITEBACK_RS1_ADDR <= RVFI_MEMORY_RS1_ADDR;
+      RVFI_WRITEBACK_RS2_ADDR <= RVFI_MEMORY_RS2_ADDR;
+      RVFI_WRITEBACK_RS1_DATA <= RVFI_MEMORY_RS1_DATA;
+      RVFI_WRITEBACK_RS2_DATA <= RVFI_MEMORY_RS2_DATA;
+      RVFI_WRITEBACK_NEXT_PC <= RVFI_MEMORY_NEXT_PC;
+      RVFI_WRITEBACK_ADDRESS <= RVFI_MEMORY_ADDRESS;
+      RVFI_WRITEBACK_READ_MASK <= RVFI_MEMORY_READ_MASK;
+      RVFI_WRITEBACK_WRITE_MASK <= RVFI_MEMORY_WRITE_MASK;
+      RVFI_WRITEBACK_READ_DATA <= RVFI_MEMORY_READ_DATA;
+      RVFI_WRITEBACK_WRITE_DATA <= RVFI_MEMORY_WRITE_DATA;
+      // retirement bookkeeping
+      if (rvfi_valid) begin
+        RVFI_ORDER <= RVFI_ORDER + 64'd1;
+        RVFI_NEXT_IS_HANDLER <= RVFI_WRITEBACK_TRAP;
+      end
+    end
+  end
+
+  assign rvfi_valid = WRITEBACK_VALID && !HALTED; // the register file writes in this same cycle
+  assign rvfi_order = RVFI_ORDER;
+  assign rvfi_insn = RVFI_WRITEBACK_INSN;
+  assign rvfi_trap = RVFI_WRITEBACK_TRAP;
+  assign rvfi_halt = HALT_NOW; // the TOHOST write: the core stops after this instruction
+  assign rvfi_intr = RVFI_NEXT_IS_HANDLER;
+  assign rvfi_mode = 2'd3; // machine mode only
+  assign rvfi_ixl = 2'd2; // XLEN = 64
+  assign rvfi_rs1_addr = RVFI_WRITEBACK_RS1_ADDR;
+  assign rvfi_rs2_addr = RVFI_WRITEBACK_RS2_ADDR;
+  assign rvfi_rs1_rdata = RVFI_WRITEBACK_RS1_DATA;
+  assign rvfi_rs2_rdata = RVFI_WRITEBACK_RS2_DATA;
+  assign rvfi_rd_addr = WRITEBACK_REGISTER_WRITE_ENABLE ? WRITEBACK_DESTINATION_REGISTER_ADDRESS : 5'd0;
+  assign rvfi_rd_wdata = (rvfi_rd_addr != 5'd0) ? WRITEBACK_DATA : 64'd0;
+  assign rvfi_pc_rdata = WRITEBACK_PC;
+  assign rvfi_pc_wdata = RVFI_WRITEBACK_NEXT_PC;
+  assign rvfi_mem_addr = RVFI_WRITEBACK_ADDRESS;
+  assign rvfi_mem_rmask = RVFI_WRITEBACK_READ_MASK;
+  assign rvfi_mem_wmask = RVFI_WRITEBACK_WRITE_MASK;
+  assign rvfi_mem_rdata = RVFI_WRITEBACK_READ_DATA;
+  assign rvfi_mem_wdata = RVFI_WRITEBACK_WRITE_DATA;
+`endif
 
   // ========== Trace (what is in every stage this cycle) ==========
   assign TRACE_VALID = {WRITEBACK_VALID, MEMORY_VALID, EXECUTE_VALID, DECODE_VALID, FETCH2_VALID, 1'b1};

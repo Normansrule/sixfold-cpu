@@ -1,6 +1,6 @@
 # Learning path: from "what is a CPU?" to your own chip
 
-Sixteen short chapters. Each one explains one idea, shows a picture, points at the exact
+Seventeen short chapters. Each one explains one idea, shows a picture, points at the exact
 lines of SystemVerilog that implement it, and gives you a program to run so you can
 **see** it happen. Read them in order the first time.
 
@@ -22,6 +22,7 @@ lines of SystemVerilog that implement it, and gives you a program to run so you 
 | 14 | [A deeper pipeline: more stages, a faster clock, and what it costs](14_deep_pipeline.md) | explain a staggered ALU, why only one stage stalls, and weigh a faster clock against a higher CPI | `make deep-check` |
 | 15 | [Packed instructions: eight numbers per instruction](15_packed_compute.md) | explain SIMD lanes, saturation, Q15 fixed point and why a dot product is split across two stages | `make compute-bench` |
 | 16 | [Is it right? Testing a CPU against other people's tests](16_is_it_right.md) | read an official riscv-tests case, see why its bypass tests hit the forwarding paths, and what the one left-out test revealed | `make riscv-tests` |
+| 17 | [Proving the CPU correct: formal verification](17_formal_verification.md) | explain what a bounded proof shows and what it does not, and read a counterexample | `make formal ONLY='insn_add_*'` |
 
 Every chapter uses the same names as the code: stages are `FETCH1`, `FETCH2`, `DECODE`,
 `EXECUTE`, `MEMORY`, `WRITEBACK`, and signals are written exactly as in

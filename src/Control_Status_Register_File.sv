@@ -92,7 +92,7 @@ module CSRFile (
                 CSR_INSTRET_COUNTER[31:0] <= INSTRET_LOW_NEXT; // One more instruction has finished
             end
             if (TAKE_TRAP) begin // Enter the trap: remember where and why, disable interrupts (MPIE <= MIE, MIE <= 0)
-                CSR_MEPC_REGISTER <= {TRAP_PC[63:1], 1'b0};
+                CSR_MEPC_REGISTER <= {TRAP_PC[63:2], 2'b00}; // IALIGN = 32 (no compressed instructions): mepc[1:0] are always 0
                 CSR_MCAUSE_REGISTER <= TRAP_CAUSE;
                 CSR_MSTATUS_REGISTER[7] <= CSR_MSTATUS_REGISTER[3];
                 CSR_MSTATUS_REGISTER[3] <= 1'b0;
@@ -107,7 +107,7 @@ module CSRFile (
                     CSR_MSTATUS: CSR_MSTATUS_REGISTER <= CSR_NEW_VALUE;
                     CSR_MTVEC: CSR_MTVEC_REGISTER <= CSR_NEW_VALUE;
                     CSR_MSCRATCH: CSR_MSCRATCH_REGISTER <= CSR_NEW_VALUE;
-                    CSR_MEPC: CSR_MEPC_REGISTER <= {CSR_NEW_VALUE[63:1], 1'b0}; // mepc is always even
+                    CSR_MEPC: CSR_MEPC_REGISTER <= {CSR_NEW_VALUE[63:2], 2'b00}; // mepc[1:0] read as 0 (IALIGN = 32; found by riscv-formal)
                     CSR_MCAUSE: CSR_MCAUSE_REGISTER <= CSR_NEW_VALUE;
                     CSR_MIE: CSR_MIE_REGISTER <= CSR_NEW_VALUE;
                     default: begin

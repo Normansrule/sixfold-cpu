@@ -16,7 +16,7 @@
 [![Release](https://img.shields.io/github/v/release/Normansrule/sixfold-cpu?label=release)](https://github.com/Normansrule/sixfold-cpu/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**[Live site](https://normansrule.github.io/sixfold-cpu/)** · [Pipeline lab](https://normansrule.github.io/sixfold-cpu/web/index.html) · [Learn in sixteen chapters](docs/learn/README.md) · [Quick start](#quick-start-ubuntu-or-wsl) · [Where everything is](#repository-map)
+**[Live site](https://normansrule.github.io/sixfold-cpu/)** · [Pipeline lab](https://normansrule.github.io/sixfold-cpu/web/index.html) · [Learn in seventeen chapters](docs/learn/README.md) · [Quick start](#quick-start-ubuntu-or-wsl) · [Where everything is](#repository-map)
 
 Sixfold is a 64-bit RISC-V processor you can read, run, watch, and see as real silicon: a 6-stage pipelined
 RV64IM core with the complete B bit-manipulation extension (Zba, Zbb, Zbs), instruction and data caches,
@@ -27,9 +27,9 @@ firmware, a serial console, LEDs and buttons ([FPGA.md](docs/FPGA.md)).
 
 | Read | Run | Watch | Flash | See as silicon |
 |---|---|---|---|---|
-| SystemVerilog with one module per file, and [sixteen chapters](docs/learn/README.md) that point at the lines | `make test`: the RTL against a cycle-exact model, every cycle | the [live site](https://normansrule.github.io/sixfold-cpu/) and three labs in any browser | Basys 3, ULX3S and Arty A7 builds with boot firmware ([FPGA.md](docs/FPGA.md)) | sky130 layout, timing and area ([SILICON.md](docs/SILICON.md)) |
+| SystemVerilog with one module per file, and [seventeen chapters](docs/learn/README.md) that point at the lines | `make test`: the RTL against a cycle-exact model, every cycle | the [live site](https://normansrule.github.io/sixfold-cpu/) and three labs in any browser | Basys 3, ULX3S and Arty A7 builds with boot firmware ([FPGA.md](docs/FPGA.md)) | sky130 layout, timing and area ([SILICON.md](docs/SILICON.md)) |
 
-**Contents:** [What is inside](#what-is-inside) · [Watch it move](#watch-it-move) · [How it works, in pictures](#how-it-works-in-pictures) · [Open the live site](#open-the-live-site) · [Quick start](#quick-start-ubuntu-or-wsl) · [Learn it](#learn-it-sixteen-chapters) · [Performance](#faster-shorter-critical-path-fewer-wasted-cycles) · [Silicon](#down-to-silicon) · [How we know it works](#how-we-know-it-works) · [Repository map](#repository-map) · [Every command](#every-command)
+**Contents:** [What is inside](#what-is-inside) · [Watch it move](#watch-it-move) · [How it works, in pictures](#how-it-works-in-pictures) · [Open the live site](#open-the-live-site) · [Quick start](#quick-start-ubuntu-or-wsl) · [Learn it](#learn-it-seventeen-chapters) · [Performance](#faster-shorter-critical-path-fewer-wasted-cycles) · [Silicon](#down-to-silicon) · [How we know it works](#how-we-know-it-works) · [Repository map](#repository-map) · [Every command](#every-command)
 
 ## What is inside
 
@@ -264,7 +264,7 @@ stage the instruction is in. Rings are forwarded operands, hatched boxes are hel
 grey crossed-out rows were fetched down a wrong path and squashed. Above: a `jal` squashes one
 instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 
-## Learn it: sixteen chapters
+## Learn it: seventeen chapters
 
 | | chapter | picture you will be able to read |
 |---|---|---|
@@ -284,6 +284,7 @@ instruction (FETCH2 redirect), a `ret` squashes three (EXECUTE flush).
 | 14 | [A deeper pipeline: more stages, a faster clock, and what it costs](docs/learn/14_deep_pipeline.md) | the 14 stages, a staggered adder, and the clock-against-CPI trade |
 | 15 | [Packed instructions: eight numbers per instruction](docs/learn/15_packed_compute.md) | lanes, saturation, and a dot product split across two stages |
 | 16 | [Is it right? Testing a CPU against other people's tests](docs/learn/16_is_it_right.md) | an official test case, read line by line, and the gap it found |
+| 17 | [Proving the CPU correct: formal verification](docs/learn/17_formal_verification.md) | a solver's counterexample, instruction by instruction |
 
 ## Instructions in binary
 
@@ -480,7 +481,7 @@ npm run dist:linux                            # build it yourself: dist:win on W
 ```
 
 The front page was inspired by interactive explainers such as bbycroft's llm-viz and Georgia Tech's
-Transformer Explainer; the 3D view uses three.js (MIT, vendored in `site/vendor/`).
+Transformer Explainer; the 3D view uses three.js (MIT, vendored in `site/vendor/`). The pipeline lab's optional sound cues were synthesized with jsfxr (public domain) by `tools/sounds.mjs`.
 
 ## Credits and license
 

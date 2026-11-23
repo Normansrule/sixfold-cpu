@@ -265,6 +265,7 @@ const CHAPTERS = [
   ['14_deep_pipeline', 'A deeper pipeline', '14 stages, a staggered adder, and a faster clock weighed against a higher CPI.'],
   ['15_packed_compute', 'Packed instructions', 'Eight bytes per instruction for pixels, audio and int8 networks, and a dot product split across two stages.'],
   ['16_is_it_right', 'Is it right?', 'The official RISC-V tests on every build, and the one gap they found.'],
+  ['17_formal_verification', 'Proving it correct', 'A solver checks every program up to 20 cycles against the specification, and finds three real bugs.'],
 ];
 $('chapters').innerHTML = CHAPTERS.map(([f, t, d]) => `<li><a href="${blob(`docs/learn/${f}.md`)}"><strong>${t}</strong><span>${d}</span></a></li>`).join('');
 

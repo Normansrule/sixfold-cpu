@@ -6,6 +6,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | term | in full | what it means here | see |
 |---|---|---|---|
 | ABI | Application Binary Interface | the agreed names and jobs of the registers (`a0` holds the result, `sp` the stack pointer, `ra` the return address), so code from different authors can call each other | [`model/isa.js`](../model/isa.js) `ABI` |
+| ALTOPS | Alternative operations (riscv-formal) | in the formal build, each multiply or divide result is replaced by a cheap stand-in (rs1 plus or minus rs2, XOR a constant) that the solver can handle; the timing of the M unit is still real | [formal/README.md](../formal/README.md) |
 | ABC | (a logic synthesis and verification tool; the name is not an acronym) | rewrites and maps a circuit onto real cells and estimates its delay; used by `make timing` | [`tools/timing.sh`](../tools/timing.sh) |
 | ALU | Arithmetic Logic Unit | adds, subtracts, compares, shifts and does bit operations in EXECUTE | [`src/ALU.sv`](../src/ALU.sv) |
 | AppImage | (a Linux application format) | one file that runs on most Linux distributions without installing | [`desktop/README.md`](../desktop/README.md) |
@@ -14,6 +15,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | B extension | Bit manipulation (Zba + Zbb + Zbs) | address generation (`sh3add`), bit counting (`cpop`, `clz`), min/max, rotates, single-bit operations | [chapter 2](learn/02_instructions_in_binary.md) |
 | BHT | Branch History Table | a table of 2-bit counters, one per branch address: "does this branch usually jump?" | [`src/Tournament_Chooser.sv`](../src/Tournament_Chooser.sv) |
 | BIOS | Basic Input/Output System | the firmware the FPGA computer runs at power-on: a serial console that loads and runs programs | [`fpga/firmware/bios.s`](../fpga/firmware/bios.s) |
+| BMC | Bounded Model Checking | proving a property for every possible input sequence up to a fixed number of clock cycles | [chapter 17](learn/17_formal_verification.md) |
 | bubble | | an empty slot moving through the pipeline: a cycle in which a stage does no useful work | [chapter 3](learn/03_the_six_stages.md) |
 | BTB | Branch Target Buffer | remembers where taken branches went, so FETCH1 can follow them with no lost cycle | [`src/Branch_Target_Buffer.sv`](../src/Branch_Target_Buffer.sv) |
 | cache | | a small fast memory holding copies of recently used main memory | [chapter 6](learn/06_performance.md), [the caches](../index.html#caches) |
@@ -24,6 +26,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | CPU | Central Processing Unit | the processor | |
 | CSR | Control and Status Register | registers outside the 32 general ones: cycle counter, trap registers (`mtvec`, `mepc`, `mcause`), interrupt enables | [`src/Control_Status_Register_File.sv`](../src/Control_Status_Register_File.sv) |
 | carry-save adder | (CSA) | a row of full adders that turns three numbers into two without waiting for any carry; a tree of them adds many numbers fast (the multiplier, the custom popcount) | [`src/Carry_Save_Multiplier.sv`](../src/Carry_Save_Multiplier.sv) |
+| counterexample | | the exact inputs (instructions, data, timing) a solver found that break a rule, as a waveform | [chapter 17](learn/17_formal_verification.md) |
 | custom-0 | | one of four major opcodes RISC-V reserves for non-standard instructions; Sixfold's are there | [CUSTOM_INSTRUCTIONS.md](CUSTOM_INSTRUCTIONS.md) |
 | deb | Debian package | the installer format for Debian, Ubuntu and their relatives | [`desktop/README.md`](../desktop/README.md) |
 | DEF | Design Exchange Format | a text file describing a placed and routed chip layout | [`docs/silicon/`](silicon) |
@@ -31,6 +34,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | dmg | disk image (Apple) | the macOS installer format | [`desktop/README.md`](../desktop/README.md) |
 | dot product | | the sum of the products of two lists of numbers, lane by lane: `a0*b0 + a1*b1 + ...`; one neuron of a neural network, one tap sum of a filter, one coordinate of a matrix times a vector; `pdot.b`, `pdot.h` | [XCOMPUTE.md](XCOMPUTE.md) |
 | floorplan | | the plan of a chip before placement: the die size, where the pins and the large blocks such as SRAM macros go, and the power grid | [SILICON.md](SILICON.md#placing-the-cache-srams-for-real-openroad) |
+| formal verification | | proving a design meets a rule for every input, with a solver, instead of trying chosen inputs | [chapter 17](learn/17_formal_verification.md) |
 | FPGA | Field-Programmable Gate Array | a chip whose logic is configured by a file, so the same board can become Sixfold | [FPGA.md](FPGA.md) |
 | forwarding | (also "bypassing") | sending a result straight from a later stage to an instruction that needs it, without waiting for the register file | [chapter 4](learn/04_data_hazards.md) |
 | funct3, funct7 | function fields | bits of an instruction that pick the operation within an opcode (`add` against `sub`) | [chapter 2](learn/02_instructions_in_binary.md) |
@@ -70,7 +74,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | RISC | Reduced Instruction Set Computer | instruction sets with simple, fixed-length instructions where only loads and stores touch memory | [ISA_COMPARISON.md](ISA_COMPARISON.md) |
 | RISCOF | RISC-V Compatibility Framework | runs the official architectural tests (riscv-arch-test) on a core and compares the memory signature each test writes against the Sail reference model; the planned next compliance step | [COMPLIANCE.md](COMPLIANCE.md) |
 | RTL | Register-Transfer Level | the description of hardware as registers and the logic between them: the SystemVerilog in `src/` | [chapter 3](learn/03_the_six_stages.md) |
-| RVFI | RISC-V Formal Interface | a trace port that reports every retired instruction (registers read and written, memory touched) so a formal tool can prove each instruction correct for every input; planned | [COMPLIANCE.md](COMPLIANCE.md) |
+| RVFI | RISC-V Formal Interface | a trace port that reports every retired instruction (its PC, registers read and written, memory touched) so riscv-formal can prove each instruction correct for every input; built only with `RISCV_FORMAL` | [formal/README.md](../formal/README.md) |
 | RV64I | RISC-V 64-bit base Integer instruction set | the 64-bit base every RISC-V processor of this size implements | [`binary/`](../binary/README.md) |
 | SAD | Sum of Absolute Differences | how different two blocks of pixels are: the sum of `\|a - b\|` over the pixels; video encoders search for the block with the smallest SAD (motion search); `psad.b` | [XCOMPUTE.md](XCOMPUTE.md) |
 | saturating | | arithmetic that stops at the largest or smallest value instead of wrapping around: a saturating byte add gives `0xf0 + 0x20 = 0xff`, not `0x10`; `paddus.b`, `psubus.b` | [XCOMPUTE.md](XCOMPUTE.md) |
@@ -82,6 +86,7 @@ Terms are in alphabetical order; acronyms are spelled out first.
 | stall | | holding an instruction in place for a cycle because something it needs is not ready | [chapter 4](learn/04_data_hazards.md) |
 | SV | SystemVerilog | the hardware description language of `src/` | [`src/`](../src) |
 | SWAR | SIMD Within A Register | SIMD inside the ordinary integer registers, with no separate vector registers: Sixfold's packed set | [XCOMPUTE.md](XCOMPUTE.md) |
+| SymbiYosys | (a formal verification front end; also sby) | runs Yosys and a solver on a design and its properties | [`tools/formal.sh`](../tools/formal.sh) |
 | TAGE | TAgged GEometric history length predictor | a family of branch predictors with several history lengths, used in modern high-end cores | [MODERN_CPUS.md](MODERN_CPUS.md) |
 | tohost | | a CSR a program writes to say it has finished (`halt` writes it) | [`model/asm.js`](../model/asm.js) |
 | UART | Universal Asynchronous Receiver-Transmitter | the serial port the FPGA computer talks over | [FPGA.md](FPGA.md) |

@@ -677,12 +677,12 @@ export class Core {
     this.mip.external = !!(this.opts.devices && this.opts.devices.externalInterrupt && this.opts.devices.externalInterrupt());
     this.mtime++;
     if (this.mtimeCmpNext !== undefined) { this.mtimecmp = this.mtimeCmpNext; this.mtimeCmpNext = undefined; }
-    if (trap) { this.csr.mepc = BigInt(trap.pc) & ~1n; this.csr.mcause = trap.cause; const mie = (this.csr.mstatus >> 3n) & 1n; this.csr.mstatus = (this.csr.mstatus & ~0x88n) | (mie << 7n); this.stats.traps = (this.stats.traps || 0) + 1; }
+    if (trap) { this.csr.mepc = BigInt(trap.pc) & ~3n; this.csr.mcause = trap.cause; const mie = (this.csr.mstatus >> 3n) & 1n; this.csr.mstatus = (this.csr.mstatus & ~0x88n) | (mie << 7n); this.stats.traps = (this.stats.traps || 0) + 1; }
     else if (mret) { const mpie = (this.csr.mstatus >> 7n) & 1n; this.csr.mstatus = (this.csr.mstatus & ~0x88n) | (mpie << 3n) | 0x80n; }
     if (csrWrite) {
       const v = csrWrite.value, a = csrWrite.addr, c = this.csr;
       if (a === CSR.TOHOST) c.tohost = v; else if (a === CSR.STATUS) c.status = v; else if (a === CSR.MSTATUS) c.mstatus = v;
-      else if (a === CSR.MTVEC) c.mtvec = v; else if (a === CSR.MSCRATCH) c.mscratch = v; else if (a === CSR.MEPC) c.mepc = v & ~1n; else if (a === CSR.MCAUSE) c.mcause = v;
+      else if (a === CSR.MTVEC) c.mtvec = v; else if (a === CSR.MSCRATCH) c.mscratch = v; else if (a === CSR.MEPC) c.mepc = v & ~3n; else if (a === CSR.MCAUSE) c.mcause = v;
       else if (a === CSR.MIE) c.mie = v;
     }
     this.csr.cycle++; if (w.valid) this.csr.instret++;

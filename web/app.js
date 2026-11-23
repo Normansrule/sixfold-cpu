@@ -47,7 +47,7 @@ function advance() { // one clock cycle, with the bookkeeping the panels need
   if (traps.length > 200) traps.shift();
   return ev;
 }
-function step() { if (!core || core.halted) { stop(); return; } advance(); render(); }
+function step() { if (!core || core.halted) { stop(); return; } playCue(advance()); render(); }
 function seek(target) { // replay from reset to cycle target
   stop(); fresh();
   while (core.cycle < target && !core.halted) advance();
@@ -63,7 +63,9 @@ function run() {
   let last = performance.now(), owed = 0;
   const tick = now => {
     owed += Math.min(250, now - last) * cyclesPerSecond() / 1000; last = now;
-    for (; owed >= 1 && !core.halted; owed--) advance();
+    let ev = null;
+    for (; owed >= 1 && !core.halted; owed--) ev = advance();
+    if (ev && cyclesPerSecond() <= 8) playCue(ev); // faster than that, the cues would only be noise
     render();
     if (core.halted) stop(); else timer = requestAnimationFrame(tick);
   };
@@ -347,6 +349,19 @@ $('speed').oninput = () => { $('speed-o').textContent = `${cyclesPerSecond().toL
 $('speed').oninput();
 addEventListener('resize', () => renderTimeline());
 $('bp').onchange = reset; $('hist').onchange = reset;
+// Sound cues (off by default; web/sounds/*.wav, made by tools/sounds.mjs with jsfxr). One cue per cycle at most,
+// the most important event wins: trap, then flush or redirect, then any stall, then an instruction retiring.
+const CUES = {};
+function playCue(ev) {
+  if (!ev || !$('sound').checked) return;
+  const name = ev.trap || ev.interrupt ? 'trap' : ev.flush || ev.redirect ? 'flush' : ev.stall || ev.busy || ev.dmiss || ev.imiss ? 'stall' : ev.stages && ev.stages.WRITEBACK ? 'retire' : null;
+  if (!name) return;
+  const audio = CUES[name] || (CUES[name] = new Audio(`sounds/${name}.wav`));
+  audio.currentTime = 0;
+  audio.play().catch(() => { /* the browser blocked audio, or the file is missing: stay silent */ });
+}
+try { $('sound').checked = localStorage.getItem('sixfold.sound') === '1'; } catch { /* storage unavailable */ }
+$('sound').onchange = () => { try { localStorage.setItem('sixfold.sound', $('sound').checked ? '1' : '0'); } catch { /* storage unavailable */ } };
 $('assemble').onclick = () => { if (loadSource($('src').value)) switchTab('listing'); };
 $('listing').onclick = e => { const tr = e.target.closest('tr'); if (tr) { selAddr = Number(tr.dataset.addr); render(); } };
 function switchTab(t) {
