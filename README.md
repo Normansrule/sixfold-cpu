@@ -391,8 +391,9 @@ the pipeline registers): [SILICON.md](docs/SILICON.md).
   It reports through the `tohost` CSR the way riscv-tests do.
 * `make riscv-tests`: the official RISC-V unit tests ([riscv-tests](https://github.com/riscv-software-src/riscv-tests),
   written by others against the specification): 106 tests of RV64I, M, Zba, Zbb and Zbs pass on every build,
-  predictor on and off, with the RTL matching the model on every cycle (1,272 runs). One test is left out
-  because Sixfold does not implement what it checks (misaligned accesses): [COMPLIANCE.md](docs/COMPLIANCE.md).
+  and 15 machine-mode tests of the exceptions (illegal instruction, misaligned addresses, `mtval`) pass on the
+  builds with `EXCEPTIONS = 1`, predictor on and off, with the RTL matching the model on every cycle (1,392
+  runs). Three tests are left out because Sixfold does not implement what they check: [COMPLIANCE.md](docs/COMPLIANCE.md).
 * `make lint` and `make fpga-lint`: Verilator with all warnings (except the naming style this code uses on purpose).
 * `make fpga-sim`: the whole FPGA computer (block RAM memory, device registers, UART, boot firmware)
   boots in simulation, receives every program over its serial port, runs it and reports. The

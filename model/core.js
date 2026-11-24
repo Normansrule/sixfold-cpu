@@ -31,19 +31,19 @@ export const mergeBytes = (old, op, bytes) => { let v = old; for (let k = 0; k <
 export const isMmio = a => (a >> 8n) === (MMIO_BASE >> 8n); // 0x1000_0000 .. 0x1000_00FF: devices, never RAM
 export const HPM = { 0xC03: 'stall', 0xC04: 'flush', 0xC05: 'redirect', 0xC06: 'busy', 0xC07: 'imiss', 0xC08: 'dmiss', 0xC09: 'intr', 0xC0A: 'late' }; // hpmcounter3..10 = L F R K I D X B
 export const CSR = { TOHOST: 0x51E, STATUS: 0x50A, HARTID: 0x50B, CYCLE: 0xC00, INSTRET: 0xC02, MHARTID: 0xF14,
-  MSTATUS: 0x300, MTVEC: 0x305, MSCRATCH: 0x340, MEPC: 0x341, MCAUSE: 0x342, MIE: 0x304, MIP: 0x344 };
+  MSTATUS: 0x300, MTVEC: 0x305, MSCRATCH: 0x340, MEPC: 0x341, MCAUSE: 0x342, MIE: 0x304, MIP: 0x344, MTVAL: 0x343 };
 // mcause values for the two interrupts (bit 63 set: an interrupt, not an exception)
 export const CAUSE_TIMER_INTERRUPT = (1n << 63n) | 7n, CAUSE_EXTERNAL_INTERRUPT = (1n << 63n) | 11n;
 export const DEFAULT_HISTORY_BITS = 6; // GSHARE_HISTORY_BITS in src/Riscv64.sv
 // The builds `make test` checks (parameters of src/Riscv64.sv and src/Riscv64_top.sv):
 export const CONFIGS = {
-  performance: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, zifencei: true, xcompute: true },
-  baseline: { historyBits: 4, btb: false, ras: false, preciseStall: false, iterativeMdu: false, tournament: false, caches: false, missLatency: 10, zifencei: true, xcompute: true }, // the plain pipeline
+  performance: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, zifencei: true, xcompute: true, exceptions: true },
+  baseline: { historyBits: 4, btb: false, ras: false, preciseStall: false, iterativeMdu: false, tournament: false, caches: false, missLatency: 10, zifencei: true, xcompute: true, exceptions: true }, // the plain pipeline
   // the performance edition plus the FAST_* parameters of src/Riscv64.sv (docs/PERFORMANCE.md, the turbo edition)
-  turbo: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, fastMdu: true, streamPrefetch: true, lateBranch: true, fastAlu: true, zifencei: true, xcompute: true },
+  turbo: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, fastMdu: true, streamPrefetch: true, lateBranch: true, fastAlu: true, zifencei: true, xcompute: true, exceptions: true },
   // the performance edition with 1 KiB caches (16 sets x 2 ways each): CACHE_SETS = 16, for a chip where 4 KiB of
   // flip-flop caches cost too much area (HYDRA-130's SkyWater 130 build)
-  compact: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, cacheSets: 16, zifencei: true, xcompute: true },
+  compact: { historyBits: 6, btb: true, ras: true, preciseStall: true, iterativeMdu: true, tournament: true, caches: true, missLatency: 10, cacheSets: 16, zifencei: true, xcompute: true, exceptions: true },
 };
 // ControlUnit USES_REGISTER1 / USES_REGISTER2 (by opcode, exactly as src/Control_Unit.sv)
 export function usesRegisters(word) {
@@ -204,6 +204,25 @@ export function control(word) {
   }
   return c;
 }
+
+// EXCEPTIONS (src/Riscv64.sv DECODE_IS_LEGAL): the major opcodes Sixfold implements, with the fixed fields of the
+// formats that have them checked. OP and OP-IMM are taken whole (every funct7 there decodes to some operation).
+export function isLegal(word) {
+  const op = word & 0x7f, f3 = bits(word, 14, 12);
+  switch (op) {
+    case 0x37: case 0x17: case 0x6f: case 0x13: case 0x1b: case 0x33: case 0x3b: case 0x0b: return true; // LUI AUIPC JAL OP-IMM(-32) OP(-32) custom-0
+    case 0x67: return f3 === 0; // JALR
+    case 0x63: return f3 !== 2 && f3 !== 3; // branches
+    case 0x03: return f3 !== 7; // loads
+    case 0x23: return f3 < 4; // stores
+    case 0x0f: return f3 < 2; // FENCE, FENCE.I
+    case 0x73: return f3 === 0 ? [0x00000073, 0x00100073, 0x30200073, 0x10500073].includes(word >>> 0) : f3 !== 4; // ecall ebreak mret wfi; CSRs
+    default: return false;
+  }
+}
+// what an illegal instruction carries into EXECUTE: nothing but the trap (src/Riscv64.sv clears the rest in DECODE)
+const ILLEGAL = { regWrite: 0, memRead: 0, memWrite: 0, csrWrite: 0, isMulDiv: 0, isBranch: 0, isJal: 0, isJalr: 0, isEcall: 0, isEbreak: 0, isMret: 0, isFenceI: 0,
+  returnPredicted: false, isCall: false, isReturn: false, isIllegal: 1 };
 
 // DECODE's operand preparation (Riscv64.sv: EXECUTE_ALU_INPUT_A / _B are chosen and prepared in DECODE)
 export function prepareA(rs1, c) { const x = c.aZext ? (rs1 & 0xffffffffn) : rs1; return u64(x << BigInt(c.aShift || 0)); }
@@ -379,8 +398,8 @@ export class Core {
   // devices (optional): { load(address) -> value, store(address, value, mask) } answers the device page
   // 0x1000_0000 .. 0x1000_00FF the way fpga/rtl/Sixfold_System.sv does (the site's FPGA console uses it).
   // Without it, device loads read 0, like the simulation testbench. resetPc: the RESET_VECTOR input.
-  constructor(image, { bp = true, historyBits = DEFAULT_HISTORY_BITS, btb = true, ras = true, preciseStall = true, iterativeMdu = true, tournament = true, caches = true, missLatency = 10, cacheSets = 64, fastMdu = false, streamPrefetch = false, lateBranch = false, fastAlu = false, zifencei = false, xcompute = false, devices = null, resetPc = RESET_PC } = {}) {
-    this.opts = { bp, historyBits, btb, ras, preciseStall, iterativeMdu, tournament, caches, missLatency, cacheSets, fastMdu: fastMdu && iterativeMdu, streamPrefetch, lateBranch, fastAlu, zifencei, xcompute, devices, resetPc };
+  constructor(image, { bp = true, historyBits = DEFAULT_HISTORY_BITS, btb = true, ras = true, preciseStall = true, iterativeMdu = true, tournament = true, caches = true, missLatency = 10, cacheSets = 64, fastMdu = false, streamPrefetch = false, lateBranch = false, fastAlu = false, zifencei = false, xcompute = false, exceptions = false, devices = null, resetPc = RESET_PC } = {}) {
+    this.opts = { bp, historyBits, btb, ras, preciseStall, iterativeMdu, tournament, caches, missLatency, cacheSets, fastMdu: fastMdu && iterativeMdu, streamPrefetch, lateBranch, fastAlu, zifencei, xcompute, exceptions, devices, resetPc };
     this.customGroups = new Set(xcompute ? ['xcompute'] : []); // CustomDecode's parameters (XCOMPUTE)
     this.bht = new Uint8Array(128).fill(2); // TournamentChooser: per-branch history table (weakly taken)
     this.chooser = new Uint8Array(128).fill(1); // ... and chooser (weakly trust the BHT)
@@ -396,7 +415,7 @@ export class Core {
     this.mem.set((image.bytes || image).slice(0, 65536)); // absolute addresses: code starts at RESET_PC
     this.regs = new Array(32).fill(0n);
     this.bp = new GShare(historyBits, bp);
-    this.csr = { tohost: 0n, status: 0n, cycle: 0n, instret: 0n, mstatus: 0n, mtvec: 0n, mscratch: 0n, mepc: 0n, mcause: 0n, mie: 0n };
+    this.csr = { tohost: 0n, status: 0n, cycle: 0n, instret: 0n, mstatus: 0n, mtvec: 0n, mscratch: 0n, mepc: 0n, mcause: 0n, mie: 0n, mtval: 0n };
     this.hpm = { stall: 0n, flush: 0n, redirect: 0n, busy: 0n, imiss: 0n, dmiss: 0n, intr: 0n, late: 0n };
     this.mtime = 0n; this.mtimecmp = (1n << 64n) - 1n; // the machine timer device
     this.mip = { timer: false, external: false }; // the interrupt lines as the CSR file registered them
@@ -469,7 +488,8 @@ export class Core {
       case 0xC03: case 0xC04: case 0xC05: case 0xC06: case 0xC07: case 0xC08: case 0xC09: case 0xC0A: return this.hpm[HPM[addr]];
       case CSR.MIE: return this.csr.mie;
       case CSR.MIP: return (this.mip.timer ? 0x80n : 0n) | (this.mip.external ? 0x800n : 0n);
-      case CSR.MSTATUS: return this.csr.mstatus;
+      case CSR.MSTATUS: return this.opts.exceptions ? this.csr.mstatus | 0x1800n : this.csr.mstatus; // EXCEPTIONS: MPP reads 3 (machine mode)
+      case CSR.MTVAL: return this.opts.exceptions ? this.csr.mtval : 0n;
       case CSR.MTVEC: return this.csr.mtvec;
       case CSR.MSCRATCH: return this.csr.mscratch;
       case CSR.MEPC: return this.csr.mepc;
@@ -549,13 +569,28 @@ export class Core {
           bpTrain: e.isBranch ? { idx: e.idx, taken, pc: e.pc, g: e.gTaken, b: e.bTaken } : null, btbWrite: null };
         FLUSH = false; bpTrain = null;
       }
-      if (e.isEcall || e.isEbreak) { FLUSH = true; adjust = Number(this.csr.mtvec & 0xfffffffcn); trap = { pc: e.pc, cause: e.isEbreak ? 3n : 11n }; ev.trap = { kind: e.isEbreak ? 'ebreak' : 'ecall', to: adjust }; }
+      // EXCEPTIONS (src/Riscv64.sv EXECUTE_EXCEPTION): illegal, a jump or taken branch to an address that is not a
+      // multiple of 4, or a load / store address that is not a multiple of its size. Trap to mtvec; nothing else happens.
+      let exc = null;
+      if (this.opts.exceptions) {
+        const size = 1n << BigInt(e.funct3 & 3), jumpTarget = e.isJalr ? jalrTarget : u64(BigInt(e.pc) + e.imm);
+        if (e.isIllegal) exc = { cause: 2n, tval: BigInt(e.word >>> 0), kind: 'illegal instruction' };
+        else if ((e.isJalr || e.isJal || (e.isBranch && taken)) && (jumpTarget & 2n)) exc = { cause: 0n, tval: jumpTarget, kind: 'misaligned jump target' };
+        else if (e.memRead && (result & (size - 1n))) exc = { cause: 4n, tval: result, kind: 'misaligned load' };
+        else if (e.memWrite && (result & (size - 1n))) exc = { cause: 6n, tval: result, kind: 'misaligned store' };
+      }
+      if (exc) {
+        FLUSH = true; adjust = Number(this.csr.mtvec & 0xfffffffcn); trap = { pc: e.pc, cause: exc.cause, tval: exc.tval };
+        ev.trap = { kind: exc.kind, to: adjust, tval: exc.tval }; ev.exception = true;
+        if (late) late.redirect = false; // the exception already went to mtvec
+      }
+      else if (e.isEcall || e.isEbreak) { FLUSH = true; adjust = Number(this.csr.mtvec & 0xfffffffcn); trap = { pc: e.pc, cause: e.isEbreak ? 3n : 11n }; ev.trap = { kind: e.isEbreak ? 'ebreak' : 'ecall', to: adjust }; }
       else if (e.isMret) { FLUSH = true; adjust = Number(this.csr.mepc & 0xffffffffn); mret = true; ev.trap = { kind: 'mret', to: adjust }; }
       else if (e.isFenceI && this.opts.zifencei) { FLUSH = true; adjust = Number(pc4 & 0xffffffffn); fenceI = true; ev.fenceI = true; } // ZIFENCEI: refetch everything younger
       if (FLUSH) restoreGhr = e.isBranch ? ((e.ckpt << 1) | (taken ? 1 : 0)) & this.bp.mask : e.ckpt;
       if (this.opts.btb && ((e.isBranch && taken) || e.isJal)) btbWrite = { idx: (e.pc >>> 2) & 15, tag: (e.pc >>> 6) & 0x3ffffff, target: e.target >>> 0, isJal: !!e.isJal };
       if (late) { late.btbWrite = btbWrite; btbWrite = null; }
-      if (e.memRead && this.opts.caches) { dReq = true; dHit = this.cacheHit(this.dcache, result); dAddr = result; D_STALL = !dHit; ev.dcacheAccess = { addr: Number(result & 0xffffffffn), hit: dHit }; }
+      if (e.memRead && this.opts.caches && !(exc && exc.cause === 4n)) { dReq = true; dHit = this.cacheHit(this.dcache, result); dAddr = result; D_STALL = !dHit; ev.dcacheAccess = { addr: Number(result & 0xffffffffn), hit: dHit }; }
       if (e.isMulDiv && this.opts.iterativeMdu) { MDU_STALL = this.mdu.state !== 'DONE' && !(this.opts.fastMdu && this.mdu.state === 'SIGN'); mduSteps = multiplyDivideSteps(e.aluOp, !!e.isWord, e.rs1v, this.opts.fastMdu, e.rs2v); }
       const csrData = this.csrRead(e.csrAddr);
       fwdE = [result, 0n, pc4, csrData][e.wbSel];
@@ -565,8 +600,8 @@ export class Core {
         csrWrite = { addr: e.csrAddr, value: nv };
         ev.csrWrite = csrWrite;
       }
-      if (e.memWrite) { const s = storeControl(e.funct3, result, e.rs2v); storeOp = { addr: result, ...s }; if (this.opts.caches) dStoreSlot = this.cacheSlot(this.dcache, result); ev.memAccess = { kind: 'store', addr: result, value: e.rs2v, mask: s.mask, funct3: e.funct3 }; }
-      exNext = { valid: true, id: e.id, pc: e.pc, rd: e.rd, regWrite: e.regWrite, memRead: e.memRead, funct3: e.funct3, result, pc4, csrData,
+      if (e.memWrite && !exc) { const s = storeControl(e.funct3, result, e.rs2v); storeOp = { addr: result, ...s }; if (this.opts.caches) dStoreSlot = this.cacheSlot(this.dcache, result); ev.memAccess = { kind: 'store', addr: result, value: e.rs2v, mask: s.mask, funct3: e.funct3 }; }
+      exNext = { valid: true, id: e.id, pc: e.pc, rd: e.rd, regWrite: exc ? 0 : e.regWrite, memRead: exc ? 0 : e.memRead, funct3: e.funct3, result, pc4, csrData,
         wbSel: e.wbSel, dcData: this.readDouble(result), writesTohost: !!(e.csrWrite && e.csrAddr === CSR.TOHOST), custom: e.aluOp === 'CUSTOM', ...(late || {}) };
       ev.stages.EXECUTE = { id: e.id, pc: e.pc };
       ev.alu = { a: A, b: B, result, op: e.aluOp, unit: e.isMulDiv ? 'MDU' : e.aluOp === 'CUSTOM' ? 'CUSTOM' : 'ALU', word: !!e.isWord };
@@ -602,6 +637,7 @@ export class Core {
       deNext = { valid: true, id: d.id, pc: d.pc, word: d.word, ...c, late: c.late || (this.opts.fastMdu && c.isMulDiv ? 1 : 0) || (this.opts.fastAlu && (c.aluOp === 'CLZ' || c.aluOp === 'CTZ') ? 1 : 0), rs1v: v1, rs2v: v2, imm: immediate(d.word, c.immType), rd: rdf,
         funct3: bits(d.word, 14, 12), csrAddr: bits(d.word, 31, 20), pred: d.pred, idx: d.idx, ckpt: d.ckpt, target: d.target,
         returnPredicted: d.returnPredicted, isCall: d.isCall, isReturn: d.isReturn, rasCkpt: d.rasCkpt, gTaken: d.gTaken, bTaken: d.bTaken };
+      if (this.opts.exceptions && !isLegal(d.word)) Object.assign(deNext, ILLEGAL);
       if (LOAD_STALL) ev.loadStallReal = SINGLE_BIT_STALL || (useD.rs1 && e.rd === rs1f) || (useD.rs2 && e.rd === rs2f)
         || (CUSTOM_STALL && ((useD.rs1 && m.rd === rs1f) || (useD.rs2 && m.rd === rs2f))); // a wait for a custom result is real too
     }
@@ -677,12 +713,13 @@ export class Core {
     this.mip.external = !!(this.opts.devices && this.opts.devices.externalInterrupt && this.opts.devices.externalInterrupt());
     this.mtime++;
     if (this.mtimeCmpNext !== undefined) { this.mtimecmp = this.mtimeCmpNext; this.mtimeCmpNext = undefined; }
-    if (trap) { this.csr.mepc = BigInt(trap.pc) & ~3n; this.csr.mcause = trap.cause; const mie = (this.csr.mstatus >> 3n) & 1n; this.csr.mstatus = (this.csr.mstatus & ~0x88n) | (mie << 7n); this.stats.traps = (this.stats.traps || 0) + 1; }
+    if (trap) { this.csr.mepc = BigInt(trap.pc) & ~3n; this.csr.mcause = trap.cause; if (this.opts.exceptions) this.csr.mtval = trap.tval || 0n; const mie = (this.csr.mstatus >> 3n) & 1n; this.csr.mstatus = (this.csr.mstatus & ~0x88n) | (mie << 7n); this.stats.traps = (this.stats.traps || 0) + 1; }
     else if (mret) { const mpie = (this.csr.mstatus >> 7n) & 1n; this.csr.mstatus = (this.csr.mstatus & ~0x88n) | (mpie << 3n) | 0x80n; }
     if (csrWrite) {
       const v = csrWrite.value, a = csrWrite.addr, c = this.csr;
       if (a === CSR.TOHOST) c.tohost = v; else if (a === CSR.STATUS) c.status = v; else if (a === CSR.MSTATUS) c.mstatus = v;
       else if (a === CSR.MTVEC) c.mtvec = v; else if (a === CSR.MSCRATCH) c.mscratch = v; else if (a === CSR.MEPC) c.mepc = v & ~3n; else if (a === CSR.MCAUSE) c.mcause = v;
+      else if (a === CSR.MTVAL && this.opts.exceptions) c.mtval = v;
       else if (a === CSR.MIE) c.mie = v;
     }
     this.csr.cycle++; if (w.valid) this.csr.instret++;
@@ -730,7 +767,7 @@ export class Core {
     // statistics
     if (ev.stall) { this.stats.loadStalls++; if (!ev.loadStallReal) this.stats.falseLoadStalls++; }
     if (FLUSH && LATE) { this.stats.flushes++; if (m.flushKind === 'jalr') this.stats.jalrFlushes++; else this.stats.mispredicts++; }
-    else if (FLUSH) { this.stats.flushes++; if (e.isJalr) this.stats.jalrFlushes++; else if (!(e.isEcall || e.isEbreak || e.isMret || e.isInterrupt || fenceI)) this.stats.mispredicts++; }
+    else if (FLUSH) { this.stats.flushes++; if (e.isJalr) this.stats.jalrFlushes++; else if (!(e.isEcall || e.isEbreak || e.isMret || e.isInterrupt || fenceI || ev.exception)) this.stats.mispredicts++; }
     if (ev.interrupt) this.stats.interrupts++;
     if (ev.redirect) this.stats.redirects++;
     if (ev.busy) this.stats.multiplyDivideBusy++;

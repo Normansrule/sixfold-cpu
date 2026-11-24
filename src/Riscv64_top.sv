@@ -22,6 +22,7 @@ module riscv64_top #(
   parameter bit LATE_BRANCH_RESOLVE = 1'b0, // turbo edition: branches and JALR redirect from MEMORY (a shorter clock, 1 more bubble)
   parameter bit ZIFENCEI = 1'b0, // FENCE.I: flush, then empty the instruction cache and the BTB
   parameter bit XCOMPUTE = 1'b0, // the packed compute instructions (paddus.b ... pmulhrs.h, src/Custom_Unit.sv)
+  parameter bit EXCEPTIONS = 1'b0, // traps on illegal instructions and misaligned addresses, with mtval (src/Riscv64.sv)
   parameter bit SRAM_CACHES = 1'b0 // silicon: cache lines in SRAM macros (sram22), same cycle count (docs/SILICON.md)
 ) (
   input  logic        clk,
@@ -153,6 +154,7 @@ module riscv64_top #(
     .LATE_BRANCH_RESOLVE (LATE_BRANCH_RESOLVE),
     .ZIFENCEI (ZIFENCEI),
     .XCOMPUTE (XCOMPUTE),
+    .EXCEPTIONS (EXCEPTIONS),
     .SRAM_CACHES (SRAM_CACHES && CACHES_ENABLE)
   ) cpu (
     .clk                      (clk),

@@ -223,7 +223,7 @@ registerCustom(CUSTOM_SPEC);
 // CSR names understood by the assembler (addresses match src/const_pkg.sv)
 export const CSR_NAMES = { tohost: 0x51E, status: 0x50A, hartid: 0x50B, cycle: 0xC00, instret: 0xC02, mhartid: 0xF14,
   mstatus: 0x300, mtvec: 0x305, mscratch: 0x340, mepc: 0x341, mcause: 0x342,
-  mie: 0x304, mip: 0x344,
+  mie: 0x304, mip: 0x344, mtval: 0x343,
   hpmcounter3: 0xC03, hpmcounter4: 0xC04, hpmcounter5: 0xC05, hpmcounter6: 0xC06, hpmcounter7: 0xC07, hpmcounter8: 0xC08, hpmcounter9: 0xC09, hpmcounter10: 0xC0A };
 export const CSR_BY_ADDRESS = Object.fromEntries(Object.entries(CSR_NAMES).map(([k, v]) => [v, k]));
 

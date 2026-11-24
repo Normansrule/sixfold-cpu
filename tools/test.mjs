@@ -16,7 +16,7 @@
 //   node tools/test.mjs 05           only programs whose name contains "05"
 //   node tools/test.mjs --bp=off     only the static not-taken configuration
 //   node tools/test.mjs --config=turbo   one build only (performance, baseline, turbo, deep, compact or xoff; default all six)
-//   (xoff: the performance build with XCOMPUTE = 0, the default HYDRA-130 instantiates: every program that
+//   (xoff: the performance build with XCOMPUTE = 0 and EXCEPTIONS = 0, the default HYDRA-130 instantiates: every program that
 //   uses no packed instruction must run exactly as on the performance build, and tests/xcompute_off.s checks
 //   that the packed encodings give 0)
 //   node tools/test.mjs --images=DIR     raw images DIR/*.bin (loaded at the reset vector 0x2000) instead of the
@@ -129,13 +129,17 @@ for (const f of files) {
   // The packed instructions exist only with XCOMPUTE = 1: the xoff build skips programs that use them and runs
   // only it the program that checks they are off
   const usesPacked = PACKED.test(src), offOnly = /^#\s*XCOMPUTE:\s*off\s*$/m.test(src);
+  // Programs that need the exceptions (EXCEPTIONS = 1 in src/Riscv64.sv: "# EXCEPTIONS: on", and the official
+  // rv64mi-* machine-mode tests) run on the builds that have them: not xoff (HYDRA-130's default) and not deep
+  const needsExceptions = /^#\s*EXCEPTIONS:\s*on\s*$/m.test(src) || name.startsWith('rv64mi-');
   for (const { bp, cfg } of MODES) {
   if (cfg === 'xoff' ? usesPacked && !offOnly : offOnly) continue;
+  if (needsExceptions && (cfg === 'xoff' || cfg === 'deep')) continue;
   const problems = [];
   const tag = `${cfg === 'baseline' ? 'base' : cfg === 'turbo' ? 'turb' : cfg === 'deep' ? 'deep' : cfg === 'compact' ? 'cmpt' : cfg === 'xoff' ? 'xoff' : 'perf'} ${bp ? 'gshare' : 'no-bp '}`;
   const tr = `${cfg}.${bp ? 'bp' : 'nobp'}`;
   // ---------------- model ----------------
-  const core = cfg === 'deep' ? new DeepCore(img, { bp }) : cfg === 'xoff' ? new Core(img, { ...CONFIGS.performance, xcompute: false, bp }) : new Core(img, { ...CONFIGS[cfg], bp });
+  const core = cfg === 'deep' ? new DeepCore(img, { bp }) : cfg === 'xoff' ? new Core(img, { ...CONFIGS.performance, xcompute: false, exceptions: false, bp }) : new Core(img, { ...CONFIGS[cfg], bp });
   const traceLine = cfg === 'deep' ? DeepCore.traceLine : Core.traceLine;
   const trace = [];
   while (!core.halted && core.cycle < 2000000) trace.push(traceLine(core.step()));

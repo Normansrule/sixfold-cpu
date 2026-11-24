@@ -3,7 +3,9 @@
 import const_pkg::*;
 import opcode_pkg::*;
 
-module CSRFile (
+module CSRFile #(
+    parameter bit EXCEPTIONS = 1'b0 // mtval exists and mstatus.MPP reads 3 (machine mode, the only mode): see src/Riscv64.sv
+) (
     input logic clk,
     input logic reset,
     input logic CSR_WRITE_ENABLE,
@@ -14,7 +16,8 @@ module CSRFile (
     input logic [7:0] PERFORMANCE_EVENTS, // {late kill, interrupt, D miss, I miss, M busy, redirect, flush, load stall}: the TRACE_* signals of this cycle
     input logic TAKE_TRAP, // ecall / ebreak / an interrupt in Execute: record the trap
     input logic [63:0] TRAP_PC, // ... the address of that instruction (for an interrupt: the one it replaced)
-    input logic [63:0] TRAP_CAUSE, // ... and why (11, 3, or bit 63 + 7 / 11 for interrupts)
+    input logic [63:0] TRAP_CAUSE, // ... and why (11, 3, or bit 63 + 7 / 11 for interrupts; EXCEPTIONS adds 0, 2, 4 and 6)
+    input logic [63:0] TRAP_VALUE, // ... and for EXCEPTIONS = 1 the bad address or instruction word (0 for the others): mtval
     input logic TIMER_INTERRUPT_LINE, // mtime >= mtimecmp (from the timer device)
     input logic EXTERNAL_INTERRUPT_LINE, // a device wants attention (the FPGA's UART receiver; 0 in simulation)
     output logic INTERRUPT_REQUEST, // mstatus.MIE and an enabled interrupt is pending (all registered)
@@ -29,6 +32,7 @@ module CSRFile (
     logic [63:0] CSR_TOHOST_REGISTER;
     logic [63:0] CSR_STATUS_REGISTER;
     logic [63:0] CSR_MSTATUS_REGISTER, CSR_MTVEC_REGISTER, CSR_MSCRATCH_REGISTER, CSR_MEPC_REGISTER, CSR_MCAUSE_REGISTER;
+    logic [63:0] CSR_MTVAL_REGISTER; // EXCEPTIONS = 1 only (otherwise mtval reads 0 like every CSR Sixfold does not have)
     logic [63:0] CSR_MIE_REGISTER; // interrupt enables (bit 7 timer, bit 11 external)
     logic MIP_MTIP, MIP_MEIP; // the interrupt lines, captured once per cycle (mip bits 7 and 11)
     logic [63:0] CSR_CYCLE_COUNTER; // Counts every clock cycle since reset (read with rdcycle)
@@ -74,6 +78,7 @@ module CSRFile (
             CSR_MSCRATCH_REGISTER <= 64'd0;
             CSR_MEPC_REGISTER <= 64'd0;
             CSR_MCAUSE_REGISTER <= 64'd0;
+            CSR_MTVAL_REGISTER <= 64'd0;
             CSR_MIE_REGISTER <= 64'd0;
             MIP_MTIP <= 1'b0;
             MIP_MEIP <= 1'b0;
@@ -94,6 +99,7 @@ module CSRFile (
             if (TAKE_TRAP) begin // Enter the trap: remember where and why, disable interrupts (MPIE <= MIE, MIE <= 0)
                 CSR_MEPC_REGISTER <= {TRAP_PC[63:2], 2'b00}; // IALIGN = 32 (no compressed instructions): mepc[1:0] are always 0
                 CSR_MCAUSE_REGISTER <= TRAP_CAUSE;
+                if (EXCEPTIONS) CSR_MTVAL_REGISTER <= TRAP_VALUE;
                 CSR_MSTATUS_REGISTER[7] <= CSR_MSTATUS_REGISTER[3];
                 CSR_MSTATUS_REGISTER[3] <= 1'b0;
             end else if (RETURN_FROM_TRAP) begin // Leave the trap: MIE <= MPIE, MPIE <= 1
@@ -109,6 +115,7 @@ module CSRFile (
                     CSR_MSCRATCH: CSR_MSCRATCH_REGISTER <= CSR_NEW_VALUE;
                     CSR_MEPC: CSR_MEPC_REGISTER <= {CSR_NEW_VALUE[63:2], 2'b00}; // mepc[1:0] read as 0 (IALIGN = 32; found by riscv-formal)
                     CSR_MCAUSE: CSR_MCAUSE_REGISTER <= CSR_NEW_VALUE;
+                    CSR_MTVAL: if (EXCEPTIONS) CSR_MTVAL_REGISTER <= CSR_NEW_VALUE;
                     CSR_MIE: CSR_MIE_REGISTER <= CSR_NEW_VALUE;
                     default: begin
                     // Whatever the previous values are just keep them as is by default (the counters are read-only)
@@ -124,11 +131,14 @@ module CSRFile (
             CSR_TOHOST: CSR_READ_DATA = CSR_TOHOST_REGISTER;
             CSR_STATUS: CSR_READ_DATA = CSR_STATUS_REGISTER;
             CSR_HARTID: CSR_READ_DATA = 64'd0; // Only one core so just set id to 0
-            CSR_MSTATUS: CSR_READ_DATA = CSR_MSTATUS_REGISTER;
+            // EXCEPTIONS = 1: mstatus.MPP (bits 12:11, the mode mret returns to) always reads 3, machine mode, the only
+            // mode Sixfold has (a program that tries to set another mode can tell it is not there: rv64mi-illegal)
+            CSR_MSTATUS: CSR_READ_DATA = CSR_MSTATUS_REGISTER | (EXCEPTIONS ? 64'h1800 : 64'd0);
             CSR_MTVEC: CSR_READ_DATA = CSR_MTVEC_REGISTER;
             CSR_MSCRATCH: CSR_READ_DATA = CSR_MSCRATCH_REGISTER;
             CSR_MEPC: CSR_READ_DATA = CSR_MEPC_REGISTER;
             CSR_MCAUSE: CSR_READ_DATA = CSR_MCAUSE_REGISTER;
+            CSR_MTVAL: CSR_READ_DATA = EXCEPTIONS ? CSR_MTVAL_REGISTER : 64'd0;
             CSR_MIE: CSR_READ_DATA = CSR_MIE_REGISTER;
             CSR_MIP: CSR_READ_DATA = {52'd0, MIP_MEIP, 3'd0, MIP_MTIP, 7'd0};
             CSR_MHARTID: CSR_READ_DATA = 64'd0; // Standard Machine Hardware Thread ID: also 0

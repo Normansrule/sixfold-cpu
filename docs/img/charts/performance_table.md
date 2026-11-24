@@ -30,6 +30,7 @@
 | `27_int8_dot` | yes | 48,687 | 1.23 | 77,684 | **1.96** | 6491.6 µs | 318.38 µs | 39.86 µs |
 | `28_fixed_point` | yes | 66,721 | 1.14 | 114,363 | **1.96** | 8896.1 µs | 468.70 µs | 58.68 µs |
 | `custom_pipeline` | yes | 42,600 | 1.79 | 93,863 | **3.06** | 5680.0 µs | 384.68 µs | 48.16 µs |
+| `exceptions` |  | 581 | 1.60 | 689 | **1.90** | 77.5 µs | 2.82 µs | 0.35 µs |
 | `fence_i` |  | 127 | 1.95 | 229 | **3.52** | 16.9 µs | 0.94 µs | 0.12 µs |
 | `interrupt_stress` | yes | 16,062 | 1.48 | 21,540 | **1.90** | 2141.6 µs | 88.28 µs | 11.05 µs |
 | `isa_selfcheck` | yes | 14,346 | 1.15 | 31,292 | **2.51** | 1912.8 µs | 128.25 µs | 16.06 µs |
@@ -42,4 +43,4 @@
 | `xcompute_selfcheck` |  | 10,272 | 1.07 | 18,897 | **1.98** | 1369.6 µs | 77.45 µs | 9.70 µs |
 | `zknh_selfcheck` |  | 2,449 | 1.14 | 4,508 | **2.09** | 326.5 µs | 18.48 µs | 2.31 µs |
 
-Geometric-mean speed-up of the performance edition over the baseline, both on 130 nm: **21.2x** (clock and cycles together). Cache misses are included: these programs are tiny, so their few cold misses weigh heavily.
+Geometric-mean speed-up of the performance edition over the baseline, both on 130 nm: **21.4x** (clock and cycles together). Cache misses are included: these programs are tiny, so their few cold misses weigh heavily.

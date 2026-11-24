@@ -70,8 +70,10 @@ module riscv64_testbench;
     .ZIFENCEI (1'b1),
 `ifdef XCOMPUTE_OFF
     .XCOMPUTE (1'b0), // tools/test.mjs --config=xoff: the default HYDRA-130 instantiates
+    .EXCEPTIONS (1'b0), // ... which has no exceptions either
 `else
     .XCOMPUTE (1'b1),
+    .EXCEPTIONS (1'b1), // illegal instructions and misaligned addresses trap (src/Riscv64.sv EXCEPTIONS)
 `endif
     .SRAM_CACHES (`CONFIG_SRAM)
   ) dut (.*);

@@ -66,6 +66,11 @@ package const_pkg;
   localparam logic [11:0] CSR_MCAUSE   = 12'h342; // why: 3 = breakpoint (ebreak), 11 = environment call (ecall)
   localparam logic [11:0] CSR_MIE      = 12'h304; // interrupt enables: bit 7 MTIE (timer), bit 11 MEIE (external)
   localparam logic [11:0] CSR_MIP      = 12'h344; // interrupts pending (read-only here): bit 7 MTIP, bit 11 MEIP
+  localparam logic [11:0] CSR_MTVAL    = 12'h343; // EXCEPTIONS = 1: the bad address or instruction word of the last exception
+  localparam logic [63:0] CAUSE_MISALIGNED_FETCH = 64'd0; // EXCEPTIONS = 1: a jump or branch to an address that is not a multiple of 4
+  localparam logic [63:0] CAUSE_ILLEGAL_INSTRUCTION = 64'd2; // EXCEPTIONS = 1: an encoding Sixfold does not implement
+  localparam logic [63:0] CAUSE_MISALIGNED_LOAD = 64'd4; // EXCEPTIONS = 1: a load whose address is not a multiple of its size
+  localparam logic [63:0] CAUSE_MISALIGNED_STORE = 64'd6; // EXCEPTIONS = 1: the same for a store
   localparam logic [63:0] CAUSE_BREAKPOINT = 64'd3;
   localparam logic [63:0] CAUSE_ENVIRONMENT_CALL = 64'd11;
   localparam logic [63:0] CAUSE_MACHINE_TIMER_INTERRUPT = 64'h8000_0000_0000_0007;    // bit 63 = an interrupt, not an exception

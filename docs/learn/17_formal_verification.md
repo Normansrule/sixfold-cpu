@@ -101,7 +101,8 @@ Be as precise about the limits as about the result (`formal/README.md` lists the
   formal build an M instruction's result is a cheap stand-in (`RISCV_FORMAL_ALTOPS`). The stalls and the
   forwarding of the result are still checked; the arithmetic is the regression's job.
 - **Assumed, not proved:** no misaligned loads or stores, and no jumps to addresses that are not a multiple of
-  4. The specification says those must trap, and Sixfold does not trap yet. Program memory is assumed not to
+  4. The specification says those must trap. Sixfold traps them only with `EXCEPTIONS = 1` (chapter 16), and the
+  formal build still uses the default, `EXCEPTIONS = 0`. Program memory is assumed not to
   change while the program runs (the BTB relies on that).
 - **Not compared with a specification yet:** B, Zknh and the custom instructions, interrupts, the caches.
 

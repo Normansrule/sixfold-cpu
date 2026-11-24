@@ -51,7 +51,9 @@ for (const [dir, ext] of sources) {
       if (!ok) bad++;
       console.log(`${f.padEnd(31)} ${cfg.slice(0, 5).padEnd(5)} ${(bp ? 'gshare' : 'off').padEnd(9)} ${String(s.cycles).padStart(7)} = ${String(s.retired).padStart(5)} + 5 + ${String(L).padStart(4)} + 3*${String(F).padEnd(4)} + ${String(R).padStart(5)} + ${String(K).padStart(5)} + ${String(I).padStart(5)} + ${String(D).padStart(5)} + ${String(X).padStart(4)} + ${String(B).padStart(4)}   ${ok ? 'OK' : 'MISMATCH (' + predicted + ')'}`);
     }
-    for (const bp of [true, false]) { // the deep-pipeline edition: its hardware counters' terms (bubbles counted at W)
+    // programs that need the exceptions (rv64mi-*, "# EXCEPTIONS: on") do not run on the deep edition, which has none
+    const needsExceptions = f.startsWith('rv64mi-') || (ext === '.s' && /^#\s*EXCEPTIONS:\s*on\s*$/m.test(fs.readFileSync(`${dir}/${f}`, 'utf8')));
+    if (!needsExceptions) for (const bp of [true, false]) { // the deep-pipeline edition: its hardware counters' terms (bubbles counted at W)
       const d = new DeepCore(img, { bp });
       while (!d.halted && d.cycle < 5e6) d.step();
       const s = d.stats, n = k => Number(d.hpm[k]);

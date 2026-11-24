@@ -4,8 +4,8 @@
 // whether each cache access hits or misses, and whether the branch predictor is on. riscv-formal then proves
 // its checks hold for EVERY such choice, up to the bounded number of cycles in formal/checks.cfg.
 //
-// Two assumptions narrow that, both because Sixfold does not implement the matching exceptions yet (the
-// "trap completeness" add-on removes them):
+// Two assumptions narrow that, both because this build keeps EXCEPTIONS = 0 (the default), where Sixfold does
+// not raise the matching exceptions (with EXCEPTIONS = 1 it does, and a later proof run can drop them):
 //   1. no load or store is misaligned        (the core ignores the low address bits instead of trapping)
 //   2. no jump or branch goes to an address that is not a multiple of 4   (it jumps instead of trapping)
 // A third keeps program memory consistent (see "Program memory does not change" below).

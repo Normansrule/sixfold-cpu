@@ -69,14 +69,16 @@ branch target buffer, the return address stack, cache-miss stalls and multiply/d
 - **Interrupts.** The interrupt lines are held at 0.
 - **Branch prediction quality.** Only that every misprediction is recovered.
 
-Two assumptions in `formal/wrapper.sv` narrow the programs, because Sixfold does not implement the
-exceptions the specification requires for them:
+Two assumptions in `formal/wrapper.sv` narrow the programs, because the formal build (the default
+`EXCEPTIONS = 0`) does not raise the exceptions the specification requires for them:
 
-1. no load or store is misaligned (the core drops the low address bits instead of trapping);
-2. no JAL, branch or JALR targets an address that is not a multiple of 4 (the core jumps instead of trapping).
+1. no load or store is misaligned (with the default `EXCEPTIONS = 0` the core drops the low address bits instead of trapping);
+2. no JAL, branch or JALR targets an address that is not a multiple of 4 (with `EXCEPTIONS = 0` the core jumps instead of trapping).
 
 Both come from the instruction itself, never from what the core reports, so a core that computes a wrong
-address is still caught. The "trap completeness" add-on implements the exceptions and removes them.
+address is still caught. The core now has those exceptions behind the `EXCEPTIONS` parameter (off by default,
+see [docs/COMPLIANCE.md](../docs/COMPLIANCE.md)). The formal build still uses the default, so both assumptions
+stay until a proof run with `EXCEPTIONS = 1` and the assumptions removed has been recorded.
 
 A third assumption keeps program memory consistent: two fetches of the same address return the same word
 (the wrapper remembers the last 24 fetches, more than the deepest check makes). Without it, the solver

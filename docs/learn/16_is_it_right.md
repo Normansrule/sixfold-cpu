@@ -51,8 +51,16 @@ failing would write `(24 << 1) | 1 = 49`. The model and the testbench stop on th
 Every test of every extension Sixfold implements passes, on every build, with the RTL (register-transfer level) design still matching the
 model on every cycle. One test was left out on purpose: `ma_data` loads a halfword from an odd address.
 The specification allows a core either to do that in hardware or to raise an exception. Sixfold does
-neither: it quietly reads the aligned halfword. The test caught a real gap, and it is the first item on the
-list of what comes next.
+neither: it quietly reads the aligned halfword. The test caught a real gap, and it was the first item on the
+list of what came next.
+
+It is closed now, behind a parameter. With `EXCEPTIONS = 1` in `src/Riscv64.sv`, a misaligned load or store,
+a jump to an address that is not a multiple of 4, and an illegal instruction all trap to `mtvec` with
+`mcause` saying which, and `mtval` holding the bad address or instruction word. The check sits in EXECUTE
+and uses only the low three bits of rs1 + imm, from a private 3-bit adder, so it does not wait for the 64-bit
+ALU. The official machine-mode tests (`rv64mi-ma_addr`, `rv64mi-illegal`, `rv64mi-ma_fetch` and twelve more)
+now pass, cycle-exact against the model, and [tests/exceptions.s](../../tests/exceptions.s) checks every case
+by hand. The parameter is off by default, so a chip already built around Sixfold (HYDRA-130) does not change.
 
 ## Try it
 

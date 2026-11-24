@@ -42,6 +42,7 @@ module Riscv64 #(
   parameter bit LATE_BRANCH_RESOLVE = 1'b0, // branches and JALR redirect from MEMORY, one cycle later: no compare -> flush path in EXECUTE
   parameter bit ZIFENCEI = 1'b0, // FENCE.I (Zifencei): flushes from EXECUTE like a trap, empties the BTB and (icache_invalidate) the instruction cache
   parameter bit XCOMPUTE = 1'b0, // the packed compute instructions (custom-0 group "xcompute" in src/Custom_Unit.sv: paddus.b ... pmulhrs.h)
+  parameter bit EXCEPTIONS = 1'b0, // traps on illegal instructions and on misaligned loads, stores and jump targets, with mtval (off: HYDRA-130's build)
   parameter bit SRAM_CACHES = 1'b0 // silicon: the caches keep their lines in SRAM macros, which answer one clock edge later.
                                    // FETCH2_INSTRUCTION and MEMORY_DATA_CACHE_DATA then come from the caches (*_dout_late)
 ) (
@@ -317,6 +318,7 @@ module Riscv64 #(
   logic DECODE_USES_REGISTER1, DECODE_USES_REGISTER2;
   logic DECODE_IS_AN_ECALL, DECODE_IS_AN_EBREAK, DECODE_IS_AN_MRET; // Traps (machine mode)
   logic DECODE_IS_A_FENCE_I; // FENCE.I (Zifencei, only with ZIFENCEI)
+  logic DECODE_IS_ILLEGAL; // EXCEPTIONS: an encoding Sixfold does not implement (see the Illegal instructions block)
   logic [4:0] DECODE_REGISTER1_ADDRESS; // register file read port 1 (rs1)
   logic [4:0] DECODE_REGISTER2_ADDRESS; // register file read port 2 (rs2)
   logic [4:0] DECODE_DESTINATION_REGISTER_ADDRESS; // destination register (rd)
@@ -352,6 +354,31 @@ module Riscv64 #(
   assign DECODE_DESTINATION_REGISTER_ADDRESS = DECODE_INSTRUCTION[11:7]; // Destination Register's Address (rd) is always the 5 bits at 11-7
   assign DECODE_FUNCT3 = DECODE_INSTRUCTION[14:12]; // Funct3 is always the 3 bits at 14-12
   assign DECODE_IS_A_FENCE_I = ZIFENCEI && (DECODE_INSTRUCTION[6:0] == OPC_FENCE) && (DECODE_INSTRUCTION[14:12] == FNC_FENCE_I);
+
+  // ========== Illegal instructions (EXCEPTIONS = 1) ==========
+  // Legal: the major opcodes Sixfold implements, with the fixed fields of the formats that have them checked
+  // (a load's funct3 7, a store's 4 to 7, a branch's 2 and 3, JALR's funct3, and the SYSTEM words). The OP and
+  // OP-IMM groups are taken whole: every funct7 there decodes to some operation (docs/COMPLIANCE.md lists that).
+  // Anything else, including the all-zero word, raises an illegal-instruction exception in EXECUTE.
+  logic DECODE_IS_LEGAL;
+  always_comb begin
+    unique case (DECODE_INSTRUCTION[6:0])
+      7'b0110111, 7'b0010111, 7'b1101111: DECODE_IS_LEGAL = 1'b1; // LUI, AUIPC, JAL
+      7'b0010011, 7'b0011011, 7'b0110011, 7'b0111011: DECODE_IS_LEGAL = 1'b1; // OP-IMM, OP-IMM-32, OP, OP-32 (with M, Zba, Zbb, Zbs, Zknh)
+      7'b0001011: DECODE_IS_LEGAL = 1'b1; // custom-0: your own instructions and the packed group
+      7'b1100111: DECODE_IS_LEGAL = DECODE_INSTRUCTION[14:12] == 3'b000; // JALR
+      7'b1100011: DECODE_IS_LEGAL = DECODE_INSTRUCTION[14:13] != 2'b01; // branches: funct3 2 and 3 do not exist
+      7'b0000011: DECODE_IS_LEGAL = DECODE_INSTRUCTION[14:12] != 3'b111; // loads: lb lh lw ld lbu lhu lwu
+      7'b0100011: DECODE_IS_LEGAL = !DECODE_INSTRUCTION[14]; // stores: sb sh sw sd
+      7'b0001111: DECODE_IS_LEGAL = DECODE_INSTRUCTION[14:13] == 2'b00; // FENCE, FENCE.I
+      7'b1110011: DECODE_IS_LEGAL = (DECODE_INSTRUCTION[14:12] == 3'b000) // ecall, ebreak, mret, wfi (a no-op here)
+                                    ? ((DECODE_INSTRUCTION == 32'h0000_0073) || (DECODE_INSTRUCTION == 32'h0010_0073)
+                                       || (DECODE_INSTRUCTION == 32'h3020_0073) || (DECODE_INSTRUCTION == 32'h1050_0073))
+                                    : (DECODE_INSTRUCTION[14:12] != 3'b100); // the CSR instructions
+      default: DECODE_IS_LEGAL = 1'b0;
+    endcase
+  end
+  assign DECODE_IS_ILLEGAL = EXCEPTIONS && !DECODE_IS_LEGAL;
   assign DECODE_CSR_ADDRESS = DECODE_INSTRUCTION[31:20]; // Control Status Register Address (CSR) is always the top 12 bits at 31-20
 
   // Forwarding Signals from Execute:
@@ -607,6 +634,10 @@ module Riscv64 #(
   logic EXECUTE_RETURN_PREDICTED; // FETCH2 redirected this return using the Return Address Stack
   logic EXECUTE_IS_AN_ECALL, EXECUTE_IS_AN_EBREAK, EXECUTE_IS_AN_MRET;
   logic EXECUTE_IS_A_FENCE_I; // flushes like a trap and restarts FETCH1 at PC + 4
+  logic EXECUTE_IS_ILLEGAL; // EXCEPTIONS: the instruction is illegal (every other control signal was cleared in DECODE)
+  logic EXECUTE_MISALIGNED_LOAD, EXECUTE_MISALIGNED_STORE, EXECUTE_MISALIGNED_JUMP; // EXCEPTIONS: the three address checks
+  logic EXECUTE_EXCEPTION; // EXCEPTIONS: one of the four above: trap to mtvec, the instruction has no other effect
+  logic [63:0] EXECUTE_EXCEPTION_CAUSE, EXECUTE_EXCEPTION_VALUE; // mcause and mtval for it
   logic EXECUTE_IS_AN_INTERRUPT, EXECUTE_INTERRUPT_IS_EXTERNAL; // an interrupt travelling as a pseudo-instruction
   logic EXECUTE_TAKES_TRAP; // ecall or ebreak: jump to mtvec
   logic EXECUTE_RETURNS_FROM_TRAP; // mret: jump to mepc
@@ -791,14 +822,42 @@ module Riscv64 #(
   // Traps: ecall / ebreak jump to mtvec, mret jumps back to mepc. Both flush like a mispredicted branch.
   assign LATE_FLUSH = LATE_BRANCH_RESOLVE && MEMORY_REDIRECT;
   assign EXECUTE_LIVE = EXECUTE_VALID && !LATE_FLUSH;
-  assign EXECUTE_TAKES_TRAP = EXECUTE_LIVE && (EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_INTERRUPT);
+  // ========== Exceptions (EXCEPTIONS = 1): precise, raised in EXECUTE like an ecall ==========
+  // A load or store address must be a multiple of its size, and a jump or taken branch must land on a multiple of
+  // 4 (there are no compressed instructions). The low bits come from a private 3-bit adder (rs1 + imm, the same one
+  // the store uses), so the check does not wait for the 64-bit ALU. For a branch or JAL the target was added in
+  // FETCH2. The faulting instruction moves on to MEMORY with nothing to write, so it retires like an ecall.
+  logic [2:0] EXECUTE_STORE_BYTE_OFFSET; // the low 3 bits of rs1 + imm (a load, store or JALR address)
+  assign EXECUTE_STORE_BYTE_OFFSET = EXECUTE_REGISTER1_DATA[2:0] + EXECUTE_IMMEDIATE[2:0];
+  logic EXECUTE_ADDRESS_MISALIGNED; // rs1 + imm is not a multiple of the access size (funct3[1:0]: 1, 2, 4 or 8 bytes)
+  always_comb begin
+    unique case (EXECUTE_FUNCT3[1:0])
+      2'd0: EXECUTE_ADDRESS_MISALIGNED = 1'b0;
+      2'd1: EXECUTE_ADDRESS_MISALIGNED = EXECUTE_STORE_BYTE_OFFSET[0];
+      2'd2: EXECUTE_ADDRESS_MISALIGNED = |EXECUTE_STORE_BYTE_OFFSET[1:0];
+      default: EXECUTE_ADDRESS_MISALIGNED = |EXECUTE_STORE_BYTE_OFFSET[2:0];
+    endcase
+  end
+  assign EXECUTE_MISALIGNED_LOAD = EXCEPTIONS && EXECUTE_MEMORY_READ_ENABLE && EXECUTE_ADDRESS_MISALIGNED;
+  assign EXECUTE_MISALIGNED_STORE = EXCEPTIONS && EXECUTE_MEMORY_WRITE_ENABLE && EXECUTE_ADDRESS_MISALIGNED;
+  assign EXECUTE_MISALIGNED_JUMP = EXCEPTIONS && ((EXECUTE_IS_A_JALR_INSTRUCTION && EXECUTE_STORE_BYTE_OFFSET[1])
+      || ((EXECUTE_IS_A_JAL_INSTRUCTION || (EXECUTE_IS_A_BRANCH_INSTRUCTION && EXECUTE_BRANCH_TAKEN)) && EXECUTE_PC_TARGET[1]));
+  assign EXECUTE_EXCEPTION = EXECUTE_LIVE && ((EXCEPTIONS && EXECUTE_IS_ILLEGAL) || EXECUTE_MISALIGNED_LOAD || EXECUTE_MISALIGNED_STORE || EXECUTE_MISALIGNED_JUMP);
+  assign EXECUTE_EXCEPTION_CAUSE = EXECUTE_IS_ILLEGAL ? CAUSE_ILLEGAL_INSTRUCTION : EXECUTE_MISALIGNED_JUMP ? CAUSE_MISALIGNED_FETCH
+                                 : EXECUTE_MISALIGNED_LOAD ? CAUSE_MISALIGNED_LOAD : CAUSE_MISALIGNED_STORE;
+  // mtval: the instruction word, the jump's target, or the load or store address
+  assign EXECUTE_EXCEPTION_VALUE = EXECUTE_IS_ILLEGAL ? {32'd0, EXECUTE_INSTRUCTION}
+                                 : EXECUTE_MISALIGNED_JUMP ? (EXECUTE_IS_A_JALR_INSTRUCTION ? EXECUTE_JALR_TARGET : EXECUTE_PC_TARGET)
+                                 : EXECUTE_FAST_RESULT;
+
+  assign EXECUTE_TAKES_TRAP = EXECUTE_LIVE && (EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_INTERRUPT) || EXECUTE_EXCEPTION;
   assign EXECUTE_RETURNS_FROM_TRAP = EXECUTE_LIVE && EXECUTE_IS_AN_MRET;
   // (LATE_BRANCH_RESOLVE: EXECUTE itself flushes only for a trap or mret, so the branch outcome never reaches FETCH1 from here)
   assign EXECUTE_REDIRECT_PC = LATE_FLUSH ? MEMORY_REDIRECT_PC : EXECUTE_TAKES_TRAP ? TRAP_VECTOR
                              // FENCE.I: BranchControl already gives PC + 4 for it; only the late-resolve build needs its own case
                              : (LATE_BRANCH_RESOLVE && EXECUTE_IS_A_FENCE_I) ? EXECUTE_PC_ADD_4
                              : (EXECUTE_RETURNS_FROM_TRAP || LATE_BRANCH_RESOLVE) ? EXCEPTION_PC : EXECUTE_ADJUST_NEXT_PC;
-  assign FLUSH_FETCH1_FETCH2_DECODE = LATE_FLUSH || (EXECUTE_LIVE && ((!LATE_BRANCH_RESOLVE && EXECUTE_FLUSH) || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT || EXECUTE_IS_A_FENCE_I)); // Control Hazard: misprediction, JALR, a trap or FENCE.I
+  assign FLUSH_FETCH1_FETCH2_DECODE = LATE_FLUSH || (EXECUTE_LIVE && ((!LATE_BRANCH_RESOLVE && EXECUTE_FLUSH) || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT || EXECUTE_IS_A_FENCE_I)) || EXECUTE_EXCEPTION; // Control Hazard: misprediction, JALR, a trap, an exception or FENCE.I
   // FENCE.I: the data cache writes through, so main memory already holds every older store; emptying the
   // instruction cache and the BTB at this edge makes FETCH1 read the new code from PC + 4 on
   assign icache_invalidate = ZIFENCEI && !FREEZE && EXECUTE_LIVE && EXECUTE_IS_A_FENCE_I;
@@ -815,7 +874,7 @@ module Riscv64 #(
   // 3, plus its own slot): the X term of the equation.
   assign DECODE_TAKES_INTERRUPT = INTERRUPT_REQUEST && DECODE_VALID
     && !(EXECUTE_VALID && (EXECUTE_CSR_WRITE_ENABLE || EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_IS_AN_MRET || EXECUTE_IS_AN_INTERRUPT || EXECUTE_IS_A_FENCE_I));
-  assign dcache_re = EXECUTE_LIVE && EXECUTE_MEMORY_READ_ENABLE;
+  assign dcache_re = EXECUTE_LIVE && EXECUTE_MEMORY_READ_ENABLE && !EXECUTE_MISALIGNED_LOAD; // a misaligned load never asks the cache
   assign DATA_CACHE_STALL = dcache_re && !dcache_hit;
   assign FRONT_END_NOT_STALLED = !DATA_CACHE_STALL && !LOAD_STALL && !MULTIPLY_DIVIDE_STALL;
   assign ADVANCE_FRONT_END = !FLUSH_FETCH1_FETCH2_DECODE && FRONT_END_NOT_STALLED; // The front of the pipeline moves only when nothing is being flushed or stalled
@@ -827,8 +886,7 @@ module Riscv64 #(
 
   // A store only needs the low 3 address bits to place its bytes, and a store address is always rs1 + imm:
   // a private 3-bit adder gives them without waiting for the 64-bit ALU and its result multiplexer.
-  logic [2:0] EXECUTE_STORE_BYTE_OFFSET;
-  assign EXECUTE_STORE_BYTE_OFFSET = EXECUTE_REGISTER1_DATA[2:0] + EXECUTE_IMMEDIATE[2:0];
+  // (EXECUTE_STORE_BYTE_OFFSET: declared with the exception checks above, which use it too)
 
   StoreControl store_control (
     .STORE_FUNCT3 (EXECUTE_FUNCT3),
@@ -842,7 +900,7 @@ module Riscv64 #(
   assign EXECUTE_CSR_WRITE_DATA = EXECUTE_CSR_WRITE_USING_IMMEDIATE ? {59'd0, EXECUTE_INSTRUCTION[19:15]} : EXECUTE_REGISTER1_DATA;
   assign EXECUTE_WRITES_TOHOST = EXECUTE_CSR_WRITE_ENABLE && (EXECUTE_CSR_ADDRESS == CSR_TOHOST);
 
-  CSRFile control_status_register_file (
+  CSRFile #(.EXCEPTIONS(EXCEPTIONS)) control_status_register_file (
     .clk (clk),
     .reset (reset),
     .CSR_WRITE_ENABLE (!FREEZE && EXECUTE_CSR_WRITE_ENABLE && EXECUTE_LIVE),
@@ -853,8 +911,9 @@ module Riscv64 #(
     .PERFORMANCE_EVENTS ({LATE_FLUSH && EXECUTE_VALID, EXECUTE_LIVE && EXECUTE_IS_AN_INTERRUPT, TRACE_DATA_MISS, TRACE_INSTRUCTION_MISS, TRACE_MULTIPLY_DIVIDE_STALL, TRACE_REDIRECT, TRACE_FLUSH, TRACE_LOAD_STALL}),
     .TAKE_TRAP (!FREEZE && EXECUTE_TAKES_TRAP),
     .TRAP_PC (EXECUTE_PC),
-    .TRAP_CAUSE (EXECUTE_IS_AN_INTERRUPT ? (EXECUTE_INTERRUPT_IS_EXTERNAL ? CAUSE_MACHINE_EXTERNAL_INTERRUPT : CAUSE_MACHINE_TIMER_INTERRUPT)
+    .TRAP_CAUSE (EXECUTE_EXCEPTION ? EXECUTE_EXCEPTION_CAUSE : EXECUTE_IS_AN_INTERRUPT ? (EXECUTE_INTERRUPT_IS_EXTERNAL ? CAUSE_MACHINE_EXTERNAL_INTERRUPT : CAUSE_MACHINE_TIMER_INTERRUPT)
                  : EXECUTE_IS_AN_EBREAK ? CAUSE_BREAKPOINT : CAUSE_ENVIRONMENT_CALL),
+    .TRAP_VALUE (EXECUTE_EXCEPTION ? EXECUTE_EXCEPTION_VALUE : 64'd0),
     .TIMER_INTERRUPT_LINE (TIMER_INTERRUPT_LINE),
     .EXTERNAL_INTERRUPT_LINE (EXTERNAL_INTERRUPT_LINE),
     .INTERRUPT_REQUEST (INTERRUPT_REQUEST),
@@ -879,7 +938,7 @@ module Riscv64 #(
 
   assign dcache_addr = EXECUTE_FAST_RESULT; // Feed Data Memory the calculated Target Address
   assign dcache_din = EXECUTE_STORE_DATA; // Feed Data Memory Data from Store Instruction
-  assign dcache_we = (!FREEZE && EXECUTE_LIVE && EXECUTE_MEMORY_WRITE_ENABLE) ? EXECUTE_STORE_MASK : 8'b0000_0000; // Place Write Mask If the Execute Stage is Valid and a Write
+  assign dcache_we = (!FREEZE && EXECUTE_LIVE && EXECUTE_MEMORY_WRITE_ENABLE && !EXECUTE_MISALIGNED_STORE) ? EXECUTE_STORE_MASK : 8'b0000_0000; // Place Write Mask If the Execute Stage is Valid and a Write
 
   // ========== Memory Stage Signals: ==========
   logic [63:0] MEMORY_PC; // Keep track of Program Counter at the Memory Stage
@@ -1059,6 +1118,7 @@ module Riscv64 #(
       EXECUTE_IS_AN_EBREAK <= 1'b0;
       EXECUTE_IS_AN_MRET <= 1'b0;
       EXECUTE_IS_A_FENCE_I <= 1'b0;
+      EXECUTE_IS_ILLEGAL <= 1'b0;
       EXECUTE_IS_AN_INTERRUPT <= 1'b0;
       EXECUTE_INTERRUPT_IS_EXTERNAL <= 1'b0;
       // ========== Memory ==========
@@ -1105,7 +1165,7 @@ module Riscv64 #(
       // Advance Execute to Memory (always: the Execute instruction is never flushed, even when it causes a flush)
       MEMORY_VALID <= EXECUTE_LIVE && !EXECUTE_IS_AN_INTERRUPT; // the interrupt pseudo-instruction never retires
       // LATE_BRANCH_RESOLVE: what the branch / JALR found out, acted on next cycle from MEMORY
-      MEMORY_REDIRECT <= LATE_BRANCH_RESOLVE && EXECUTE_LIVE && EXECUTE_FLUSH;
+      MEMORY_REDIRECT <= LATE_BRANCH_RESOLVE && EXECUTE_LIVE && EXECUTE_FLUSH && !EXECUTE_EXCEPTION; // an exception already went to mtvec
       MEMORY_REDIRECT_PC <= EXECUTE_ADJUST_NEXT_PC;
       MEMORY_RESTORED_GLOBAL_HISTORY <= EXECUTE_RESTORED_GLOBAL_HISTORY;
       MEMORY_RAS_RESTORE_POINTER <= EXECUTE_RAS_RESTORE_POINTER;
@@ -1134,7 +1194,7 @@ module Riscv64 #(
       MEMORY_POPULATION_COUNT_WORD <= EXECUTE_ALU_IS_WORD_OPERATION;
       MEMORY_PC_ADD_4 <= EXECUTE_PC_ADD_4; // Update Memory Program Counter + 4
       MEMORY_CSR_READ_DATA <= EXECUTE_CSR_READ_DATA; // Update Control Status Register Read Data
-      MEMORY_REGISTER_WRITE_ENABLE <= EXECUTE_REGISTER_WRITE_ENABLE; // Update Register Write Enable Signal
+      MEMORY_REGISTER_WRITE_ENABLE <= EXECUTE_REGISTER_WRITE_ENABLE && !EXECUTE_EXCEPTION; // Update Register Write Enable Signal (a faulting load or jump writes nothing)
       MEMORY_WRITEBACK_SELECT <= EXECUTE_WRITEBACK_SELECT; // Update Memory Writeback Select MUX Output Selection
       MEMORY_DATA_CACHE_DATA_REGISTER <= dcache_dout; // Capture Data Memory's response data for Load Control
       MEMORY_WRITES_TOHOST <= EXECUTE_LIVE && EXECUTE_WRITES_TOHOST;
@@ -1229,6 +1289,7 @@ module Riscv64 #(
         EXECUTE_IS_AN_EBREAK <= 1'b0;
         EXECUTE_IS_AN_MRET <= 1'b0;
         EXECUTE_IS_A_FENCE_I <= 1'b0;
+        EXECUTE_IS_ILLEGAL <= 1'b0;
         EXECUTE_IS_AN_INTERRUPT <= 1'b0;
         // Fetch 2 transition to Decode: the Decode instruction was on the wrong path
         DECODE_VALID <= 1'b0;
@@ -1258,6 +1319,7 @@ module Riscv64 #(
         EXECUTE_IS_AN_EBREAK <= 1'b0;
         EXECUTE_IS_AN_MRET <= 1'b0;
         EXECUTE_IS_A_FENCE_I <= 1'b0;
+        EXECUTE_IS_ILLEGAL <= 1'b0;
         EXECUTE_IS_AN_INTERRUPT <= 1'b0;
       end
       else if (MULTIPLY_DIVIDE_STALL) begin // The M instruction in Execute needs more cycles:
@@ -1285,8 +1347,26 @@ module Riscv64 #(
         EXECUTE_IS_AN_EBREAK <= DECODE_IS_AN_EBREAK;
         EXECUTE_IS_AN_MRET <= DECODE_IS_AN_MRET;
         EXECUTE_IS_A_FENCE_I <= DECODE_IS_A_FENCE_I;
+        EXECUTE_IS_ILLEGAL <= DECODE_IS_ILLEGAL;
         EXECUTE_IS_AN_INTERRUPT <= 1'b0;
         EXECUTE_INTERRUPT_IS_EXTERNAL <= INTERRUPT_IS_EXTERNAL;
+        if (DECODE_IS_ILLEGAL) begin // EXCEPTIONS: an illegal instruction does nothing but trap (like the interrupt below)
+          EXECUTE_REGISTER_WRITE_ENABLE <= 1'b0;
+          EXECUTE_MEMORY_READ_ENABLE <= 1'b0;
+          EXECUTE_MEMORY_WRITE_ENABLE <= 1'b0;
+          EXECUTE_CSR_WRITE_ENABLE <= 1'b0;
+          EXECUTE_IS_A_MULTIPLY_DIVIDE_INSTRUCTION <= 1'b0;
+          EXECUTE_IS_A_BRANCH_INSTRUCTION <= 1'b0;
+          EXECUTE_IS_A_JAL_INSTRUCTION <= 1'b0;
+          EXECUTE_IS_A_JALR_INSTRUCTION <= 1'b0;
+          EXECUTE_RETURN_PREDICTED <= 1'b0;
+          EXECUTE_IS_A_CALL <= 1'b0;
+          EXECUTE_IS_A_RETURN <= 1'b0;
+          EXECUTE_IS_AN_ECALL <= 1'b0;
+          EXECUTE_IS_AN_EBREAK <= 1'b0;
+          EXECUTE_IS_AN_MRET <= 1'b0;
+          EXECUTE_IS_A_FENCE_I <= 1'b0;
+        end
         if (DECODE_TAKES_INTERRUPT) begin // the DECODE instruction stays behind; the interrupt goes in its place
           EXECUTE_REGISTER_WRITE_ENABLE <= 1'b0;
           EXECUTE_MEMORY_READ_ENABLE <= 1'b0;
@@ -1303,6 +1383,7 @@ module Riscv64 #(
           EXECUTE_IS_AN_EBREAK <= 1'b0;
           EXECUTE_IS_AN_MRET <= 1'b0;
           EXECUTE_IS_A_FENCE_I <= 1'b0;
+          EXECUTE_IS_ILLEGAL <= 1'b0;
           EXECUTE_IS_AN_INTERRUPT <= 1'b1;
         end
 
@@ -1365,7 +1446,7 @@ module Riscv64 #(
       default: RVFI_EXECUTE_READ_MASK = 8'hff;
     endcase
   end
-  assign RVFI_EXECUTE_TRAP = EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK; // the instruction itself traps (retires, writes nothing)
+  assign RVFI_EXECUTE_TRAP = EXECUTE_IS_AN_ECALL || EXECUTE_IS_AN_EBREAK || EXECUTE_EXCEPTION; // the instruction itself traps (retires, writes nothing)
 
   // The shadow pipeline: EXECUTE -> MEMORY -> WRITEBACK, moving exactly when MEMORY_* and WRITEBACK_* move
   logic [31:0] RVFI_MEMORY_INSN, RVFI_WRITEBACK_INSN;
@@ -1399,9 +1480,9 @@ module Riscv64 #(
       RVFI_MEMORY_RS1_DATA <= (RVFI_EXECUTE_RS1_ADDR != 5'd0) ? EXECUTE_REGISTER1_DATA : 64'd0;
       RVFI_MEMORY_RS2_DATA <= (RVFI_EXECUTE_RS2_ADDR != 5'd0) ? EXECUTE_REGISTER2_DATA : 64'd0;
       RVFI_MEMORY_NEXT_PC <= RVFI_EXECUTE_NEXT_PC;
-      RVFI_MEMORY_ADDRESS <= (EXECUTE_MEMORY_READ_ENABLE || EXECUTE_MEMORY_WRITE_ENABLE) ? {dcache_addr[63:3], 3'b000} : 64'd0;
-      RVFI_MEMORY_READ_MASK <= EXECUTE_MEMORY_READ_ENABLE ? RVFI_EXECUTE_READ_MASK : 8'd0;
-      RVFI_MEMORY_WRITE_MASK <= EXECUTE_MEMORY_WRITE_ENABLE ? EXECUTE_STORE_MASK : 8'd0;
+      RVFI_MEMORY_ADDRESS <= ((EXECUTE_MEMORY_READ_ENABLE || EXECUTE_MEMORY_WRITE_ENABLE) && !EXECUTE_EXCEPTION) ? {dcache_addr[63:3], 3'b000} : 64'd0;
+      RVFI_MEMORY_READ_MASK <= (EXECUTE_MEMORY_READ_ENABLE && !EXECUTE_EXCEPTION) ? RVFI_EXECUTE_READ_MASK : 8'd0;
+      RVFI_MEMORY_WRITE_MASK <= (EXECUTE_MEMORY_WRITE_ENABLE && !EXECUTE_EXCEPTION) ? EXECUTE_STORE_MASK : 8'd0;
       RVFI_MEMORY_READ_DATA <= EXECUTE_MEMORY_READ_ENABLE ? dcache_dout : 64'd0; // what MEMORY_DATA_CACHE_DATA captures
       RVFI_MEMORY_WRITE_DATA <= EXECUTE_MEMORY_WRITE_ENABLE ? EXECUTE_STORE_DATA : 64'd0;
       // MEMORY -> WRITEBACK

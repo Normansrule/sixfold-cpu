@@ -70,7 +70,7 @@ for (const program of programs) {
     fs.writeFileSync(`${out}/steps.hex`, lines.join('\n') + '\n');
     stepArgs.push(`+STEPS=${out}/steps.hex`);
   }
-  const model = new Core(assemble(source), { ...CONFIGS.performance, bp: true });
+  const model = new Core(assemble(source), { ...CONFIGS.performance, exceptions: false, bp: true }); // the FPGA system keeps EXCEPTIONS = 0
   if (!expected) model.run(5e6, false);
   const text = execFileSync(BINARY, [`+UPLOAD=${out}/upload.hex`, ...stepArgs, '+MAXCYCLES=20000000'], { encoding: 'latin1', maxBuffer: 1 << 26 });
   fs.writeFileSync(`${out}/uart.txt`, text);
